@@ -1,5 +1,5 @@
 # This will be our CI for all 5 services together, for now this remains empty, add to as we go.
-name: Integration of all Services
+name: CI for Learning-Resource-Management
 
 on: [push, workflow_dispatch]
 
