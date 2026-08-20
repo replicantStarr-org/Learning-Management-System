@@ -1,0 +1,11 @@
+# This will be our CI for all 5 services together, for now this remains empty, add to as we go.
+name: Integration of all Services
+
+on: [push, workflow_dispatch]
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: exit 0
