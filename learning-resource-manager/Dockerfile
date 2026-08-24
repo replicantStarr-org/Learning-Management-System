@@ -1,4 +1,10 @@
-FROM alpine:latest
-RUN apk add --no-cache postgresql-dev cc musl-dev libffi-dev
+FROM python:3.12-alpine
+
+WORKDIR /app
+
 COPY requirements.txt .
-RUN pip install -r packages.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["python", "backend/main.py"]

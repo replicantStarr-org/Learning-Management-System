@@ -1,10 +1,39 @@
-# This will be our CI for all 5 services together, for now this remains empty, add to as we go.
 name: CI for Learning-Resource-Management
 
 on: [push, workflow_dispatch]
 
 jobs:
-  placeholder:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install packages
+        run: |
+            python -m pip install --upgrade pip
+            pip install ruff mypy
+
+      - name: Run Ruff to lint
+        run: |
+            ruff check --output-format=github
+
+      - name: Run MyPy to type check
+        run: |
+            mypy . --ignore-missing-imports
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: exit 0
+
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Placeholder

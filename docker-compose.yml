@@ -1,2 +1,7 @@
-# Empty for now, add your services inside here
-services: {}
+services:
+  learning-resource-manager:
+    build:
+      context: ./learning-resource-manager
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
