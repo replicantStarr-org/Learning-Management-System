@@ -2,14 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+# use temporary mounts for files not required for running
+# to avoid them bloating the build
+RUN --mount=type=bind,source=init_db.py,target=/app/init_db.py \
+    python init_db.py
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=bind,source=requirements.txt,target=/app/requirements.txt \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
-COPY init_db.py .
-
-RUN python init_db.py
 
 EXPOSE 6001
 
