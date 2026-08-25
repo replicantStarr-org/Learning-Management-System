@@ -49,8 +49,24 @@ CREATE TABLE subject_ai_summaries (
 );
 """)
 
+subjects = [
+    ("ASD101", "Advanced Software Development", "This subject advances your understanding of software development, such as the design, development, and evaluation of a complex software system that fulfills specific functional and non-functional requirements. You will work in highly autonomous teams that, while supervised and directed, take full responsibility for the project and delivery of the expected outcomes. The subject focuses on professional practices including team management, project planning, and all key software development processes. You will also make and justify informed design decisions, enhancing your capability to deliver sound software solutions.", "Spring", "Dr. Georges", "Full"),
+
+]
+
+cursor.executemany("""
+INSERT INTO subjects (
+    code,
+    name,
+    description,
+    semester,
+    coordinator,
+    status
+)
+VALUES (?, ?, ?, ?, ?, ?)
+""", subjects)
+
+
 conn.commit()
 conn.close()
 
-
-# TODO: data seeding
