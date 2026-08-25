@@ -53,3 +53,5 @@ CREATE TABLE subject_ai_summaries (
 conn.commit()
 conn.close()
 
+
+# TODO: data seeding
