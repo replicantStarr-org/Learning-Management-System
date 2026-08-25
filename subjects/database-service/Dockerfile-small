@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+# temporary mount for init_db.py so it is not in the final build
+RUN --mount=type=bind,source=init_db.py,target=/app/init_db.py \
+    python init_db.py
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py .
+
+EXPOSE 6001
+
+CMD ["python", "app.py"]
