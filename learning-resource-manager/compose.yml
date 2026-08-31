@@ -1,0 +1,35 @@
+services:
+  backend:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    env_file:
+      - ".env"
+    environment:
+      - DATABASE_PATH=/app/data
+    volumes:
+      - l_r_data:/app/data
+    ports:
+      - "5000:5000"
+
+  database_init:
+    build:
+      context: database
+      dockerfile: Dockerfile
+    env_file:
+      - ".env"
+    environment:
+      - DATABASE_PATH=/app/data
+    volumes:
+      - l_r_data:/app/data
+  
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+
+volumes:
+  l_r_data:
+
