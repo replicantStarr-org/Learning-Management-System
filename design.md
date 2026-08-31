@@ -55,6 +55,8 @@ The list of features for this application is given below, where created path and
 
 
 Features are intended to be independent but are permitted to integrate with other features by querying the database service from other features.
+This querying must be done through the CRUD web API exposed by the database service, no direct querying is allowed.
+Each database service exclusively owns its schema.
 
 Each feature should have a `.yml` workflow file under `.github/workflows`, e.g. `subjects.yml`.
 This workflow will be responsible for building and validating the microservice.
@@ -72,6 +74,8 @@ The jobs should be run on ubuntu-latest:
     - Create a markdown report with similiar information and a url to the GH Run
     - Upload documents to the run
 
+There should also be one `integration-ci.yml` that runs the joint docker compose and availability checks every domain
+on every push/merge into the `main` branch + with an option to run it through manual dispatch on pull requests.
 
 ### Shared/Access Microservice
 
@@ -93,7 +97,7 @@ This is further reinforced with the split up domains model.
 The other microservices will probably not even see this cookie and do not need to be login aware.
 
 The shared microservice will serve as an index / table of contents for the application.
-It represents the home page, its page will exist of links to the domains for the other features.
+It will serve a `index.html` that represents the home page, its page will exist of links to the domains for the other features.
 The body will contain descriptions of each feature, perhaps some icon, and a button (or the entire thing is a button) you can press to go to the frontend for that feature.
 There will be also be a navbar with home, and all the features at the top.
 This navbar will be defined in `shared/` and should be consistent across all six microservices, alongside the theme.
@@ -107,6 +111,7 @@ For this application, `qwen2.5:0.5b` will be used primarily,
 if resources permit `deepseek-r1:8b` could be used for better responses.
 
 Integration will be achived by running Ollama on the host.
+An environment variable with the value of `http://localhost:11434/v1` will be passed to the backend through the compose file.
 As the containers use host network mode, they should be able to access it natively through the API.
 Microservices should implement an `ollama_client.py` that uses the `openai` library for requests and
 defines functions for the AI services of that microservice.
