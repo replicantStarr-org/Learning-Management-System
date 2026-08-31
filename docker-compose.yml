@@ -3,6 +3,8 @@ services:
     build:
       context: ./learning-resource-manager/backend
       dockerfile: Dockerfile
+    env_file:
+      - ./learning-resource-manager/.env
     ports:
       - "5000:5000"
 
