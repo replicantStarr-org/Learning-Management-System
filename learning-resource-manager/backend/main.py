@@ -1,6 +1,6 @@
 import os
 from flask import Flask
-
+from controllers.resources_controller import resources_bp 
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
@@ -17,9 +17,12 @@ def create_app():
 
     return app
 
+def register_blueprints(app):
+    app.register_blueprint(resources_bp, url_prefix='/api')
 
 def main():
    app = create_app()
+   register_blueprints(app)
 
 if __name__ == "__main__":
     main()
