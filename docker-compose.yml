@@ -1,7 +1,15 @@
 services:
-  learning-resource-manager:
+  learning-resource-manager-backend:
     build:
-      context: ./learning-resource-manager
+      context: ./learning-resource-manager/backend
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
+
+
+  learning-resource-manager-frontend:
+    build:
+      context: ./learning-resource-manager/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
