@@ -3,8 +3,13 @@ services:
     build:
       context: ./learning-resource-manager/backend
       dockerfile: Dockerfile
+    environment:
     env_file:
       - ./learning-resource-manager/.env
+    environment:
+      DATABASE_PATH="/app/data"
+    volume:
+      l_r_data:/app/data
     ports:
       - "5000:5000"
 
@@ -15,3 +20,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5001:5001"
+
+volumes:
+  l_r_data:

@@ -3,7 +3,8 @@ import os
 
 def create_database() -> string:
     db_name = os.getenv("DATABASE_NAME")
-    db_con = sqlite3.connect(db_name)
+    db_path = os.getenv("DATABASE_PATH")
+    db_con = sqlite3.connect(db_path + "/" + db_name)
 
     return db_con
 
