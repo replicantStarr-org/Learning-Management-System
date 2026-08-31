@@ -2,7 +2,7 @@ services:
   subject-frontend:
     build:
       context: ..
-      dockerfile: stefan/frontend/Dockerfile
+      dockerfile: subjects/frontend/Dockerfile
     network_mode: host
     depends_on:
       subject-backend:
