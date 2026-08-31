@@ -1,0 +1,89 @@
+<section class="subject-feature" aria-label="Subject management">
+    <section class="panel create-panel">
+        <details>
+            <summary class="button">Create a subject</summary>
+            <form class="stack-form create-form" hx-post="http://localhost:5001/subjects"
+                  hx-target="#create-result"
+                  hx-on::after-request="if(event.detail.successful && event.detail.xhr.getResponseHeader('HX-Error') !== 'true') this.reset()">
+                <div class="form-grid">
+                    <label>Code<input name="code" maxlength="20" required placeholder="ASD101"></label>
+                    <label>Name<input name="name" maxlength="120" required></label>
+                    <label>Semester<input name="semester" maxlength="60" required placeholder="Spring"></label>
+                    <label>Coordinator<input name="coordinator" maxlength="120" required></label>
+                    <label>Status<input name="status" maxlength="60" required placeholder="Open"></label>
+                </div>
+                <label>Description<textarea name="description" rows="5" maxlength="5000" required></textarea></label>
+                <button class="button" type="submit">Create subject</button>
+            </form>
+        </details>
+        <div id="create-result" aria-live="polite"></div>
+    </section>
+
+    <div class="workspace">
+        <aside class="panel subjects-column">
+            <div class="section-heading">
+                <div><p class="eyebrow">Catalogue</p><h2>All subjects</h2></div>
+                <button class="icon-button" aria-label="Refresh subjects"
+                        hx-get="http://localhost:5001/subjects" hx-target="#subject-list">↻</button>
+            </div>
+            <div id="subject-list" class="subject-list" hx-get="http://localhost:5001/subjects"
+                 hx-trigger="load, subjectsChanged from:body" hx-swap="innerHTML">
+                <p class="loading">Loading…</p>
+            </div>
+        </aside>
+
+        <section class="panel detail-column" aria-label="Subject actions">
+            <h2>Subject details</h2>
+            <form class="stack-form" hx-get="http://localhost:5001/subjects/detail" hx-target="#subject-detail">
+                <label>Subject ID<input name="subject_id" type="number" min="1" required></label>
+                <button class="button" type="submit">View subject</button>
+            </form>
+            <div id="subject-detail" class="result" aria-live="polite"></div>
+
+            <details>
+                <summary>Edit subject</summary>
+                <form class="stack-form" hx-post="http://localhost:5001/subjects/update" hx-target="#edit-result">
+                    <label>Subject ID<input name="subject_id" type="number" min="1" required></label>
+                    <div class="form-grid">
+                        <label>Code<input name="code" maxlength="20" required></label>
+                        <label>Name<input name="name" maxlength="120" required></label>
+                        <label>Semester<input name="semester" maxlength="60" required></label>
+                        <label>Coordinator<input name="coordinator" maxlength="120" required></label>
+                        <label>Status<input name="status" maxlength="60" required></label>
+                    </div>
+                    <label>Description<textarea name="description" rows="5" maxlength="5000" required></textarea></label>
+                    <button class="button" type="submit">Save changes</button>
+                </form>
+                <div id="edit-result" aria-live="polite"></div>
+            </details>
+
+            <form class="stack-form" hx-post="http://localhost:5001/subjects/delete" hx-target="#delete-result"
+                  hx-confirm="Delete this subject permanently?">
+                <label>Subject ID<input name="subject_id" type="number" min="1" required></label>
+                <button class="button button--danger" type="submit">Delete subject</button>
+            </form>
+            <div id="delete-result" aria-live="polite"></div>
+
+            <section class="ai-grid" aria-label="AI subject tools">
+                <div class="ai-panel">
+                    <h3>AI summary</h3>
+                    <form class="stack-form" hx-post="http://localhost:5001/subjects/summaries" hx-target="#summary-result">
+                        <label>Subject ID<input name="subject_id" type="number" min="1" required></label>
+                        <label class="check"><input type="checkbox" name="force" value="true"> Regenerate now</label>
+                        <button class="button" type="submit">Get summary</button>
+                    </form>
+                    <div id="summary-result" class="result" aria-live="polite"></div>
+                </div>
+                <div class="ai-panel">
+                    <h3>Ask about a subject</h3>
+                    <form class="stack-form" hx-post="http://localhost:5001/subjects/questions" hx-target="#question-result">
+                        <label>Subject ID<input name="subject_id" type="number" min="1" required></label>
+                        <label>Question<textarea name="question" rows="3" maxlength="1000" required></textarea></label>
+                        <button class="button" type="submit">Ask AI</button>
+                    </form>
+                    <div id="question-result" class="result" aria-live="polite"></div>
+                </div>
+            </section>
+        </section>
+    </div>
+</section>

@@ -1,0 +1,35 @@
+services:
+  subject-frontend:
+    build:
+      context: ..
+      dockerfile: subjects/frontend/Dockerfile
+    network_mode: host
+    depends_on:
+      subject-backend:
+        condition: service_started
+    restart: unless-stopped
+
+  subject-backend:
+    build:
+      context: ./backend
+    network_mode: host
+    environment:
+      DATABASE_SERVICE_URL: http://localhost:6001
+      OLLAMA_BASE_URL: http://localhost:11434/v1
+      OLLAMA_MODEL: qwen2.5:0.5b
+      SUMMARY_MAX_AGE_HOURS: 168
+    depends_on:
+      subject-database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  subject-database:
+    build:
+      context: ./database
+    network_mode: host
+    volumes:
+      - subject_database_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  subject_database_data:

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subject Management</title>
+    <link rel="stylesheet" href="/assets/theme.css">
+    <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+    <main class="site-shell">
+        <header class="page-header">
+            <p class="eyebrow">Learning Management System</p>
+            <h1>Subject Management</h1>
+            <p>Create and maintain subjects, generate summaries, and ask subject-specific questions.</p>
+        </header>
+        <div hx-get="/subject-management.html" hx-trigger="load" hx-swap="outerHTML">
+            <p class="loading">Loading subjects…</p>
+        </div>
+    </main>
+</body>
+</html>
