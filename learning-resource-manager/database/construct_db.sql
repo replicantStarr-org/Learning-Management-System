@@ -1,23 +1,24 @@
 CREATE TABLE l_resource( 
 	l_resource_id INTEGER PRIMARY KEY,
+	location VARCHAR(150) NOT NULL,
 	author VARCHAR(150),
 	medium VARCHAR(32) NOT NULL,
 	title VARCHAR(50) NOT NULL,
 	description TEXT
 );
 
-CREATE TABLE subjects(
-	subject_id INTEGER PRIMARY KEY,
-	name VARCHAR(32)
+CREATE TABLE tags(
+	tag_id INTEGER PRIMARY KEY,
+	name VARCHAR(30) NOT NULL
 );
 
-CREATE TABLE l_resource_subject(
+CREATE TABLE l_resource_tags(
 	l_resource_id INTEGER NOT NULL,
-	subject_id INTEGER NOT NULL,
+	tag_id INTEGER NOT NULL
 
-	PRIMARY KEY (l_resource_id, subject_id),
+	PRIMARY KEY (l_resource_id, tag_id), 
 	CONSTRAINT FK_l_resource_id FOREIGN KEY (l_resource_id) REFERENCES l_resource(l_resource_id),
-	CONSTRAINT FK_subject_id FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
+	CONSTRAINT FK_tag_id FOREIGN KEY (tag_id) REFERENCES tags(tag_id)
 );
 
 CREATE TABLE highlights(
