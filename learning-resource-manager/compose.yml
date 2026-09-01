@@ -25,10 +25,25 @@ services:
   
   frontend:
     build:
-      context: frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: learning-resource-manager/frontend/Dockerfile
+    volumes:
+      - ./content:/content:ro
     ports:
       - "7051:80"
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /usr/share/nginx/html
+        - action: sync
+          path: ../shared/assets
+          target: /usr/share/nginx/html/assets
+        - action: sync+restart
+          path: ./frontend/nginx/default.conf
+          target: /etc/nginx/conf.d/default.conf
+        - action: rebuild
+          path: ./frontend/Dockerfile
 
 volumes:
   l_r_data:

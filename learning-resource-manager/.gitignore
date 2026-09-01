@@ -1,1 +1,4 @@
 .env.development
+
+# Learning resource PDFs - large binaries, fetched separately
+content/pdf/*.pdf

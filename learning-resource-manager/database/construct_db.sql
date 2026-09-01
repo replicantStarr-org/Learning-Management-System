@@ -14,9 +14,9 @@ CREATE TABLE tags(
 
 CREATE TABLE l_resource_tags(
 	l_resource_id INTEGER NOT NULL,
-	tag_id INTEGER NOT NULL
+	tag_id INTEGER NOT NULL,
 
-	PRIMARY KEY (l_resource_id, tag_id), 
+	PRIMARY KEY (l_resource_id, tag_id),
 	CONSTRAINT FK_l_resource_id FOREIGN KEY (l_resource_id) REFERENCES l_resource(l_resource_id),
 	CONSTRAINT FK_tag_id FOREIGN KEY (tag_id) REFERENCES tags(tag_id)
 );
