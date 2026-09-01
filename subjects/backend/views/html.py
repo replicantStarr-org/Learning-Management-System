@@ -78,7 +78,6 @@ def subject_detail(subject):
                 <section class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-stars text-primary" aria-hidden="true"></i> AI summary</h2>
-                        <p class="text-secondary">A current saved summary is reused; an outdated one is regenerated automatically.</p>
                         <div id="summary-result" aria-live="polite"
                              hx-post="http://localhost:5001/subjects/{subject_id}/summary"
                              hx-trigger="load" hx-swap="innerHTML">
