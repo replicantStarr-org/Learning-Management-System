@@ -1,4 +1,0 @@
-include:
-  - ../learning-resource-manager/compose.yml
-
-services: {}
