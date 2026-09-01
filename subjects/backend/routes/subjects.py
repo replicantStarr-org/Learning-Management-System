@@ -117,7 +117,7 @@ def remove_subject():
         raise ServiceError("A valid subject ID is required")
     delete_subject(int(subject_id))
     return subjects_changed(
-        message("Subject deleted."), redirect="http://localhost:3001/"
+        "", redirect="http://localhost:3001/?message=Subject%20deleted."
     )
 
 

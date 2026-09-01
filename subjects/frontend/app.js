@@ -1,5 +1,16 @@
-const subjectId = new URLSearchParams(window.location.search).get("id");
+const queryParams = new URLSearchParams(window.location.search);
+const subjectId = queryParams.get("id");
 const subjectView = document.querySelector("[data-subject-view]");
+const pageMessage = document.querySelector("#page-message");
+
+if (pageMessage && queryParams.has("message")) {
+    pageMessage.textContent = queryParams.get("message");
+    pageMessage.hidden = false;
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("message");
+    window.history.replaceState({}, "", cleanUrl);
+}
 
 function showLoadError(message) {
     subjectView.innerHTML = `
