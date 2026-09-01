@@ -7,6 +7,7 @@ from controllers.chat_controller import chat_bp
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
+    register_blueprints(app)
     return app
 
 def register_blueprints(app):
@@ -15,11 +16,10 @@ def register_blueprints(app):
     app.register_blueprint(highlights_bp, url_prefix='/api/highlights')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
 
-def main():
-   app = create_app()
-   register_blueprints(app)
+app = create_app()
 
-   app.run(host='0.0.0.0', port=5000, debug=True)
+def main():
+   app.run(host='0.0.0.0', port=5000, threaded=True)
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+	  	<meta charset="UTF-8">
+	   	<title>Learning Resource Manager</title>
+		<script src="htmx.min.js"></script>
+	</head>
+	<body>
+
+		<div>
+			<H1>Learning Resource Manager</H1>
+			<!-- Things to implement include, viewing resources, reading resources, highlighting resources, and an AI chatbot to summarise any of the resources.  I shall use only open source resources.--!>
+
+			<div hx-get="/api/subjects/all_html" hx-trigger="load" hx-swap="outerHTML"></div>
+		</div>
+
+	</body>
+</html>

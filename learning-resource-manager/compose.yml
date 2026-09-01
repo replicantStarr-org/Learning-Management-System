@@ -10,7 +10,7 @@ services:
     volumes:
       - l_r_data:/app/data
     ports:
-      - "5000:5000"
+      - "7050:7050"
 
   database_init:
     build:
@@ -28,7 +28,7 @@ services:
       context: frontend
       dockerfile: Dockerfile
     ports:
-      - "5001:80"
+      - "7051:80"
 
 volumes:
   l_r_data:
