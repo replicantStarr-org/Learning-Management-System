@@ -6,7 +6,7 @@ from routes.subjects import subjects_bp
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, expose_headers=["HX-Error", "HX-Trigger"])
+    CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
     app.register_blueprint(subjects_bp)
 
     @app.get("/")

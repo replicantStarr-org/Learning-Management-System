@@ -9,6 +9,8 @@
     --space-card: 1.5rem;
     --size-feature-icon: 3rem;
     --radius-card: 1rem;
+    --motion-lift: -0.125rem;
+    --motion-speed: 150ms;
 }
 
 body {
@@ -29,6 +31,14 @@ body {
     height: 100%;
     border: 0;
     border-radius: var(--radius-card);
+
+    &.subject-card {
+        transition: transform var(--motion-speed) ease;
+
+        &:hover {
+            transform: translateY(var(--motion-lift));
+        }
+    }
 
     & .card-body {
         padding: var(--space-card);
@@ -57,6 +67,10 @@ body {
 
 .text-secondary {
     color: var(--color-muted);
+}
+
+.preserve-lines {
+    white-space: pre-wrap;
 }
 
 .btn-primary {

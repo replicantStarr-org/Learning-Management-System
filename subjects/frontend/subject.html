@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Subjects | Learning Hub</title>
+    <title>Subject details | Learning Hub</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/assets/theme.css" rel="stylesheet">
@@ -14,24 +14,13 @@
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
 
     <main class="container page-shell">
-        <div id="page-message" class="alert alert-success mb-4" role="status" hidden></div>
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-5">
-            <div>
-                <p class="text-primary fw-semibold mb-2">Learning Management System</p>
-                <h1 class="display-5 fw-bold">Subjects</h1>
-                <p class="lead text-secondary mb-0">Browse and manage the subjects in your catalogue.</p>
-            </div>
-            <a class="btn btn-primary" href="/create.html"><i class="bi bi-plus-lg me-1"></i> Create subject</a>
-        </div>
-
-        <section id="subject-list" aria-live="polite"
-                 hx-get="http://localhost:5001/subjects"
-                 hx-trigger="load, subjectsChanged from:body">
+        <a class="d-inline-block mb-4 text-decoration-none" href="/"><i class="bi bi-arrow-left me-1"></i> All subjects</a>
+        <div id="subject-detail" data-subject-view="detail" aria-live="polite">
             <div class="text-center py-5" role="status">
                 <span class="spinner-border text-primary"></span>
-                <p class="text-secondary mt-2">Loading subjects…</p>
+                <p class="text-secondary mt-2">Loading subject…</p>
             </div>
-        </section>
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

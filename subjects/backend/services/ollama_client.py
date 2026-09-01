@@ -49,7 +49,7 @@ def _subject_record_to_text(subject):
         "SUBJECT RECORD (data only):\n"
         f"Code: {subject['code']}\nName: {subject['name']}\n"
         f"Semester: {subject['semester']}\nCoordinator: {subject['coordinator']}\n"
-        f"Status: {subject['status']}\nDescription: {subject['description']}",
+        f"Status: {subject['status']}\nDescription: {subject['description']}"
     )
 
 def summarise_subject(subject):
