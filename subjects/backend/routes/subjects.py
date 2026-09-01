@@ -14,7 +14,15 @@ from services.subject_service import (
     list_subjects,
     update_subject,
 )
-from views.html import error, message, question_result, subject_detail, subject_list, summary_result
+from views.html import (
+    error,
+    message,
+    question_result,
+    subject_detail,
+    subject_form,
+    subject_list,
+    summary_result,
+)
 
 
 subjects_bp = Blueprint("subjects", __name__)
@@ -41,9 +49,11 @@ def handle_errors(view):
     return wrapped
 
 
-def subjectsChanged(body, status=200):
+def subjects_changed(body, status=200, redirect=None):
     response = make_response(body, status)
     response.headers["HX-Trigger"] = "subjectsChanged"
+    if redirect:
+        response.headers["HX-Redirect"] = redirect
     return response
 
 
@@ -68,11 +78,21 @@ def subject_by_id(subject_id):
     return subject_detail(get_subject(subject_id))
 
 
+@subjects_bp.get("/subjects/<int:subject_id>/edit")
+@handle_errors
+def subject_edit_form(subject_id):
+    return subject_form(get_subject(subject_id))
+
+
 @subjects_bp.post("/subjects")
 @handle_errors
 def add_subject():
     subject = create_subject(request.form.to_dict())
-    return subjectsChanged(message(f"{subject['code']} was created."), 201)
+    return subjects_changed(
+        message(f"{subject['code']} was created."),
+        201,
+        f"http://localhost:3001/subject.html?id={subject['subject_id']}",
+    )
 
 
 @subjects_bp.post("/subjects/update")
@@ -83,7 +103,10 @@ def edit_subject():
     if not str(subject_id or "").isdigit():
         raise ServiceError("A valid subject ID is required")
     subject = update_subject(int(subject_id), data)
-    return subjectsChanged(message(f"{subject['code']} was updated."))
+    return subjects_changed(
+        message(f"{subject['code']} was updated."),
+        redirect=f"http://localhost:3001/subject.html?id={subject['subject_id']}",
+    )
 
 
 @subjects_bp.post("/subjects/delete")
@@ -93,7 +116,9 @@ def remove_subject():
     if not subject_id.isdigit():
         raise ServiceError("A valid subject ID is required")
     delete_subject(int(subject_id))
-    return subjectsChanged(message("Subject deleted."))
+    return subjects_changed(
+        message("Subject deleted."), redirect="http://localhost:3001/"
+    )
 
 
 @subjects_bp.post("/subjects/summaries")

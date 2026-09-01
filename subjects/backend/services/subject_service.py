@@ -1,5 +1,4 @@
 import os
-import random
 import re
 from datetime import datetime, timezone
 
@@ -110,8 +109,7 @@ def get_or_create_summary(subject_id, force=False):
     subject = get_subject(subject_id)
     fresh = [] if force else _fresh_summaries(subject)
     if fresh:
-        selected = random.choice(fresh)
-        result = _json(database.get_summary(selected["summary_id"]))
+        result = _json(database.get_summary(fresh[0]["summary_id"]))
         result["reused"] = True
         return result
 
