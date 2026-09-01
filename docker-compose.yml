@@ -1,0 +1,3 @@
+include:
+  - access/docker-compose.yml
+  - subjects/docker-compose.yml
