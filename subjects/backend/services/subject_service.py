@@ -92,24 +92,24 @@ def _parse_timestamp(value):
     return parsed.replace(tzinfo=parsed.tzinfo or timezone.utc).astimezone(timezone.utc)
 
 
-def _fresh_summaries(subject):
+def _up_to_date_summary(subject):
     summaries = _json(database.list_summaries(subject["subject_id"]))
+    if not summaries:
+        return None
+
     subject_updated = _parse_timestamp(subject["last_update"])
     now = datetime.now(timezone.utc)
-    fresh = []
-    for item in summaries:
-        created = _parse_timestamp(item["timestamp"])
-        age_hours = (now - created).total_seconds() / 3600
-        if created >= subject_updated and age_hours <= SUMMARY_MAX_AGE_HOURS:
-            fresh.append(item)
-    return fresh[:3]
+    latest_summary = summaries[0]
+    created = _parse_timestamp(latest_summary["timestamp"])
+    age_hours = (now - created).total_seconds() / 3600
+    return latest_summary if created >= subject_updated and age_hours <= SUMMARY_MAX_AGE_HOURS else None
 
 
 def get_or_create_summary(subject_id):
     subject = get_subject(subject_id)
-    fresh = _fresh_summaries(subject)
+    fresh = _up_to_date_summary(subject)
     if fresh:
-        result = _json(database.get_summary(fresh[0]["summary_id"]))
+        result = _json(database.get_summary(fresh["summary_id"]))
         result["reused"] = True
         return result
 
