@@ -11,11 +11,11 @@ services:
     develop:
       watch:
         - action: sync
-          path: ./frontend/index.html
-          target: /usr/share/nginx/html/index.html
-        - action: sync
-          path: ./frontend/subject-management.html
-          target: /usr/share/nginx/html/subject-management.html
+          path: ./frontend
+          target: /usr/share/nginx/html
+          ignore:
+            - Dockerfile
+            - nginx.conf
         - action: sync
           path: ../shared/assets
           target: /usr/share/nginx/html/assets
