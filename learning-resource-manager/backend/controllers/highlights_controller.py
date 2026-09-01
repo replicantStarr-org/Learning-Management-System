@@ -1,25 +1,55 @@
-from flask import Blueprint
-import os
-import sqlite3
+from flask import Blueprint, jsonify, request
+
+from services.highlight_service import (
+    COLOURS,
+    HighlightError,
+    create_highlight,
+    delete_highlight,
+    list_for_resource,
+    list_summary_for_resource,
+)
 
 highlights_bp = Blueprint('highlights', __name__)
 
-@highlights_bp.route('/all')
-def get_all():
-    db_path = os.getenv("DATABASE_PATH")
-    db_name = os.getenv("DATABASE_NAME")
-    with sqlite3.connect(db_path + "/" + db_name) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM highlights")
+@highlights_bp.route('/colours')
+def colours():
+    return jsonify({"colours": sorted(COLOURS)})
 
-        return cursor.fetchall()
+@highlights_bp.route('/resource/<int:resource_id>')
+def for_resource(resource_id):
+    return jsonify({"highlights": list_for_resource(resource_id)})
 
-@highlights_bp.route("/all_html")
-def get_all_html():
-    rows = get_all()
-    print(rows)
-    html = ""
-    for row in rows:
-        html += f"<tr><td>{row[1]}</td></tr>"
-   
-    return html
+@highlights_bp.route('/resource/<int:resource_id>/summary')
+def summary_for_resource(resource_id):
+    return jsonify({"highlights": list_summary_for_resource(resource_id)})
+
+@highlights_bp.route('', methods=['POST'])
+def create():
+    payload = request.get_json(silent=True) or {}
+
+    try:
+        resource_id = int(payload.get("l_resource_id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "A resource is required."}), 400
+
+    try:
+        highlight_id = create_highlight(
+            resource_id,
+            payload.get("name"),
+            payload.get("colour"),
+            payload.get("quote"),
+            payload.get("rects"),
+        )
+    except HighlightError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"l_resource_highlight_id": highlight_id}), 201
+
+@highlights_bp.route('/<int:highlight_id>', methods=['DELETE'])
+def remove(highlight_id):
+    try:
+        delete_highlight(highlight_id)
+    except HighlightError as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    return jsonify({"l_resource_highlight_id": highlight_id})

@@ -53,6 +53,10 @@
 								<p class="resource-author mb-3" id="detail-author"></p>
 								<p class="text-secondary mb-0" id="detail-description"></p>
 							</div>
+							<div class="col-12">
+								<h3 class="h6 mb-2">Highlights</h3>
+								<div class="highlight-list" id="detail-highlights"></div>
+							</div>
 						</div>
 					</div>
 					<div class="modal-footer">
@@ -75,6 +79,23 @@
 					</div>
 					<div class="modal-body reader-body" id="reader-body">
 						<div class="reader-pages" id="reader-pages"></div>
+
+						<!-- Follows the text selection inside the reader. -->
+						<div class="highlight-popup" id="highlight-popup" hidden>
+							<button type="button" class="btn btn-primary btn-sm" id="highlight-start">
+								Create highlight
+							</button>
+							<form class="highlight-form" id="highlight-form" hidden>
+								<input type="text" class="form-control form-control-sm" id="highlight-name"
+								       maxlength="64" placeholder="Name this highlight" aria-label="Highlight name">
+								<div class="highlight-colours" id="highlight-colours" role="radiogroup"
+								     aria-label="Highlight colour"></div>
+								<div class="highlight-actions">
+									<button type="button" class="btn btn-outline-secondary btn-sm" id="highlight-cancel">Cancel</button>
+									<button type="submit" class="btn btn-primary btn-sm" id="highlight-save">Save</button>
+								</div>
+							</form>
+						</div>
 					</div>
 				</div>
 			</div>

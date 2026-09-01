@@ -44,8 +44,120 @@ async function renderFirstPage(canvas, displayWidth) {
 	await renderPage(await pdf.getPage(1), canvas, displayWidth);
 }
 
+// Reader pages are a canvas with PDF.js's text layer laid over the top: the
+// spans are transparent and positioned on the glyphs they represent, which is
+// what makes the rendered page selectable like a normal document.
+async function renderReaderPage(page, wrapper, displayWidth) {
+	const ratio = window.devicePixelRatio || 1;
+	const unscaled = page.getViewport({ scale: 1 });
+	const scale = displayWidth / unscaled.width;
+	const viewport = page.getViewport({ scale });
+
+	wrapper.style.width = `${viewport.width}px`;
+	wrapper.style.height = `${viewport.height}px`;
+	// PDF.js positions and sizes every text span against this.
+	wrapper.style.setProperty("--scale-factor", scale);
+
+	const canvas = wrapper.querySelector(".reader-page-canvas");
+	canvas.width = Math.floor(viewport.width * ratio);
+	canvas.height = Math.floor(viewport.height * ratio);
+	canvas.style.width = `${viewport.width}px`;
+	canvas.style.height = `${viewport.height}px`;
+
+	await page.render({
+		canvasContext: canvas.getContext("2d"),
+		viewport,
+		transform: ratio === 1 ? null : [ratio, 0, 0, ratio, 0, 0],
+	}).promise;
+
+	const container = wrapper.querySelector(".textLayer");
+	container.replaceChildren();
+	await new pdfjsLib.TextLayer({
+		textContentSource: await page.getTextContent(),
+		container,
+		viewport,
+	}).render();
+
+	drawHighlights(wrapper);
+	wrapper.classList.add("is-loaded");
+}
+
+// Rectangles are stored as fractions of the page, so they are drawn as
+// percentages and stay correct whatever width the page was rendered at.
+function drawHighlights(wrapper) {
+	const layer = wrapper.querySelector(".highlight-layer");
+	const pageNumber = Number(wrapper.dataset.page);
+	let drewFocused = false;
+
+	layer.replaceChildren();
+	for (const rect of readerHighlights) {
+		if (rect.page_number !== pageNumber) {
+			continue;
+		}
+
+		const mark = document.createElement("div");
+		mark.className = "highlight-mark";
+		mark.style.left = `${rect.x * 100}%`;
+		mark.style.top = `${rect.y * 100}%`;
+		mark.style.width = `${rect.width * 100}%`;
+		mark.style.height = `${rect.height * 100}%`;
+		mark.style.background = rect.colour;
+		mark.title = rect.name || "Highlight";
+		if (rect.l_resource_highlight_id === focusedHighlightId) {
+			mark.classList.add("is-focused");
+			drewFocused = true;
+		}
+		layer.append(mark);
+	}
+
+	// The countdown starts when the ring is actually on screen, not when the
+	// jump was requested; the page it lands on may take a while to render.
+	if (drewFocused) {
+		startFocusCountdown();
+	}
+}
+
+function createReaderPage(pageNumber, width, height) {
+	const wrapper = document.createElement("div");
+	wrapper.className = "reader-page";
+	wrapper.dataset.page = String(pageNumber);
+	wrapper.style.width = `${width}px`;
+	wrapper.style.height = `${height}px`;
+
+	const canvas = document.createElement("canvas");
+	canvas.className = "reader-page-canvas";
+
+	// Sits between the canvas and the text layer, so the marks are over the page
+	// but the words stay selectable.
+	const highlightLayer = document.createElement("div");
+	highlightLayer.className = "highlight-layer";
+
+	const textLayer = document.createElement("div");
+	textLayer.className = "textLayer";
+
+	wrapper.append(canvas, highlightLayer, textLayer);
+
+	return wrapper;
+}
+
 function markFailed(canvas) {
 	canvas.closest(".resource-thumb")?.classList.add("is-failed");
+}
+
+// Every rectangle of every highlight on the document currently open.
+let readerHighlights = [];
+let readerResource = null;
+// Set while jumping to a highlight, so its marks stand out when drawn.
+let focusedHighlightId = null;
+let focusClearTimer = null;
+
+async function loadHighlights(resourceId) {
+	try {
+		const response = await fetch(`/api/highlights/resource/${resourceId}`);
+		return response.ok ? (await response.json()).highlights : [];
+	} catch {
+		return [];
+	}
 }
 
 /* ---------- card thumbnails ---------- */
@@ -72,7 +184,66 @@ function observeThumbnails(root) {
 
 const detailModal = new bootstrap.Modal("#detail-modal");
 const detailCanvas = document.getElementById("detail-canvas");
+const detailHighlights = document.getElementById("detail-highlights");
 let selectedResource = null;
+
+async function showResourceHighlights(resourceId) {
+	detailHighlights.replaceChildren(
+		Object.assign(document.createElement("p"), {
+			className: "text-secondary small mb-0",
+			textContent: "Loading highlights...",
+		}),
+	);
+
+	let highlights = [];
+	try {
+		const response = await fetch(`/api/highlights/resource/${resourceId}/summary`);
+		highlights = response.ok ? (await response.json()).highlights : [];
+	} catch {
+		highlights = [];
+	}
+
+	// The popup may have moved on to another resource while this was in flight.
+	if (selectedResource?.id !== String(resourceId)) {
+		return;
+	}
+
+	if (!highlights.length) {
+		detailHighlights.replaceChildren(
+			Object.assign(document.createElement("p"), {
+				className: "text-secondary small mb-0",
+				textContent: "No highlights yet. Select text while reading to make one.",
+			}),
+		);
+		return;
+	}
+
+	detailHighlights.replaceChildren(...highlights.map(renderHighlightEntry));
+}
+
+function renderHighlightEntry(highlight) {
+	const entry = document.createElement("button");
+	entry.type = "button";
+	entry.className = "highlight-entry";
+	entry.dataset.highlightId = highlight.l_resource_highlight_id;
+
+	const swatch = document.createElement("span");
+	swatch.className = "highlight-entry-swatch";
+	swatch.style.background = highlight.colour;
+
+	const name = document.createElement("span");
+	name.className = "highlight-entry-name";
+	// An unnamed highlight is still recognisable by what it says.
+	name.textContent = highlight.name || highlight.quote?.trim().slice(0, 60) || "Untitled highlight";
+
+	const location = document.createElement("span");
+	location.className = "highlight-entry-location";
+	location.textContent = `Page ${highlight.page_number}`;
+
+	entry.append(swatch, name, location);
+
+	return entry;
+}
 
 function openDetail(card) {
 	selectedResource = { ...card.dataset };
@@ -85,9 +256,26 @@ function openDetail(card) {
 	detailCanvas.classList.remove("is-loaded");
 	detailCanvas.closest(".resource-thumb").classList.remove("is-failed");
 	renderFirstPage(detailCanvas, THUMBNAIL_WIDTH).catch(() => markFailed(detailCanvas));
+	showResourceHighlights(Number(selectedResource.id));
 
 	detailModal.show();
 }
+
+detailHighlights.addEventListener("click", (event) => {
+	const entry = event.target.closest(".highlight-entry");
+	if (!entry || !selectedResource) {
+		return;
+	}
+
+	const resource = selectedResource;
+	const highlightId = Number(entry.dataset.highlightId);
+	document.getElementById("detail-modal").addEventListener(
+		"hidden.bs.modal",
+		() => openReader(resource, highlightId),
+		{ once: true },
+	);
+	detailModal.hide();
+});
 
 const bookGrid = document.getElementById("book-grid");
 
@@ -112,7 +300,8 @@ bookGrid.addEventListener("keydown", (event) => {
 
 /* ---------- reader popup ---------- */
 
-const readerModal = new bootstrap.Modal("#reader-modal");
+const readerModalElement = document.getElementById("reader-modal");
+const readerModal = new bootstrap.Modal(readerModalElement);
 const readerBody = document.getElementById("reader-body");
 const readerPages = document.getElementById("reader-pages");
 const readerStatus = document.getElementById("reader-status");
@@ -123,12 +312,24 @@ function resetReader() {
 	pageObserver = null;
 	readerPages.replaceChildren();
 	readerStatus.textContent = "";
+	readerHighlights = [];
+	readerResource = null;
+	focusedHighlightId = null;
+	window.clearTimeout(focusClearTimer);
+	focusClearTimer = null;
+	hideHighlightPopup();
 }
 
-async function openReader(resource) {
+async function openReader(resource, focusHighlightId = null) {
 	resetReader();
 	document.getElementById("reader-title").textContent = resource.title;
 	readerStatus.textContent = "Loading...";
+
+	// Page width is now a layout dimension rather than just render sharpness, so
+	// it has to be measured once the modal has actually been laid out. A cached
+	// document resolves in a microtask, well before that would otherwise happen.
+	const shown = new Promise((resolve) =>
+		readerModalElement.addEventListener("shown.bs.modal", resolve, { once: true }));
 	readerModal.show();
 
 	let pdf;
@@ -146,12 +347,17 @@ async function openReader(resource) {
 	}
 
 	readerStatus.textContent = `${pdf.numPages} pages`;
+	readerResource = resource;
+	readerHighlights = await loadHighlights(resource.id);
 
-	// Page one sets the placeholder bitmap ratio for every page, so the reader
-	// has a stable scroll height before anything has actually been rendered.
+	// Page one sizes the placeholders for every page, so the reader has a stable
+	// scroll height before anything has actually been rendered.
 	const firstPage = await pdf.getPage(1);
 	const { width, height } = firstPage.getViewport({ scale: 1 });
+
+	await shown;
 	const displayWidth = Math.min(Math.max(readerBody.clientWidth - 32, 600), 1000);
+	const displayHeight = (displayWidth / width) * height;
 
 	pageObserver = new IntersectionObserver((entries) => {
 		for (const entry of entries) {
@@ -159,24 +365,238 @@ async function openReader(resource) {
 				continue;
 			}
 
-			const canvas = entry.target;
-			pageObserver.unobserve(canvas);
-			pdf.getPage(Number(canvas.dataset.page))
-				.then((page) => renderPage(page, canvas, displayWidth))
-				.catch(() => canvas.classList.add("is-failed"));
+			const wrapper = entry.target;
+			pageObserver.unobserve(wrapper);
+			pdf.getPage(Number(wrapper.dataset.page))
+				.then((page) => renderReaderPage(page, wrapper, displayWidth))
+				.catch(() => wrapper.classList.add("is-failed"));
 		}
 	}, { root: readerBody, rootMargin: PRELOAD_MARGIN });
 
 	for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-		const canvas = document.createElement("canvas");
-		canvas.className = "reader-page";
-		canvas.dataset.page = String(pageNumber);
-		canvas.width = width;
-		canvas.height = height;
-		readerPages.append(canvas);
-		pageObserver.observe(canvas);
+		const wrapper = createReaderPage(pageNumber, displayWidth, displayHeight);
+		readerPages.append(wrapper);
+		pageObserver.observe(wrapper);
+	}
+
+	if (focusHighlightId) {
+		jumpToHighlight(focusHighlightId);
 	}
 }
+
+const FOCUS_FLASH_MS = 2600;
+
+// Placeholders are already the right height, so the scroll target is known
+// before the page it lands on has rendered.
+function jumpToHighlight(highlightId) {
+	const rect = readerHighlights.find(
+		(candidate) => candidate.l_resource_highlight_id === highlightId,
+	);
+	if (!rect) {
+		return;
+	}
+
+	const wrapper = readerPages.querySelector(`.reader-page[data-page="${rect.page_number}"]`);
+	if (!wrapper) {
+		return;
+	}
+
+	focusedHighlightId = highlightId;
+	readerBody.scrollTo({
+		top: Math.max(wrapper.offsetTop + rect.y * wrapper.offsetHeight - 80, 0),
+		behavior: "smooth",
+	});
+}
+
+function startFocusCountdown() {
+	if (focusClearTimer !== null) {
+		return;
+	}
+
+	focusClearTimer = window.setTimeout(() => {
+		focusClearTimer = null;
+		focusedHighlightId = null;
+		for (const drawn of readerPages.querySelectorAll(".reader-page.is-loaded")) {
+			drawHighlights(drawn);
+		}
+	}, FOCUS_FLASH_MS);
+}
+
+/* ---------- creating highlights ---------- */
+
+const HIGHLIGHT_COLOURS = ["#ffd54f", "#a5d6a7", "#90caf9", "#f48fb1", "#ce93d8"];
+
+const highlightPopup = document.getElementById("highlight-popup");
+const highlightForm = document.getElementById("highlight-form");
+const highlightName = document.getElementById("highlight-name");
+const highlightColours = document.getElementById("highlight-colours");
+const highlightStart = document.getElementById("highlight-start");
+const highlightSave = document.getElementById("highlight-save");
+let pendingSelection = null;
+let chosenColour = HIGHLIGHT_COLOURS[0];
+
+function chooseColour(colour) {
+	chosenColour = colour;
+	for (const button of highlightColours.children) {
+		const chosen = button.dataset.colour === colour;
+		button.classList.toggle("is-chosen", chosen);
+		button.setAttribute("aria-checked", String(chosen));
+	}
+}
+
+for (const colour of HIGHLIGHT_COLOURS) {
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "highlight-colour";
+	button.dataset.colour = colour;
+	button.style.background = colour;
+	button.setAttribute("role", "radio");
+	button.setAttribute("aria-label", `Colour ${colour}`);
+	highlightColours.append(button);
+}
+chooseColour(chosenColour);
+
+highlightColours.addEventListener("click", (event) => {
+	const button = event.target.closest(".highlight-colour");
+	if (button) {
+		chooseColour(button.dataset.colour);
+	}
+});
+
+function hideHighlightPopup() {
+	highlightPopup.hidden = true;
+	highlightForm.hidden = true;
+	highlightStart.hidden = false;
+	highlightName.value = "";
+	pendingSelection = null;
+}
+
+function pageBoxFor(rect) {
+	const x = rect.left + rect.width / 2;
+	const y = rect.top + rect.height / 2;
+
+	for (const wrapper of readerPages.children) {
+		const box = wrapper.getBoundingClientRect();
+		if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) {
+			return { wrapper, box };
+		}
+	}
+
+	return null;
+}
+
+// A selection produces one rectangle per line, each stored as a fraction of the
+// page it falls on, so a highlight can even run across a page break.
+function selectionToRects(range) {
+	const rects = [];
+
+	for (const rect of range.getClientRects()) {
+		if (rect.width < 1 || rect.height < 1) {
+			continue;
+		}
+
+		const found = pageBoxFor(rect);
+		if (!found) {
+			continue;
+		}
+
+		rects.push({
+			page_number: Number(found.wrapper.dataset.page),
+			x: (rect.left - found.box.left) / found.box.width,
+			y: (rect.top - found.box.top) / found.box.height,
+			width: rect.width / found.box.width,
+			height: rect.height / found.box.height,
+		});
+	}
+
+	return rects;
+}
+
+function offerHighlight() {
+	const selection = window.getSelection();
+	if (!selection || selection.isCollapsed || !selection.rangeCount) {
+		hideHighlightPopup();
+		return;
+	}
+
+	const range = selection.getRangeAt(0);
+	const quote = selection.toString().trim();
+	if (!readerPages.contains(range.commonAncestorContainer) || !quote) {
+		hideHighlightPopup();
+		return;
+	}
+
+	const rects = selectionToRects(range);
+	if (!rects.length) {
+		hideHighlightPopup();
+		return;
+	}
+
+	pendingSelection = { quote, rects };
+
+	// Positioned inside the scrolling body, so it stays with the text.
+	const bounds = range.getBoundingClientRect();
+	const host = readerBody.getBoundingClientRect();
+	highlightPopup.hidden = false;
+	highlightForm.hidden = true;
+	highlightStart.hidden = false;
+	highlightPopup.style.left =
+		`${bounds.left - host.left + readerBody.scrollLeft + bounds.width / 2}px`;
+	highlightPopup.style.top = `${bounds.top - host.top + readerBody.scrollTop}px`;
+}
+
+readerBody.addEventListener("mouseup", (event) => {
+	// Clicking the popup itself clears the selection; that must not dismiss it
+	// before the click lands.
+	if (highlightPopup.contains(event.target)) {
+		return;
+	}
+
+	window.setTimeout(offerHighlight, 0);
+});
+
+highlightStart.addEventListener("click", () => {
+	highlightStart.hidden = true;
+	highlightForm.hidden = false;
+	highlightName.focus();
+});
+
+document.getElementById("highlight-cancel").addEventListener("click", hideHighlightPopup);
+
+highlightForm.addEventListener("submit", async (event) => {
+	event.preventDefault();
+	if (!pendingSelection || !readerResource) {
+		return;
+	}
+
+	highlightSave.disabled = true;
+	try {
+		const response = await fetch("/api/highlights", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				l_resource_id: Number(readerResource.id),
+				name: highlightName.value,
+				colour: chosenColour,
+				quote: pendingSelection.quote,
+				rects: pendingSelection.rects,
+			}),
+		});
+
+		if (response.ok) {
+			// Re-read rather than patching locally, so what is drawn is what was
+			// actually stored.
+			readerHighlights = await loadHighlights(readerResource.id);
+			for (const wrapper of readerPages.querySelectorAll(".reader-page.is-loaded")) {
+				drawHighlights(wrapper);
+			}
+			window.getSelection()?.removeAllRanges();
+			hideHighlightPopup();
+		}
+	} finally {
+		highlightSave.disabled = false;
+	}
+});
 
 document.getElementById("detail-read").addEventListener("click", () => {
 	const resource = selectedResource;

@@ -21,16 +21,32 @@ CREATE TABLE l_resource_tags(
 	CONSTRAINT FK_tag_id FOREIGN KEY (tag_id) REFERENCES tags(tag_id)
 );
 
+-- A snippet someone kept from a resource. Rows and characters do not exist in a
+-- PDF, so the position lives in highlight_rects rather than here; this table is
+-- what the snippet is called, how it looks and what it said.
 CREATE TABLE highlights(
 	l_resource_highlight_id INTEGER PRIMARY KEY,
 	l_resource_id INTEGER NOT NULL,
 	user_id INTEGER NOT NULL,
-	name VARCHAR(32),
-	begin_row INTEGER NOT NULL,
-	begin_char INTEGER NOT NULL,
-	end_row INTEGER NOT NULL,
-	end_char INTEGER NOT NULL,
+	name VARCHAR(64),
+	colour VARCHAR(16) NOT NULL,
+	quote TEXT,
+	created_at TEXT NOT NULL DEFAULT (datetime('now')),
 	CONSTRAINT FK_highlight_resource FOREIGN KEY (l_resource_id) REFERENCES l_resource(l_resource_id)
+);
+
+-- One selection covers a rectangle per line of text, so a highlight owns many.
+-- Coordinates are fractions of the page box (0 to 1) rather than pixels, so they
+-- survive the page being rendered at any width.
+CREATE TABLE highlight_rects(
+	highlight_rect_id INTEGER PRIMARY KEY,
+	l_resource_highlight_id INTEGER NOT NULL,
+	page_number INTEGER NOT NULL,
+	x REAL NOT NULL,
+	y REAL NOT NULL,
+	width REAL NOT NULL,
+	height REAL NOT NULL,
+	CONSTRAINT FK_rect_highlight FOREIGN KEY (l_resource_highlight_id) REFERENCES highlights(l_resource_highlight_id)
 );
 
 -- The fields the resource grid renders on each card.
@@ -42,6 +58,37 @@ CREATE VIEW v_resource_card AS
 	       location
 	FROM l_resource
 	ORDER BY title;
+
+-- One row per highlight for the resource popup: what it is called and the first
+-- page it lands on, which is where following it should jump to.
+CREATE VIEW v_highlight_summary AS
+	SELECT h.l_resource_id,
+	       h.l_resource_highlight_id,
+	       h.name,
+	       h.colour,
+	       h.quote,
+	       MIN(r.page_number) AS page_number,
+	       COUNT(r.highlight_rect_id) AS rect_count
+	FROM highlights h
+	JOIN highlight_rects r ON r.l_resource_highlight_id = h.l_resource_highlight_id
+	GROUP BY h.l_resource_highlight_id
+	ORDER BY MIN(r.page_number), h.created_at;
+
+-- Every rectangle the reader has to draw, carrying the highlight it belongs to.
+CREATE VIEW v_highlight_rect AS
+	SELECT h.l_resource_id,
+	       h.l_resource_highlight_id,
+	       h.name,
+	       h.colour,
+	       h.quote,
+	       r.page_number,
+	       r.x,
+	       r.y,
+	       r.width,
+	       r.height
+	FROM highlights h
+	JOIN highlight_rects r ON r.l_resource_highlight_id = h.l_resource_highlight_id
+	ORDER BY r.page_number, r.y;
 
 -- Every resource with its tags collapsed onto one row, for the chat service to
 -- hand to the language model whole.

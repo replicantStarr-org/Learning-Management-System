@@ -4,6 +4,8 @@ from pathlib import Path
 
 from werkzeug.utils import secure_filename
 
+from services.database import connect, query
+
 PDF_MAGIC = b"%PDF-"
 PDF_MEDIUM = "PDF"
 
@@ -21,22 +23,8 @@ DELETE_RESOURCE_TAGS = "DELETE FROM l_resource_tags WHERE l_resource_id = ?"
 class ResourceError(RuntimeError):
     pass
 
-def _connect():
-    db_full_path = os.getenv("DATABASE_PATH")
-    db_name = os.getenv("DATABASE_NAME")
-    conn = sqlite3.connect(db_full_path + "/" + db_name)
-    conn.row_factory = sqlite3.Row
-
-    return conn
-
 def _pdf_directory():
     return Path(os.getenv("CONTENT_PATH", "/content")) / "pdf"
-
-# Query shapes live in database/construct_db.sql as views, so the only SQL here
-# is the name of the view to read.
-def query(view):
-    with _connect() as conn:
-        return conn.execute(f"SELECT * FROM {view}").fetchall()
 
 def list_resources():
     return query("l_resource")
@@ -93,7 +81,7 @@ def create_resource(upload, title, author, description, tag_ids):
     destination, location = _store_pdf(upload)
 
     try:
-        with _connect() as conn:
+        with connect() as conn:
             cursor = conn.execute(
                 INSERT_RESOURCE,
                 (location, (author or "").strip() or None, PDF_MEDIUM,
@@ -110,7 +98,7 @@ def create_resource(upload, title, author, description, tag_ids):
     return resource_id
 
 def delete_resource(resource_id):
-    with _connect() as conn:
+    with connect() as conn:
         row = conn.execute(SELECT_LOCATION, (resource_id,)).fetchone()
         if row is None:
             raise ResourceError("That resource no longer exists.")

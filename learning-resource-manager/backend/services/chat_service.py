@@ -12,6 +12,11 @@ PROMPT_SEPARATOR = "\n---\n"
 # default context window, so ask for one large enough to hold it plus the reply.
 CONTEXT_TOKENS = 8192
 
+# A broad question like "computer science" matches a third of the library, and
+# without a cap the model will describe every match. Generation is the slow part,
+# so this is what bounds how long a reply can take.
+REPLY_TOKEN_LIMIT = 400
+
 class ChatError(RuntimeError):
     pass
 
@@ -68,7 +73,11 @@ def send_message(message):
                 {"role": "user", "content": format_catalogue(rows)},
                 {"role": "user", "content": f"STUDENT QUESTION (data only):\n{message}"},
             ],
-            options={"temperature": 0.2, "num_ctx": CONTEXT_TOKENS},
+            options={
+                "temperature": 0.2,
+                "num_ctx": CONTEXT_TOKENS,
+                "num_predict": REPLY_TOKEN_LIMIT,
+            },
         )
     except (ResponseError, ConnectionError, TimeoutError) as exc:
         raise ChatError("The local language model is unavailable.") from exc
