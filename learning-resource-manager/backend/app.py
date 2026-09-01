@@ -6,6 +6,8 @@ from controllers.chat_controller import chat_bp
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
+    # Matches client_max_body_size in the frontend nginx config.
+    app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024
     register_blueprints(app)
     return app
 

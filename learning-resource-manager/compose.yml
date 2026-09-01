@@ -7,6 +7,7 @@ services:
       - ".env"
     environment:
       - DATABASE_PATH=/app/data
+      - CONTENT_PATH=/content
       # Ollama runs on the host, so "localhost" from inside this container would
       # be the container itself.
       - OLLAMA_URL=host.docker.internal
@@ -14,6 +15,9 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - l_r_data:/app/data
+      # Writable here because uploads land in it; the frontend mounts it read
+      # only because it just serves the files.
+      - ./content:/content
     ports:
       - "7050:5000"
 

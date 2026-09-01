@@ -35,7 +35,8 @@ CREATE TABLE highlights(
 
 -- The fields the resource grid renders on each card.
 CREATE VIEW v_resource_card AS
-	SELECT title,
+	SELECT l_resource_id,
+	       title,
 	       author,
 	       description,
 	       location

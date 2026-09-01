@@ -196,6 +196,121 @@ document.getElementById("detail-read").addEventListener("click", () => {
 
 document.getElementById("reader-modal").addEventListener("hidden.bs.modal", resetReader);
 
+/* ---------- adding and removing resources ---------- */
+
+function reloadGrid() {
+	htmx.ajax("GET", "/api/resources/all_html", { target: "#book-grid", swap: "innerHTML" });
+}
+
+const uploadModal = new bootstrap.Modal("#upload-modal");
+const uploadForm = document.getElementById("upload-form");
+const uploadFile = document.getElementById("upload-file");
+const uploadFilename = document.getElementById("upload-filename");
+const uploadError = document.getElementById("upload-error");
+const uploadSubmit = document.getElementById("upload-submit");
+const dropzone = document.getElementById("dropzone");
+
+function showUploadError(text) {
+	uploadError.textContent = text;
+	uploadError.hidden = !text;
+}
+
+function setChosenFile(file) {
+	if (file && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+		showUploadError("Only PDF files can be uploaded.");
+		return;
+	}
+
+	// Assigning a DataTransfer list is the only way to put a dropped file into
+	// a file input, so the form submits identically either way.
+	const transfer = new DataTransfer();
+	if (file) {
+		transfer.items.add(file);
+	}
+	uploadFile.files = transfer.files;
+	uploadFilename.textContent = file ? file.name : "";
+	showUploadError("");
+}
+
+document.getElementById("upload-browse").addEventListener("click", () => uploadFile.click());
+uploadFile.addEventListener("change", () => setChosenFile(uploadFile.files[0]));
+
+for (const eventName of ["dragenter", "dragover"]) {
+	dropzone.addEventListener(eventName, (event) => {
+		event.preventDefault();
+		dropzone.classList.add("is-active");
+	});
+}
+
+for (const eventName of ["dragleave", "drop"]) {
+	dropzone.addEventListener(eventName, (event) => {
+		event.preventDefault();
+		dropzone.classList.remove("is-active");
+	});
+}
+
+dropzone.addEventListener("drop", (event) => setChosenFile(event.dataTransfer.files[0]));
+
+uploadForm.addEventListener("submit", async (event) => {
+	event.preventDefault();
+	showUploadError("");
+
+	if (!uploadFile.files.length) {
+		showUploadError("Choose a PDF to upload.");
+		return;
+	}
+
+	uploadSubmit.disabled = true;
+	uploadSubmit.textContent = "Uploading...";
+
+	try {
+		const response = await fetch("/api/resources/upload", {
+			method: "POST",
+			body: new FormData(uploadForm),
+		});
+		const body = await response.json().catch(() => ({}));
+
+		if (!response.ok) {
+			showUploadError(body.error || "The resource could not be saved.");
+			return;
+		}
+
+		uploadForm.reset();
+		setChosenFile(null);
+		uploadModal.hide();
+		reloadGrid();
+	} catch {
+		showUploadError("The upload could not be sent.");
+	} finally {
+		uploadSubmit.disabled = false;
+		uploadSubmit.textContent = "Add resource";
+	}
+});
+
+const detailRemove = document.getElementById("detail-remove");
+
+detailRemove.addEventListener("click", async () => {
+	const resource = selectedResource;
+	if (!resource) {
+		return;
+	}
+
+	if (!window.confirm(`Remove "${resource.title}"? This also deletes the PDF.`)) {
+		return;
+	}
+
+	detailRemove.disabled = true;
+	try {
+		const response = await fetch(`/api/resources/${resource.id}`, { method: "DELETE" });
+		if (response.ok) {
+			detailModal.hide();
+			reloadGrid();
+		}
+	} finally {
+		detailRemove.disabled = false;
+	}
+});
+
 /* ---------- library assistant ---------- */
 
 const chatLog = document.getElementById("chat-log");
