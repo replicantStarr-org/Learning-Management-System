@@ -1,3 +1,4 @@
 include:
   - access/docker-compose.yml
   - subjects/docker-compose.yml
+  - learning-resource-manager/compose.yml
