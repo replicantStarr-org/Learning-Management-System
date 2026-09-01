@@ -1,4 +1,4 @@
-CREATE TABLE l_resource ( 
+CREATE TABLE l_resource( 
 	l_resource_id INTEGER PRIMARY KEY,
 	author VARCHAR(50),
 	medium VARCHAR(32) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE subjects(
 	name VARCHAR(32)
 );
 
-CREATE TABLE l_resource_subject (
+CREATE TABLE l_resource_subject(
 	l_resource_id INTEGER NOT NULL,
 	subject_id INTEGER NOT NULL,
 
@@ -20,7 +20,7 @@ CREATE TABLE l_resource_subject (
 	CONSTRAINT FK_subject_id FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
 );
 
-CREATE TABLE l_resource_highlight(
+CREATE TABLE highlights(
 	l_resource_highlight_id INTEGER PRIMARY KEY,
 	l_resource_id INTEGER NOT NULL,
 	user_id INTEGER NOT NULL,
