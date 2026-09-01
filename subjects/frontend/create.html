@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +10,7 @@
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
+
 <body>
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
 
@@ -24,28 +26,34 @@
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label" for="code">Code</label>
-                                    <input class="form-control" id="code" name="code" maxlength="20" placeholder="ASD101" required autofocus>
+                                    <input class="form-control" id="code" name="code" maxlength="20"
+                                        placeholder="CLS001" required autofocus>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label" for="name">Name</label>
-                                    <input class="form-control" id="name" name="name" maxlength="120" placeholder="Advanced Software Development" required>
+                                    <input class="form-control" id="name" name="name" maxlength="120"
+                                        placeholder="Generic Subject Name" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label" for="semester">Semester</label>
-                                    <input class="form-control" id="semester" name="semester" maxlength="60" placeholder="Spring" required>
+                                    <input class="form-control" id="semester" name="semester" maxlength="60"
+                                        placeholder="Spring" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label" for="coordinator">Coordinator</label>
-                                    <input class="form-control" id="coordinator" name="coordinator" maxlength="120" placeholder="Dr. Morgan" required>
+                                    <input class="form-control" id="coordinator" name="coordinator" maxlength="120"
+                                        placeholder="Dr. Jane Doe" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label" for="status">Status</label>
-                                    <input class="form-control" id="status" name="status" maxlength="60" placeholder="Open" required>
+                                    <input class="form-control" id="status" name="status" maxlength="60"
+                                        placeholder="Open" required>
                                 </div>
                             </div>
                             <div class="mb-4">
                                 <label class="form-label" for="description">Description</label>
-                                <textarea class="form-control" id="description" name="description" rows="6" maxlength="5000" required></textarea>
+                                <textarea class="form-control" id="description" name="description" rows="6"
+                                    maxlength="5000" required></textarea>
                                 <div class="form-text">Maximum 5,000 characters.</div>
                             </div>
                             <div class="d-flex gap-2">
@@ -62,4 +70,5 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
