@@ -78,17 +78,15 @@ def subject_detail(subject):
                 <section class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-stars text-primary" aria-hidden="true"></i> AI summary</h2>
-                        <p class="text-secondary">Generate a concise summary, or reuse a current saved summary.</p>
-                        <form hx-post="http://localhost:5001/subjects/summaries" hx-target="#summary-result" hx-indicator="#summary-loading">
-                            <input type="hidden" name="subject_id" value="{subject_id}">
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" id="force-summary" name="force" type="checkbox" value="true">
-                                <label class="form-check-label" for="force-summary">Generate a new summary</label>
+                        <p class="text-secondary">A current saved summary is reused; an outdated one is regenerated automatically.</p>
+                        <div id="summary-result" aria-live="polite"
+                             hx-post="http://localhost:5001/subjects/{subject_id}/summary"
+                             hx-trigger="load" hx-swap="innerHTML">
+                            <div class="d-flex align-items-center gap-2 py-3 text-secondary" role="status">
+                                <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+                                <span>Loading AI summary…</span>
                             </div>
-                            <button class="btn btn-primary" type="submit"><i class="bi bi-stars me-1"></i> Get summary</button>
-                            <span class="htmx-indicator ms-2" id="summary-loading" role="status"><span class="spinner-border spinner-border-sm"></span> Generating…</span>
-                        </form>
-                        <div id="summary-result" aria-live="polite"></div>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -157,11 +155,12 @@ def _subject_fields(subject=None):
 
 
 def summary_result(summary):
-    source = "Saved summary" if summary.get("reused") else "New summary"
+    source = "Cached summary" if summary.get("reused") else "Newly generated summary"
     return f"""
-    <div class="alert alert-primary mt-3 ai-result">
+    <div class="alert alert-primary mb-0 ai-result">
         <p class="fw-semibold mb-1"><i class="bi bi-stars" aria-hidden="true"></i> {source}</p>
-        <p class="mb-0 preserve-lines">{escaped(summary['ai_response'])}</p>
+        <p class="mb-2 preserve-lines">{escaped(summary['ai_response'])}</p>
+        <small class="text-secondary">Summary timestamp: {escaped(summary['timestamp'])}</small>
     </div>
     """
 

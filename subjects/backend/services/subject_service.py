@@ -105,9 +105,9 @@ def _fresh_summaries(subject):
     return fresh[:3]
 
 
-def get_or_create_summary(subject_id, force=False):
+def get_or_create_summary(subject_id):
     subject = get_subject(subject_id)
-    fresh = [] if force else _fresh_summaries(subject)
+    fresh = _fresh_summaries(subject)
     if fresh:
         result = _json(database.get_summary(fresh[0]["summary_id"]))
         result["reused"] = True
