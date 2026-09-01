@@ -7,10 +7,15 @@ services:
       - ".env"
     environment:
       - DATABASE_PATH=/app/data
+      # Ollama runs on the host, so "localhost" from inside this container would
+      # be the container itself.
+      - OLLAMA_URL=host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - l_r_data:/app/data
     ports:
-      - "7050:7050"
+      - "7050:5000"
 
   database_init:
     build:

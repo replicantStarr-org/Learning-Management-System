@@ -32,3 +32,27 @@ CREATE TABLE highlights(
 	end_char INTEGER NOT NULL,
 	CONSTRAINT FK_highlight_resource FOREIGN KEY (l_resource_id) REFERENCES l_resource(l_resource_id)
 );
+
+-- The fields the resource grid renders on each card.
+CREATE VIEW v_resource_card AS
+	SELECT title,
+	       author,
+	       description,
+	       location
+	FROM l_resource
+	ORDER BY title;
+
+-- Every resource with its tags collapsed onto one row, for the chat service to
+-- hand to the language model whole.
+CREATE VIEW v_resource_catalogue AS
+	SELECT r.l_resource_id,
+	       r.title,
+	       r.author,
+	       r.medium,
+	       r.description,
+	       GROUP_CONCAT(t.name, ', ') AS tags
+	FROM l_resource r
+	LEFT JOIN l_resource_tags rt ON rt.l_resource_id = r.l_resource_id
+	LEFT JOIN tags t ON t.tag_id = rt.tag_id
+	GROUP BY r.l_resource_id
+	ORDER BY r.title;
