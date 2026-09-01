@@ -16,6 +16,13 @@ def construct_database(db_connection: str) -> None:
         db_connection.commit()
         cursor.close()
 
+def populate_database(db_connection: str) -> None:
+    with open('populate_db.sql', 'r') as script:
+        cursor = db_connection.cursor()
+        cursor.executescript(script.read())
+        db_connection.commit()
+        cursor.close()
+
 def database_exists():
     db_name = os.getenv("DATABASE_NAME")
     db_path = os.getenv("DATABASE_PATH")
@@ -28,6 +35,7 @@ def main():
 
     db = create_database()
     construct_database(db)
+    populate_database(db)
     db.close()
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 CREATE TABLE l_resource( 
 	l_resource_id INTEGER PRIMARY KEY,
-	author VARCHAR(50),
+	author VARCHAR(150),
 	medium VARCHAR(32) NOT NULL,
 	title VARCHAR(50) NOT NULL,
 	description TEXT
