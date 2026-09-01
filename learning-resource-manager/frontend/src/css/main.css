@@ -1,0 +1,104 @@
+/*
+ * Learning resource manager styles.
+ *
+ * Extends the shared theme at /assets/theme.css (shared/assets/theme.css),
+ * which supplies the colour, spacing and motion custom properties used below.
+ */
+
+.resource-thumb {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1 / 1.294; /* A4-ish, so cards keep their height before a page renders */
+    background: var(--color-icon-surface);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+
+    & canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        opacity: 0;
+        transition: opacity var(--motion-speed) ease;
+
+        &.is-loaded {
+            opacity: 1;
+        }
+    }
+
+    & .resource-thumb-fallback {
+        position: absolute;
+        inset: 0;
+        display: none;
+        place-items: center;
+        color: var(--color-muted);
+    }
+
+    &.is-failed .resource-thumb-fallback {
+        display: grid;
+    }
+}
+
+.detail-thumb {
+    aspect-ratio: auto;
+    border-radius: var(--radius-card);
+    box-shadow: 0 0.125rem 0.5rem rgb(31 41 55 / 0.12);
+}
+
+.resource-card {
+    overflow: hidden;
+    box-shadow: 0 0.125rem 0.5rem rgb(31 41 55 / 0.08);
+    transition: transform var(--motion-speed) ease, box-shadow var(--motion-speed) ease;
+
+    &:focus-visible {
+        outline: 0.125rem solid var(--color-brand);
+        outline-offset: 0.125rem;
+    }
+
+    &:hover {
+        transform: translateY(var(--motion-lift));
+        box-shadow: 0 0.5rem 1rem rgb(31 41 55 / 0.12);
+    }
+
+    & .card-title {
+        color: var(--color-brand-strong);
+    }
+
+    & .resource-author {
+        color: var(--color-brand);
+        font-weight: 600;
+    }
+
+    & .resource-description {
+        display: -webkit-box;
+        overflow: hidden;
+        color: var(--color-muted);
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 5;
+        line-clamp: 5;
+    }
+}
+
+.reader-content {
+    height: 90vh;
+
+    & .reader-body {
+        overflow-y: auto;
+        background: var(--color-page);
+    }
+
+    & .reader-pages {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        margin-inline: auto;
+        max-width: 62.5rem;
+    }
+
+    & .reader-page {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #fff;
+        box-shadow: 0 0.125rem 0.5rem rgb(31 41 55 / 0.15);
+    }
+}
