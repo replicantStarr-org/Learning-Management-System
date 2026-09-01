@@ -28,7 +28,7 @@ services:
       context: frontend
       dockerfile: Dockerfile
     ports:
-      - "5001:5001"
+      - "5001:80"
 
 volumes:
   l_r_data:
