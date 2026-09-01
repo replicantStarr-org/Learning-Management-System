@@ -263,7 +263,7 @@ def generate_ai_quiz(subject_id, difficulty, question_count, topic_hint=""):
         ):
             continue
 
-        database.add_question(
+        response = database.add_question(
             quiz["quiz_id"],
             {
                 "question_text": question_text,
@@ -274,7 +274,8 @@ def generate_ai_quiz(subject_id, difficulty, question_count, topic_hint=""):
                 ],
             },
         )
-        added += 1
+        if response.ok:
+            added += 1
 
     if added == 0:
         database.delete_quiz(quiz["quiz_id"])

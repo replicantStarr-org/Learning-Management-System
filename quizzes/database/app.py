@@ -441,4 +441,4 @@ def store_attempt_feedback(attempt_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=6004, debug=True)
+    app.run(host="0.0.0.0", port=6004)
