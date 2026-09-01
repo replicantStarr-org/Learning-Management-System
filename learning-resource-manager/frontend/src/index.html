@@ -72,6 +72,35 @@
 			</div>
 		</div>
 
+		<!-- Library assistant, opened by the floating button. -->
+		<button type="button" class="btn btn-primary chat-launcher" data-bs-toggle="modal" data-bs-target="#chat-modal">
+			Ask the library
+		</button>
+
+		<div class="modal fade" id="chat-modal" tabindex="-1" aria-labelledby="chat-heading" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content chat-content">
+					<div class="modal-header">
+						<h2 class="modal-title h6" id="chat-heading">Library assistant</h2>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<div class="modal-body chat-log" id="chat-log" role="log" aria-live="polite">
+						<p class="text-secondary small mb-0" id="chat-hint">
+							Ask for a resource and I will search the library by tag, for example
+							&ldquo;do you have anything about cosmology?&rdquo;
+						</p>
+					</div>
+					<div class="modal-footer">
+						<form class="chat-form" id="chat-form">
+							<input type="text" class="form-control" id="chat-input" autocomplete="off"
+							       placeholder="What are you looking for?" aria-label="Your question">
+							<button type="submit" class="btn btn-primary" id="chat-send">Send</button>
+						</form>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 		<script src="./js/main.js" type="module"></script>
 	</body>

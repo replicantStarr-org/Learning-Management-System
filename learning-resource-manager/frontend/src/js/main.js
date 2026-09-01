@@ -196,6 +196,75 @@ document.getElementById("detail-read").addEventListener("click", () => {
 
 document.getElementById("reader-modal").addEventListener("hidden.bs.modal", resetReader);
 
+/* ---------- library assistant ---------- */
+
+const chatLog = document.getElementById("chat-log");
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-input");
+const chatSend = document.getElementById("chat-send");
+
+function appendMessage(variant, text) {
+	document.getElementById("chat-hint")?.remove();
+
+	const message = document.createElement("p");
+	message.className = `chat-message preserve-lines ${variant}`;
+	message.textContent = text;
+	chatLog.append(message);
+	chatLog.scrollTop = chatLog.scrollHeight;
+
+	return message;
+}
+
+function setChatPending(pending) {
+	chatInput.disabled = pending;
+	chatSend.disabled = pending;
+	chatSend.textContent = pending ? "Asking..." : "Send";
+}
+
+async function askAssistant(question) {
+	appendMessage("is-student", question);
+	// The model runs locally and regularly takes half a minute, so the wait
+	// needs to be visible rather than looking like a dropped request.
+	const pending = appendMessage("is-pending", "Searching the library...");
+	setChatPending(true);
+
+	try {
+		const response = await fetch("/api/chat/send_message", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ message: question }),
+		});
+		const body = await response.json().catch(() => ({}));
+
+		pending.remove();
+		if (response.ok) {
+			appendMessage("is-assistant", body.reply);
+		} else {
+			appendMessage("is-error", body.error || "The library assistant could not answer.");
+		}
+	} catch {
+		pending.remove();
+		appendMessage("is-error", "The library assistant could not be reached.");
+	} finally {
+		setChatPending(false);
+		chatLog.scrollTop = chatLog.scrollHeight;
+	}
+}
+
+chatForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+
+	const question = chatInput.value.trim();
+	if (!question) {
+		return;
+	}
+
+	chatInput.value = "";
+	askAssistant(question);
+});
+
+document.getElementById("chat-modal").addEventListener("shown.bs.modal", () => chatInput.focus());
+
 /* ---------- wiring ---------- */
 
 document.body.addEventListener("htmx:afterSwap", (event) => observeThumbnails(event.target));
