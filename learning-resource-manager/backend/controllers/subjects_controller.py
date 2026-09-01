@@ -13,14 +13,3 @@ def get_all():
         cursor.execute("SELECT * FROM l_resource_subject")
 
         return cursor.fetchall()
-
-@subjects_bp.route('/all_html')
-def get_all_html():
-    print("testing worked")
-    rows = get_all()
-    print(rows)
-    html = ""
-    for row in rows:
-        html += f"<tr><td>{row[1]}</td></tr>"
-   
-    return html

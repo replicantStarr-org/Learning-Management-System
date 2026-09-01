@@ -13,3 +13,13 @@ def get_all():
         cursor.execute("SELECT * FROM highlights")
 
         return cursor.fetchall()
+
+@highlights_bp.route("/all_html")
+def get_all_html():
+    rows = get_all()
+    print(rows)
+    html = ""
+    for row in rows:
+        html += f"<tr><td>{row[1]}</td></tr>"
+   
+    return html

@@ -14,3 +14,15 @@ def get_all():
         cursor.execute("SELECT * FROM l_resource")
 
         return cursor.fetchall()
+
+@resources_bp.route('all_html')
+def get_all_html():
+    rows = get_all()
+    html = ""
+    for row in rows:
+        html += "<tr>"
+        for r in row:
+            html += f"<td>{r}</td>"
+        html += "</tr>"
+   
+    return html
