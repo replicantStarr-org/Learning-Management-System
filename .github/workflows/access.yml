@@ -1,11 +1,11 @@
-name: Subject Management CI
+name: Access Management CI
 
 on:
   pull_request:
     paths:
-      - "subjects/**"
+      - "access/**"
       - "shared/**"
-      - ".github/workflows/subjects.yml"
+      - ".github/workflows/access.yml"
 
 permissions:
   contents: read
@@ -18,8 +18,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Build subject service images
-        working-directory: subjects
+      - name: Build access service images
+        working-directory: access
         run: docker compose build
 
   smoke-check:
@@ -30,11 +30,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Start subject services
-        working-directory: subjects
+      - name: Start access services
+        working-directory: access
         run: docker compose up --detach --build
 
-      - name: Probe subject services
+      - name: Probe access services
         shell: bash
         run: |
           set -euo pipefail
@@ -63,13 +63,13 @@ jobs:
             return 1
           }
 
-          probe "Subject database" "http://localhost:6001/"
-          probe "Subject backend" "http://localhost:5001/"
-          probe "Subject frontend" "http://localhost:3001/"
+          probe "Access database" "http://localhost:6000/"
+          probe "Access backend" "http://localhost:5000/"
+          probe "Access frontend" "http://localhost:3000/login"
 
-      - name: Stop subject services
+      - name: Stop access services
         if: always()
-        working-directory: subjects
+        working-directory: access
         run: docker compose down --volumes
 
   evidence-upload:
@@ -100,10 +100,10 @@ jobs:
               commit_sha: $commit_sha,
               branch: $branch,
               timestamp: $timestamp
-            }' > evidence/subjects-report.json
+            }' > evidence/access-report.json
 
-          cat > evidence/subjects-report.md <<EOF
-          # Subject Management CI Evidence
+          cat > evidence/access-report.md <<EOF
+          # Access Management CI Evidence
 
           - **Workflow:** $WORKFLOW_NAME
           - **Run ID:** $RUN_ID
@@ -116,6 +116,6 @@ jobs:
       - name: Upload evidence reports
         uses: actions/upload-artifact@v4
         with:
-          name: subjects-ci-evidence-${{ github.run_id }}
+          name: access-ci-evidence-${{ github.run_id }}
           path: evidence/
           if-no-files-found: error
