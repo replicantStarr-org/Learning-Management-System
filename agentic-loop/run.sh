@@ -5,6 +5,8 @@
 #
 #   ./run.sh --offline --iterations 5
 #
+# This is the Unix half of run.ps1 and the two are deliberately alike.
+#
 set -euo pipefail
 
 # The venv and services.yml are found relative to this script, so it does not
@@ -21,8 +23,8 @@ fi
 # Installing only when requirements.txt is newer than the last install keeps a
 # warm run off the network entirely.
 if [ ! -f "$STAMP" ] || [ requirements.txt -nt "$STAMP" ]; then
-    "$VENV/bin/pip" install --quiet --upgrade pip
-    "$VENV/bin/pip" install --quiet -r requirements.txt
+    "$VENV/bin/python" -m pip install --quiet --upgrade pip
+    "$VENV/bin/python" -m pip install --quiet -r requirements.txt
     touch "$STAMP"
 fi
 
