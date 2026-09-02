@@ -121,17 +121,23 @@ jobs:
             return 1
           }
 
+          # Asked of compose rather than written out here, so that changing a
+          # published port in compose.yml cannot leave these probes behind.
+          backend="http://localhost:$(docker compose port backend 5000 | awk -F: '{print $NF}')"
+          frontend="http://localhost:$(docker compose port frontend 80 | awk -F: '{print $NF}')"
+          echo "Backend on $backend, frontend on $frontend."
+
           # Reads the database the database_init container built.
-          probe "Backend resource list" "http://localhost:7050/api/resources/all"
-          # Serves the single page app.
-          probe "Frontend index" "http://localhost:7051/"
+          probe "Backend resource list" "$backend/api/resources/all"
           # Reads the seeded highlights through the views, so a change to the
           # highlight schema that the views were not updated for fails here.
-          probe "Highlight summary" "http://localhost:7050/api/highlights/resource/1/summary"
+          probe "Highlight summary" "$backend/api/highlights/resource/1/summary"
+          # Serves the single page app.
+          probe "Frontend index" "$frontend/"
           # Proves the nginx proxy reaches the backend container.
-          probe "Frontend to backend proxy" "http://localhost:7051/api/highlights/colours"
+          probe "Frontend to backend proxy" "$frontend/api/highlights/colours"
           # Proves the content volume is mounted where PDF.js expects it.
-          probe "Learning resource PDF" "http://localhost:7051/content/pdf/1706.03762.pdf"
+          probe "Learning resource PDF" "$frontend/content/pdf/1706.03762.pdf"
 
           # The chat endpoint is deliberately not probed: it calls a language
           # model running on the developer's host, which no runner provides.
