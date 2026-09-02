@@ -2,12 +2,16 @@ name: Learning Resource Manager CI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "learning-resource-manager/**"
       # The frontend image copies shared/assets into the nginx root.
       - "shared/assets/**"
       - ".github/workflows/learning-resource-manager.yml"
   pull_request:
+    branches:
+      - main
     paths:
       - "learning-resource-manager/**"
       - "shared/assets/**"
