@@ -36,7 +36,7 @@ services:
       - DATABASE_PATH=/app/data
     volumes:
       - l_r_data:/app/data
-  
+
   frontend:
     build:
       context: ..
@@ -44,7 +44,7 @@ services:
     volumes:
       - ./content:/content:ro
     ports:
-      - "7051:80"
+      - "3002:80"
     develop:
       watch:
         - action: sync
@@ -61,4 +61,3 @@ services:
 
 volumes:
   l_r_data:
-
