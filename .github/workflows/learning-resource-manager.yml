@@ -32,9 +32,3 @@ jobs:
     steps:
       - name: Placeholder
         run: exit 0
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Placeholder
-        run: exit 0
