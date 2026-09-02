@@ -1,35 +1,35 @@
-import sqlite3
 import os
+import sqlite3
 from pathlib import Path
 
-def create_database() -> str:
-    db_name = os.getenv("DATABASE_NAME")
-    db_path = os.getenv("DATABASE_PATH")
-    db_con = sqlite3.connect(db_path + "/" + db_name)
 
-    return db_con
+def database_file() -> Path:
+    db_name = os.environ["DATABASE_NAME"]
+    db_path = os.environ["DATABASE_PATH"]
 
-def construct_database(db_connection: str) -> None:
-    with open('construct_db.sql', 'r') as script:
+    return Path(db_path) / db_name
+
+def create_database() -> sqlite3.Connection:
+    return sqlite3.connect(database_file())
+
+def construct_database(db_connection: sqlite3.Connection) -> None:
+    with open('construct_db.sql') as script:
         cursor = db_connection.cursor()
         cursor.executescript(script.read())
         db_connection.commit()
         cursor.close()
 
-def populate_database(db_connection: str) -> None:
-    with open('populate_db.sql', 'r') as script:
+def populate_database(db_connection: sqlite3.Connection) -> None:
+    with open('populate_db.sql') as script:
         cursor = db_connection.cursor()
         cursor.executescript(script.read())
         db_connection.commit()
         cursor.close()
 
-def database_exists():
-    db_name = os.getenv("DATABASE_NAME")
-    db_path = os.getenv("DATABASE_PATH")
-    path = Path(db_path + "/" + db_name)
-    return path.exists()
+def database_exists() -> bool:
+    return database_file().exists()
 
-def main():
+def main() -> None:
     if database_exists():
         return
 

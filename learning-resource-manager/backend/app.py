@@ -1,8 +1,9 @@
-import os
 from flask import Flask
-from controllers.resources_controller import resources_bp 
-from controllers.highlights_controller import highlights_bp
+
 from controllers.chat_controller import chat_bp
+from controllers.highlights_controller import highlights_bp
+from controllers.resources_controller import resources_bp
+
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)

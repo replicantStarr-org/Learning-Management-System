@@ -13,6 +13,11 @@ services:
       - OLLAMA_URL=host.docker.internal
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # The database file lives on the shared volume, so the backend must not
+    # start until database_init has finished writing it.
+    depends_on:
+      database_init:
+        condition: service_completed_successfully
     volumes:
       - l_r_data:/app/data
       # Writable here because uploads land in it; the frontend mounts it read

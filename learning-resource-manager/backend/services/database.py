@@ -1,6 +1,7 @@
 import os
 import sqlite3
 
+
 def connect():
     db_full_path = os.getenv("DATABASE_PATH")
     db_name = os.getenv("DATABASE_NAME")
