@@ -1,0 +1,110 @@
+# Everything the agentic loop knows about the rest of the application is in this
+# file. No other service is modified or imported; a developer adds endpoints here
+# by hand and the loop probes them over HTTP like any other client would.
+#
+# Only GET endpoints are allowed. The loop is a read only observer, so a method
+# other than GET is rejected at load time rather than being probed.
+
+ollama:
+  # Reachable from the host. In a container the compose file overrides this with
+  # host.docker.internal, matching how the other services reach Ollama.
+  host: http://localhost:11434
+  # Writes the recommendations. Small and fast, so it is kept on a short leash:
+  # the findings it is handed are computed in Python, not by the model.
+  implementation_model: qwen2.5:0.5b
+  # Reviews them. The larger model does the judgement half of the loop, because
+  # deciding whether a recommendation is supported by the evidence is the part a
+  # 0.5B model is worst at.
+  review_model: llama3.1:8b
+  context_tokens: 8192
+  reply_tokens: 600
+  temperature: 0.2
+  # Seconds. The 8B reviewer on a laptop with no GPU is the slow step.
+  timeout_seconds: 180
+
+loop:
+  # One Plan -> Act -> Observe -> Adapt pass per iteration.
+  max_iterations: 3
+  # How many endpoints a single iteration may probe. Keeps each pass small
+  # enough that the evidence block still fits the context window.
+  endpoints_per_iteration: 4
+  request_timeout_seconds: 10
+  # A response slower than this is reported as a finding.
+  slow_response_ms: 1500
+  # Records beyond this are not profiled. Nothing in this application returns
+  # collections anywhere near it; the cap exists so one large response cannot
+  # stall a pass.
+  max_records: 500
+
+services:
+  - name: access
+    description: Accounts and the entry point to the application.
+    endpoints:
+      - name: database-health
+        url: http://localhost:6000/
+        expect: json_object
+        required_fields: [service, status]
+
+  - name: subjects
+    description: Subject management, owns the subject catalogue other features read.
+    endpoints:
+      - name: database-health
+        url: http://localhost:6001/
+        expect: json_object
+        required_fields: [service, status]
+
+      - name: list-subjects
+        url: http://localhost:6001/subjects
+        expect: json_array
+        identifier: subject_id
+        required_fields: [subject_id, code, name]
+        notes: The catalogue the quiz feature reads, so gaps here spread.
+
+      - name: subject-detail
+        url: http://localhost:6001/subjects/1
+        expect: json_object
+        required_fields: [subject_id, code, name, description, semester, coordinator, status]
+
+  - name: quizzes
+    description: Quiz authoring, generation and attempts.
+    endpoints:
+      - name: database-health
+        url: http://localhost:6004/
+        expect: json_object
+        required_fields: [service, status]
+
+      - name: list-quizzes
+        url: http://localhost:6004/quizzes
+        expect: json_array
+        identifier: quiz_id
+        required_fields: [quiz_id, subject_id, title, difficulty, question_count]
+        notes: >
+          subject_name is denormalised from the subjects feature, so it can drift
+          out of step with the subject catalogue.
+
+      - name: quiz-questions
+        url: http://localhost:6004/quizzes/1/questions
+        expect: json_array
+        identifier: question_id
+        required_fields: [question_id, question_text, explanation]
+
+  - name: learning-resource-manager
+    description: The PDF library, its highlights and the reading assistant.
+    endpoints:
+      - name: list-resources
+        url: http://localhost:7050/api/resources/all
+        expect: json_array
+        notes: >
+          Returns positional rows rather than objects, so there are no field
+          names to profile. Left configured on purpose: the loop reports that as
+          a finding rather than the developer having to remember it.
+
+      - name: highlight-colours
+        url: http://localhost:7050/api/highlights/colours
+        expect: json_object
+        records_at: colours
+
+      - name: resource-cards
+        url: http://localhost:7050/api/resources/all_html
+        expect: html
+        notes: An HTMX fragment, checked for emptiness and leaked errors only.

@@ -1,0 +1,6 @@
+# Reports are run output, not source.
+reports/
+
+# Tooling caches.
+.pytest_cache/
+__pycache__/
