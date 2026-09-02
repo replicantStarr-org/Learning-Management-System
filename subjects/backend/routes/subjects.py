@@ -121,14 +121,10 @@ def remove_subject():
     )
 
 
-@subjects_bp.post("/subjects/summaries")
+@subjects_bp.post("/subjects/<int:subject_id>/summary")
 @handle_errors
-def subject_summary():
-    subject_id = request.form.get("subject_id", "")
-    if not subject_id.isdigit():
-        raise ServiceError("A valid subject ID is required")
-    force = request.form.get("force", "").lower() in {"1", "true", "yes", "on"}
-    return summary_result(get_or_create_summary(int(subject_id), force=force))
+def subject_summary(subject_id):
+    return summary_result(get_or_create_summary(subject_id))
 
 
 @subjects_bp.post("/subjects/questions")
