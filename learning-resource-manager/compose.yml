@@ -1,0 +1,63 @@
+services:
+  backend:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    env_file:
+      - ".env"
+    environment:
+      - DATABASE_PATH=/app/data
+      - CONTENT_PATH=/content
+      # Ollama runs on the host, so "localhost" from inside this container would
+      # be the container itself.
+      - OLLAMA_URL=host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # The database file lives on the shared volume, so the backend must not
+    # start until database_init has finished writing it.
+    depends_on:
+      database_init:
+        condition: service_completed_successfully
+    volumes:
+      - l_r_data:/app/data
+      # Writable here because uploads land in it; the frontend mounts it read
+      # only because it just serves the files.
+      - ./content:/content
+    ports:
+      - "7050:5000"
+
+  database_init:
+    build:
+      context: database
+      dockerfile: Dockerfile
+    env_file:
+      - ".env"
+    environment:
+      - DATABASE_PATH=/app/data
+    volumes:
+      - l_r_data:/app/data
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: learning-resource-manager/frontend/Dockerfile
+    volumes:
+      - ./content:/content:ro
+    ports:
+      - "3002:80"
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /usr/share/nginx/html
+        - action: sync
+          path: ../shared/assets
+          target: /usr/share/nginx/html/assets
+        - action: sync+restart
+          path: ./frontend/nginx/default.conf
+          target: /etc/nginx/conf.d/default.conf
+        - action: rebuild
+          path: ./frontend/Dockerfile
+
+volumes:
+  l_r_data:
