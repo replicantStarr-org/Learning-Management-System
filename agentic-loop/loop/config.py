@@ -7,7 +7,7 @@ is strict and every error names the key that caused it.
 """
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import yaml
@@ -101,6 +101,29 @@ class Config:
                 return service.description
 
         return ""
+
+    def only(self, names):
+        """A copy of this config holding just the named services.
+
+        Narrowing the config itself, rather than filtering somewhere inside the
+        loop, means planning, the settled check and the report header all agree
+        on what this run covers. An unknown name is an error rather than an
+        empty run, because a typo there would otherwise look like a service with
+        nothing wrong with it.
+        """
+        wanted = set(names)
+        known = {service.name for service in self.services}
+
+        missing = sorted(wanted - known)
+        if missing:
+            raise ConfigError(
+                f"No service named {', '.join(missing)}. "
+                f"Configured services are {', '.join(sorted(known))}."
+            )
+
+        # Filtered in file order, so --list and the report keep the ordering the
+        # developer wrote, whatever order the names were given on the command line.
+        return replace(self, services=[s for s in self.services if s.name in wanted])
 
 
 def _require_mapping(value, where):

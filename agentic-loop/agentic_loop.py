@@ -8,6 +8,7 @@ for a developer to act on.
   python agentic_loop.py                 one run, using services.yml
   python agentic_loop.py --list          show what is configured and stop
   python agentic_loop.py --offline       skip both models, checks only
+  python agentic_loop.py --service quizzes   probe one service and no others
 """
 
 import argparse
@@ -48,6 +49,12 @@ def parse_args(argv=None):
         "--offline",
         action="store_true",
         help="Run the checks without either model, using the built in remedies.",
+    )
+    parser.add_argument(
+        "--service",
+        action="append",
+        metavar="NAME",
+        help="Only probe this service. Repeat the flag to name more than one.",
     )
     parser.add_argument("--list", action="store_true", help="List the configured endpoints and exit.")
     parser.add_argument(
@@ -144,6 +151,9 @@ def main(argv=None):
 
     try:
         config = load_config(args.config)
+        # Before --list, so listing shows exactly the set a real run would probe.
+        if args.service:
+            config = config.only(args.service)
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2

@@ -63,6 +63,8 @@ the file loads, so a probe can never create or delete another service's data.
 ./run.sh                            # one run using services.yml
 ./run.sh --list                     # show what is configured, then stop
 ./run.sh --offline                  # checks only, no models
+./run.sh --service quizzes          # probe one service and no others
+./run.sh --service quizzes --service subjects   # or several
 ./run.sh --iterations 5 --reports /tmp/reports
 ./run.sh --fail-on-critical         # exit 1 on a critical finding, for CI
 ```
