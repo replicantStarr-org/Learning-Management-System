@@ -5,8 +5,6 @@ services:
     # host, so sharing the host network is what lets one config file work the
     # same whether the loop runs in a container or straight from Python.
     network_mode: host
-    environment:
-      OLLAMA_URL: http://localhost:11434
     volumes:
       # Mounted rather than baked in, so editing the endpoint list does not mean
       # rebuilding the image.

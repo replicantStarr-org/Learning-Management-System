@@ -81,11 +81,6 @@ The container is behind a `tools` profile, so it does not start with the rest of
 the application. Nothing in the root `docker-compose.yml` or any other service
 was changed to add it.
 
-```bash
-python -m pytest tests    # the checks, the config validation, the model parsing
-ruff check .
-```
-
 ## What it checks
 
 Transport: reachability, status, latency, empty bodies, `Content-Type`
@@ -111,7 +106,6 @@ unrendered template markers.
 ├── agentic_loop.py      the loop itself, and the CLI
 ├── services.yml         the endpoints, edited by hand
 ├── prompts/             one prompt file per model role
-├── tests/               hand written responses through the real check path
 └── loop/
     ├── config.py        reads and validates services.yml
     ├── plan.py          Plan
