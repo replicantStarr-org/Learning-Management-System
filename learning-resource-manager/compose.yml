@@ -41,6 +41,9 @@ services:
     build:
       context: ..
       dockerfile: learning-resource-manager/frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_started
     volumes:
       - ./content:/content:ro
     ports:
