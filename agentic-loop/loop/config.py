@@ -122,8 +122,8 @@ def _string_list(value, where):
 def _model_settings(raw):
     section = _require_mapping(raw.get("ollama") or {}, "ollama")
 
-    # The compose file sets these so a containerised run can reach the host,
-    # without the developer having to keep two copies of the config in step.
+    # The environment wins over the file, so a run against a different Ollama
+    # does not mean editing config that is shared with everyone else.
     host = os.getenv("OLLAMA_URL") or section.get("host") or "http://localhost:11434"
 
     # Defaulted rather than required, because the loop runs without models at

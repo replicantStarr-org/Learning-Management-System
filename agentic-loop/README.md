@@ -60,26 +60,36 @@ the file loads, so a probe can never create or delete another service's data.
 ## Running it
 
 ```bash
-pip install -r requirements.txt
-
-python agentic_loop.py              # one run using services.yml
-python agentic_loop.py --list       # show what is configured, then stop
-python agentic_loop.py --offline    # checks only, no models
-python agentic_loop.py --iterations 5 --reports /tmp/reports
-python agentic_loop.py --fail-on-critical   # exit 1 on a critical finding, for CI
+./run.sh                            # one run using services.yml
+./run.sh --list                     # show what is configured, then stop
+./run.sh --offline                  # checks only, no models
+./run.sh --iterations 5 --reports /tmp/reports
+./run.sh --fail-on-critical         # exit 1 on a critical finding, for CI
 ```
 
-Or in a container, against the same host Ollama the other services use:
+On Windows, `run.ps1` takes the same arguments:
 
-```bash
-docker compose run --rm agentic-loop
+```powershell
+.\run.ps1 --offline --iterations 5
 ```
+
+If PowerShell refuses to run it, the execution policy is the reason. Either
+allow it for the current window with
+`Set-ExecutionPolicy -Scope Process Bypass`, or call it as
+`powershell -ExecutionPolicy Bypass -File run.ps1`.
+
+Both scripts build `.venv/` on first use and reinstall only when
+`requirements.txt` changes, so later runs start straight away. Arguments go
+through to `agentic_loop.py`, which can equally be called directly from an
+already activated environment.
+
+Ollama is expected on the host at `http://localhost:11434`, the same instance
+the other services use. Set `OLLAMA_URL` if it lives somewhere else.
 
 Reports land in `reports/`, which is not committed.
 
-The container is behind a `tools` profile, so it does not start with the rest of
-the application. Nothing in the root `docker-compose.yml` or any other service
-was changed to add it.
+Nothing else in the repository is involved in a run. This folder has no entry in
+the root `docker-compose.yml` and no service was changed to accommodate it.
 
 ## What it checks
 
@@ -104,6 +114,7 @@ unrendered template markers.
 ```
 .
 ├── agentic_loop.py      the loop itself, and the CLI
+├── run.sh, run.ps1      venv bootstrap, one per platform
 ├── services.yml         the endpoints, edited by hand
 ├── prompts/             one prompt file per model role
 └── loop/

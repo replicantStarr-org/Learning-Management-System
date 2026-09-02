@@ -6,8 +6,8 @@
 # other than GET is rejected at load time rather than being probed.
 
 ollama:
-  # Reachable from the host. In a container the compose file overrides this with
-  # host.docker.internal, matching how the other services reach Ollama.
+  # The same host instance the other services talk to. OLLAMA_URL overrides this
+  # for a one off run against a different machine.
   host: http://localhost:11434
   # Writes the recommendations. Small and fast, so it is kept on a short leash:
   # the findings it is handed are computed in Python, not by the model.

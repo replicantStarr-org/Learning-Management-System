@@ -1,0 +1,6 @@
+# Shell scripts must keep LF even when checked out on Windows, or bash refuses
+# them under WSL and Git Bash with a bad interpreter error.
+*.sh text eol=lf
+
+# PowerShell is happy either way, but CRLF is what a Windows editor expects.
+*.ps1 text eol=crlf
