@@ -82,3 +82,41 @@ INSERT INTO l_resource_tags (l_resource_id, tag_id) VALUES
 -- Biology papers
 (26,12),
 (27,12);
+
+-- ---------- HIGHLIGHTS ----------
+-- Seed notes so the library has something to read back on a fresh install. Two
+-- of these use colours outside the suggested palette, and every one carries a
+-- comment, because both are what the reader is expected to add themselves.
+INSERT INTO highlights (l_resource_highlight_id, l_resource_id, user_id, name, colour, quote, comment) VALUES
+(1, 1, 1, 'Attention replaces recurrence', '#ffd54f',
+ 'We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.',
+ 'The whole argument in one sentence: if attention alone can relate any two positions, the sequential bottleneck in RNNs was never necessary. Everything since follows from this.'),
+(2, 1, 1, 'Why scaled dot product', '#90caf9',
+ 'We suspect that for large values of dk, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients.',
+ 'The 1/sqrt(dk) divisor is a variance fix, not an aesthetic choice. Worth remembering when a custom attention layer will not train.'),
+(3, 3, 1, 'The degradation problem', '#a5d6a7',
+ 'When deeper networks are able to start converging, a degradation problem has been exposed: with the network depth increasing, accuracy gets saturated and then degrades rapidly.',
+ 'Key point I keep forgetting: this is not overfitting. Training error rises too, so it is an optimisation failure that the residual connection routes around.'),
+(4, 6, 1, 'Adam defaults', '#f48fb1',
+ 'Good default settings for the tested machine learning problems are alpha = 0.001, beta1 = 0.9, beta2 = 0.999 and epsilon = 10^-8.',
+ 'These are the numbers every framework ships with. Cite this line rather than the framework docs.'),
+(5, 15, 1, 'Ricci flow as heat equation', '#7e57c2',
+ 'The Ricci flow is the gradient flow for the functional F, and the monotonicity of F under the flow is what rules out the collapsing that earlier approaches could not exclude.',
+ 'Custom purple for the geometry reading. The entropy functional is the actual novelty here; the flow itself was already known from Hamilton.'),
+(6, 18, 1, 'Five sigma', '#26a69a',
+ 'The observed excess of events over the expected background has a local significance of 5.9 standard deviations, corresponding to a background fluctuation probability of 1.7 x 10^-9.',
+ 'Custom teal for physics. Five sigma is the discovery threshold by convention, not by derivation, which is a point worth making in the write up.');
+
+-- One rectangle per line of the quote, as fractions of the page box.
+INSERT INTO highlight_rects (l_resource_highlight_id, page_number, x, y, width, height) VALUES
+(1, 1, 0.130, 0.352, 0.740, 0.014),
+(1, 1, 0.130, 0.368, 0.618, 0.014),
+(2, 4, 0.130, 0.618, 0.742, 0.014),
+(2, 4, 0.130, 0.634, 0.560, 0.014),
+(3, 1, 0.130, 0.470, 0.744, 0.014),
+(3, 1, 0.130, 0.486, 0.690, 0.014),
+(4, 2, 0.130, 0.240, 0.706, 0.014),
+(5, 1, 0.130, 0.286, 0.724, 0.014),
+(5, 1, 0.130, 0.302, 0.588, 0.014),
+(6, 1, 0.130, 0.540, 0.736, 0.014),
+(6, 1, 0.130, 0.556, 0.604, 0.014);

@@ -186,6 +186,9 @@ const detailModal = new bootstrap.Modal("#detail-modal");
 const detailCanvas = document.getElementById("detail-canvas");
 const detailHighlights = document.getElementById("detail-highlights");
 let selectedResource = null;
+// The highlights the popup is currently showing, so that editing a row can pick
+// up the values already fetched rather than asking for them again.
+let loadedHighlights = [];
 
 async function showResourceHighlights(resourceId) {
 	detailHighlights.replaceChildren(
@@ -208,6 +211,8 @@ async function showResourceHighlights(resourceId) {
 		return;
 	}
 
+	loadedHighlights = highlights;
+
 	if (!highlights.length) {
 		detailHighlights.replaceChildren(
 			Object.assign(document.createElement("p"), {
@@ -222,10 +227,15 @@ async function showResourceHighlights(resourceId) {
 }
 
 function renderHighlightEntry(highlight) {
-	const entry = document.createElement("button");
-	entry.type = "button";
+	const entry = document.createElement("div");
 	entry.className = "highlight-entry";
 	entry.dataset.highlightId = highlight.l_resource_highlight_id;
+
+	// Following the highlight and editing it are separate targets, so the whole
+	// row cannot be one button.
+	const open = document.createElement("button");
+	open.type = "button";
+	open.className = "highlight-entry-open";
 
 	const swatch = document.createElement("span");
 	swatch.className = "highlight-entry-swatch";
@@ -240,9 +250,135 @@ function renderHighlightEntry(highlight) {
 	location.className = "highlight-entry-location";
 	location.textContent = `Page ${highlight.page_number}`;
 
-	entry.append(swatch, name, location);
+	open.append(swatch, name, location);
+
+	const edit = document.createElement("button");
+	edit.type = "button";
+	edit.className = "highlight-entry-edit";
+	edit.textContent = "Edit";
+	edit.setAttribute("aria-label", `Edit ${name.textContent}`);
+
+	const row = document.createElement("div");
+	row.className = "highlight-entry-row";
+	row.append(open, edit);
+	entry.append(row);
+
+	if (highlight.comment) {
+		const comment = document.createElement("p");
+		comment.className = "highlight-entry-comment preserve-lines";
+		comment.textContent = highlight.comment;
+		entry.append(comment);
+	}
 
 	return entry;
+}
+
+// Swaps one row for a form over the same highlight. Kept inside the resource
+// popup because that is where the notes are read, and the reader's popup only
+// ever deals with the selection being made now.
+function renderHighlightEditor(highlight) {
+	const form = document.createElement("form");
+	form.className = "highlight-editor";
+
+	const name = document.createElement("input");
+	name.type = "text";
+	name.className = "form-control form-control-sm";
+	name.maxLength = 64;
+	name.placeholder = "Name this highlight";
+	name.setAttribute("aria-label", "Highlight name");
+	name.value = highlight.name || "";
+
+	const comment = document.createElement("textarea");
+	comment.className = "form-control form-control-sm";
+	comment.rows = 3;
+	comment.maxLength = 1000;
+	comment.placeholder = "Add a comment";
+	comment.setAttribute("aria-label", "Highlight comment");
+	comment.value = highlight.comment || "";
+
+	const colours = createColourChooser(highlight.colour);
+
+	const error = document.createElement("p");
+	error.className = "highlight-editor-error";
+	error.hidden = true;
+
+	const remove = document.createElement("button");
+	remove.type = "button";
+	remove.className = "btn btn-outline-danger btn-sm me-auto";
+	remove.textContent = "Delete";
+
+	const cancel = document.createElement("button");
+	cancel.type = "button";
+	cancel.className = "btn btn-outline-secondary btn-sm";
+	cancel.textContent = "Cancel";
+
+	const save = document.createElement("button");
+	save.type = "submit";
+	save.className = "btn btn-primary btn-sm";
+	save.textContent = "Save";
+
+	const actions = document.createElement("div");
+	actions.className = "highlight-actions";
+	actions.append(remove, cancel, save);
+
+	form.append(name, comment, colours.element, error, actions);
+
+	const resourceId = Number(highlight.l_resource_id);
+
+	function fail(text) {
+		error.textContent = text;
+		error.hidden = false;
+	}
+
+	async function submit(request) {
+		save.disabled = true;
+		remove.disabled = true;
+		error.hidden = true;
+
+		try {
+			const response = await fetch(
+				`/api/highlights/${highlight.l_resource_highlight_id}`,
+				request,
+			);
+			if (!response.ok) {
+				const body = await response.json().catch(() => ({}));
+				fail(body.error || "The highlight could not be saved.");
+				return;
+			}
+
+			// Re-read rather than patching locally, so the list shows what was
+			// actually stored.
+			await showResourceHighlights(resourceId);
+		} catch {
+			fail("The highlight could not be saved.");
+		} finally {
+			save.disabled = false;
+			remove.disabled = false;
+		}
+	}
+
+	form.addEventListener("submit", (event) => {
+		event.preventDefault();
+		submit({
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: name.value,
+				colour: colours.colour(),
+				comment: comment.value,
+			}),
+		});
+	});
+
+	remove.addEventListener("click", () => {
+		if (window.confirm("Delete this highlight?")) {
+			submit({ method: "DELETE" });
+		}
+	});
+
+	cancel.addEventListener("click", () => showResourceHighlights(resourceId));
+
+	return form;
 }
 
 function openDetail(card) {
@@ -267,8 +403,23 @@ detailHighlights.addEventListener("click", (event) => {
 		return;
 	}
 
-	const resource = selectedResource;
 	const highlightId = Number(entry.dataset.highlightId);
+
+	if (event.target.closest(".highlight-entry-edit")) {
+		const highlight = loadedHighlights.find(
+			(candidate) => candidate.l_resource_highlight_id === highlightId,
+		);
+		if (highlight) {
+			entry.replaceChildren(renderHighlightEditor(highlight));
+		}
+		return;
+	}
+
+	if (!event.target.closest(".highlight-entry-open")) {
+		return;
+	}
+
+	const resource = selectedResource;
 	document.getElementById("detail-modal").addEventListener(
 		"hidden.bs.modal",
 		() => openReader(resource, highlightId),
@@ -424,50 +575,85 @@ function startFocusCountdown() {
 
 /* ---------- creating highlights ---------- */
 
-const HIGHLIGHT_COLOURS = ["#ffd54f", "#a5d6a7", "#90caf9", "#f48fb1", "#ce93d8"];
+const SUGGESTED_COLOURS = ["#ffd54f", "#a5d6a7", "#90caf9", "#f48fb1", "#ce93d8"];
+
+// A row of suggested swatches followed by a picker for anything else. Used by
+// the create popup here and by the editor in the resource popup, so both offer
+// the same choice. Returns the element plus a read of the current colour.
+function createColourChooser(initialColour) {
+	const element = document.createElement("div");
+	element.className = "highlight-colours";
+	element.setAttribute("role", "radiogroup");
+	element.setAttribute("aria-label", "Highlight colour");
+
+	let chosen = initialColour;
+
+	const custom = document.createElement("input");
+	custom.type = "color";
+	custom.setAttribute("aria-label", "Custom highlight colour");
+
+	const swatches = SUGGESTED_COLOURS.map((colour) => {
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "highlight-colour";
+		button.dataset.colour = colour;
+		button.style.background = colour;
+		button.setAttribute("role", "radio");
+		button.setAttribute("aria-label", `Colour ${colour}`);
+		return button;
+	});
+
+	function choose(colour) {
+		chosen = colour;
+		for (const swatch of swatches) {
+			const isChosen = swatch.dataset.colour === colour;
+			swatch.classList.toggle("is-chosen", isChosen);
+			swatch.setAttribute("aria-checked", String(isChosen));
+		}
+		// The picker doubles as the swatch for a colour that is not suggested, so
+		// it only reads as chosen when none of the suggestions match.
+		custom.value = colour;
+		label.classList.toggle("is-chosen", !SUGGESTED_COLOURS.includes(colour));
+	}
+
+	const label = document.createElement("label");
+	label.className = "highlight-colour highlight-colour-custom";
+	label.title = "Any other colour";
+	label.append(custom);
+
+	element.append(...swatches, label);
+	element.addEventListener("click", (event) => {
+		const button = event.target.closest(".highlight-colour[data-colour]");
+		if (button) {
+			choose(button.dataset.colour);
+		}
+	});
+	// "input" rather than "change", so dragging around the picker previews live.
+	custom.addEventListener("input", () => choose(custom.value));
+
+	choose(initialColour);
+
+	return { element, colour: () => chosen, choose };
+}
 
 const highlightPopup = document.getElementById("highlight-popup");
 const highlightForm = document.getElementById("highlight-form");
 const highlightName = document.getElementById("highlight-name");
-const highlightColours = document.getElementById("highlight-colours");
+const highlightComment = document.getElementById("highlight-comment");
 const highlightStart = document.getElementById("highlight-start");
 const highlightSave = document.getElementById("highlight-save");
 let pendingSelection = null;
-let chosenColour = HIGHLIGHT_COLOURS[0];
 
-function chooseColour(colour) {
-	chosenColour = colour;
-	for (const button of highlightColours.children) {
-		const chosen = button.dataset.colour === colour;
-		button.classList.toggle("is-chosen", chosen);
-		button.setAttribute("aria-checked", String(chosen));
-	}
-}
-
-for (const colour of HIGHLIGHT_COLOURS) {
-	const button = document.createElement("button");
-	button.type = "button";
-	button.className = "highlight-colour";
-	button.dataset.colour = colour;
-	button.style.background = colour;
-	button.setAttribute("role", "radio");
-	button.setAttribute("aria-label", `Colour ${colour}`);
-	highlightColours.append(button);
-}
-chooseColour(chosenColour);
-
-highlightColours.addEventListener("click", (event) => {
-	const button = event.target.closest(".highlight-colour");
-	if (button) {
-		chooseColour(button.dataset.colour);
-	}
-});
+const highlightColours = createColourChooser(SUGGESTED_COLOURS[0]);
+document.getElementById("highlight-colours").replaceWith(highlightColours.element);
 
 function hideHighlightPopup() {
 	highlightPopup.hidden = true;
 	highlightForm.hidden = true;
 	highlightStart.hidden = false;
 	highlightName.value = "";
+	highlightComment.value = "";
+	highlightColours.choose(SUGGESTED_COLOURS[0]);
 	pendingSelection = null;
 }
 
@@ -577,8 +763,9 @@ highlightForm.addEventListener("submit", async (event) => {
 			body: JSON.stringify({
 				l_resource_id: Number(readerResource.id),
 				name: highlightName.value,
-				colour: chosenColour,
+				colour: highlightColours.colour(),
 				quote: pendingSelection.quote,
+				comment: highlightComment.value,
 				rects: pendingSelection.rects,
 			}),
 		});

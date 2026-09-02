@@ -69,7 +69,7 @@ jobs:
           cat > .env <<'EOF'
           DATABASE_NAME=l_r_db.db
           DATABASE_PATH=/app/data
-          LANGUAGE_MODEL=llama3.1:8b
+          LANGUAGE_MODEL=qwen2.5:0.5b
           OLLAMA_URL=host.docker.internal
           OLLAMA_PORT=11434
           EOF
@@ -125,6 +125,9 @@ jobs:
           probe "Backend resource list" "http://localhost:7050/api/resources/all"
           # Serves the single page app.
           probe "Frontend index" "http://localhost:7051/"
+          # Reads the seeded highlights through the views, so a change to the
+          # highlight schema that the views were not updated for fails here.
+          probe "Highlight summary" "http://localhost:7050/api/highlights/resource/1/summary"
           # Proves the nginx proxy reaches the backend container.
           probe "Frontend to backend proxy" "http://localhost:7051/api/highlights/colours"
           # Proves the content volume is mounted where PDF.js expects it.

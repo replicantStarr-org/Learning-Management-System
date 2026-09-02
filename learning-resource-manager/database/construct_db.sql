@@ -23,14 +23,18 @@ CREATE TABLE l_resource_tags(
 
 -- A snippet someone kept from a resource. Rows and characters do not exist in a
 -- PDF, so the position lives in highlight_rects rather than here; this table is
--- what the snippet is called, how it looks and what it said.
+-- what the snippet is called, how it looks, what it said and what the reader
+-- made of it.
 CREATE TABLE highlights(
 	l_resource_highlight_id INTEGER PRIMARY KEY,
 	l_resource_id INTEGER NOT NULL,
 	user_id INTEGER NOT NULL,
 	name VARCHAR(64),
+	-- Any '#rrggbb' the reader picks, not just the suggested palette.
 	colour VARCHAR(16) NOT NULL,
 	quote TEXT,
+	-- What the reader wrote about the quote, as opposed to the quote itself.
+	comment TEXT,
 	created_at TEXT NOT NULL DEFAULT (datetime('now')),
 	CONSTRAINT FK_highlight_resource FOREIGN KEY (l_resource_id) REFERENCES l_resource(l_resource_id)
 );
@@ -67,6 +71,7 @@ CREATE VIEW v_highlight_summary AS
 	       h.name,
 	       h.colour,
 	       h.quote,
+	       h.comment,
 	       MIN(r.page_number) AS page_number,
 	       COUNT(r.highlight_rect_id) AS rect_count
 	FROM highlights h
@@ -81,6 +86,7 @@ CREATE VIEW v_highlight_rect AS
 	       h.name,
 	       h.colour,
 	       h.quote,
+	       h.comment,
 	       r.page_number,
 	       r.x,
 	       r.y,
@@ -104,3 +110,20 @@ CREATE VIEW v_resource_catalogue AS
 	LEFT JOIN tags t ON t.tag_id = rt.tag_id
 	GROUP BY r.l_resource_id
 	ORDER BY r.title;
+
+-- Every highlight with the resource and tags it sits under, for the chat service
+-- to hand to the language model whole. Built on the two views above so the
+-- rectangles are already collapsed to a page and the tags to one string: joining
+-- both directly here would multiply the rows and repeat every tag.
+CREATE VIEW v_highlight_catalogue AS
+	SELECT h.l_resource_highlight_id,
+	       h.l_resource_id,
+	       c.title,
+	       c.tags,
+	       h.name,
+	       h.quote,
+	       h.comment,
+	       h.page_number
+	FROM v_highlight_summary h
+	JOIN v_resource_catalogue c ON c.l_resource_id = h.l_resource_id
+	ORDER BY c.title, h.page_number;

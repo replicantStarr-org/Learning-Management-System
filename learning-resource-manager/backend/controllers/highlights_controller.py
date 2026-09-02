@@ -1,19 +1,21 @@
 from flask import Blueprint, jsonify, request
 
 from services.highlight_service import (
-    COLOURS,
+    SUGGESTED_COLOURS,
     HighlightError,
     create_highlight,
     delete_highlight,
     list_for_resource,
     list_summary_for_resource,
+    update_highlight,
 )
 
 highlights_bp = Blueprint('highlights', __name__)
 
 @highlights_bp.route('/colours')
 def colours():
-    return jsonify({"colours": sorted(COLOURS)})
+    """The suggested swatches. Any '#rrggbb' is accepted when saving."""
+    return jsonify({"colours": list(SUGGESTED_COLOURS)})
 
 @highlights_bp.route('/resource/<int:resource_id>')
 def for_resource(resource_id):
@@ -38,12 +40,29 @@ def create():
             payload.get("name"),
             payload.get("colour"),
             payload.get("quote"),
+            payload.get("comment"),
             payload.get("rects"),
         )
     except HighlightError as exc:
         return jsonify({"error": str(exc)}), 400
 
     return jsonify({"l_resource_highlight_id": highlight_id}), 201
+
+@highlights_bp.route('/<int:highlight_id>', methods=['PATCH'])
+def edit(highlight_id):
+    payload = request.get_json(silent=True) or {}
+
+    try:
+        update_highlight(
+            highlight_id,
+            payload.get("name"),
+            payload.get("colour"),
+            payload.get("comment"),
+        )
+    except HighlightError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"l_resource_highlight_id": highlight_id})
 
 @highlights_bp.route('/<int:highlight_id>', methods=['DELETE'])
 def remove(highlight_id):

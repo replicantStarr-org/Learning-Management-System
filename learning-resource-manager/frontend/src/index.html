@@ -88,8 +88,10 @@
 							<form class="highlight-form" id="highlight-form" hidden>
 								<input type="text" class="form-control form-control-sm" id="highlight-name"
 								       maxlength="64" placeholder="Name this highlight" aria-label="Highlight name">
-								<div class="highlight-colours" id="highlight-colours" role="radiogroup"
-								     aria-label="Highlight colour"></div>
+								<textarea class="form-control form-control-sm" id="highlight-comment" rows="3"
+								          maxlength="1000" placeholder="Add a comment"
+								          aria-label="Highlight comment"></textarea>
+								<div class="highlight-colours" id="highlight-colours"></div>
 								<div class="highlight-actions">
 									<button type="button" class="btn btn-outline-secondary btn-sm" id="highlight-cancel">Cancel</button>
 									<button type="submit" class="btn btn-primary btn-sm" id="highlight-save">Save</button>

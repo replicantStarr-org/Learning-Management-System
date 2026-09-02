@@ -235,26 +235,79 @@
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
-    max-height: 11rem;
+    /* Tall enough that an entry swapped for its editor still fits. */
+    max-height: 17rem;
     overflow-y: auto;
 
     & .highlight-entry {
+        padding: 0.5rem 0.75rem;
+        background: var(--color-page);
+        border-radius: var(--radius-card);
+    }
+
+    & .highlight-entry-row {
         display: flex;
         align-items: center;
+        /* Wide enough that the page number reads as its own column rather than
+         * as one cluster with the edit button. */
+        gap: 0.875rem;
+    }
+
+    /* Following the highlight is the whole row bar the edit button. */
+    & .highlight-entry-open {
+        display: flex;
+        flex: 1;
+        align-items: center;
         gap: 0.625rem;
-        width: 100%;
-        padding: 0.5rem 0.75rem;
+        min-width: 0;
+        padding: 0;
         text-align: left;
-        background: var(--color-page);
+        background: none;
         border: 0;
         border-radius: var(--radius-card);
         cursor: pointer;
-        transition: background var(--motion-speed) ease;
+    }
+
+    & .highlight-entry:hover,
+    & .highlight-entry:focus-within {
+        background: var(--color-icon-surface);
+    }
+
+    & .highlight-entry-edit {
+        flex: none;
+        padding: 0.125rem 0.5rem;
+        color: var(--color-muted);
+        font-size: 0.8125rem;
+        background: none;
+        border: 0;
+        border-radius: var(--radius-card);
+        cursor: pointer;
 
         &:hover,
         &:focus-visible {
-            background: var(--color-icon-surface);
+            color: var(--color-text);
+            text-decoration: underline;
         }
+    }
+
+    /* What the reader wrote, as opposed to what the page said. */
+    & .highlight-entry-comment {
+        margin: 0.375rem 0 0;
+        padding-left: 1.5rem;
+        color: var(--color-muted);
+        font-size: 0.8125rem;
+    }
+
+    & .highlight-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    & .highlight-editor-error {
+        margin: 0;
+        color: var(--bs-danger, #dc3545);
+        font-size: 0.8125rem;
     }
 
     & .highlight-entry-swatch {
@@ -272,10 +325,20 @@
         text-overflow: ellipsis;
     }
 
+    /*
+     * Pinned to the right edge of the row rather than left to follow the name,
+     * so the page numbers line up as a column down the list however long the
+     * names are. The width holds that column steady from "Page 1" to "Page 100".
+     */
     & .highlight-entry-location {
         flex: none;
+        min-width: 4rem;
+        margin-left: auto;
+        padding-left: 0.5rem;
         color: var(--color-muted);
         font-size: 0.8125rem;
+        white-space: nowrap;
+        text-align: right;
     }
 }
 
@@ -294,30 +357,57 @@
         gap: 0.5rem;
         width: 15rem;
     }
+}
 
-    & .highlight-colours {
-        display: flex;
-        gap: 0.375rem;
+/*
+ * Shared by the create popup in the reader and the editor in the resource
+ * popup, so these sit at the top level rather than inside either one.
+ */
+.highlight-colours {
+    display: flex;
+    gap: 0.375rem;
+}
+
+.highlight-colour {
+    width: 1.5rem;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0.125rem solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+
+    &.is-chosen {
+        border-color: var(--color-text);
     }
+}
 
-    & .highlight-colour {
-        width: 1.5rem;
-        aspect-ratio: 1;
+/*
+ * The picker for a colour outside the suggested palette. The native swatch is
+ * stretched to fill the circle so it reads as one more choice in the row.
+ */
+.highlight-colour-custom {
+    position: relative;
+    overflow: hidden;
+    background:
+        conic-gradient(#f48fb1, #ffd54f, #a5d6a7, #90caf9, #ce93d8, #f48fb1);
+
+    & input[type="color"] {
+        position: absolute;
+        inset: -25%;
+        width: 150%;
+        height: 150%;
         padding: 0;
-        border: 0.125rem solid transparent;
-        border-radius: 50%;
+        background: none;
+        border: 0;
+        opacity: 0;
         cursor: pointer;
-
-        &.is-chosen {
-            border-color: var(--color-text);
-        }
     }
+}
 
-    & .highlight-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.5rem;
-    }
+.highlight-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
 }
 
 /*
