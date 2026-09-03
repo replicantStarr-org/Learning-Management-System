@@ -2,4 +2,5 @@ include:
   - access/docker-compose.yml
   - subjects/docker-compose.yml
   - learning-resource-manager/compose.yml
+  - assignments/docker-compose.yml
   - quizzes/docker-compose.yml
