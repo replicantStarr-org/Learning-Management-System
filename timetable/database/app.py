@@ -32,7 +32,6 @@ def get_db_connection():
     conn = sqlite3.connect(DATABASE_NAME)
     conn.row_factory = sqlite3.Row
 
-    # foreign keys are disabled by default
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 

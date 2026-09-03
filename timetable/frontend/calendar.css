@@ -1,5 +1,3 @@
-/* Must stay in sync with PX_PER_HOUR in timetable/backend/views/html.py, which computes the
-   pixel offsets/heights below server-side. */
 :root {
     --cal-hour-height: 56px;
 }
@@ -87,7 +85,6 @@
     cursor: default;
 }
 
-/* The AI-plan preview is read-only except for adding suggestions - no click-to-create hint. */
 #ai-plan-modal-body .cal-day-col {
     cursor: default;
 }
@@ -163,10 +160,6 @@
 .cal-entry.cat-assessment { background: #f8d7da; border-left-color: #dc3545; color: #58151c; }
 .cal-entry.cat-other { background: #e3e3e5; border-left-color: #212529; color: #212529; }
 
-/* Due dates (assignments/quizzes/exams with no scheduled time - see ical_client.py) don't occupy
-   a time slot, so they can't be hourly-grid blocks - they're a slim banner row of pills between
-   the day headers and the hourly grid instead, one column per day, Google-Calendar-style. Only
-   rendered by _calendar_frame at all when at least one day in the week actually has one. */
 .cal-due-corner,
 .cal-due-col {
     border-right: 1px solid var(--bs-border-color, #dee2e6);
@@ -200,8 +193,6 @@
 
 .cal-due-title {
     font-weight: 600;
-    /* Full title over up to 3 lines rather than a single truncated line - this was the actual
-       readability complaint (pills were much smaller/harder to read than real hourly blocks). */
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -235,11 +226,6 @@
     background: rgba(255, 255, 255, 0.95);
 }
 
-/* AI plan preview: suggested blocks, overlaid on the student's real entries in the same grid.
-   Violet is used nowhere in the category palette above, specifically so a suggestion can never
-   be mistaken for a real "Class" (blue) or any other category at a glance - reinforced by the
-   thicker dashed border and the "Suggested:" text prefix on the title itself (see views/html.py)
-   rather than a separate label row, since blocks can be as short as 22px tall. */
 .cal-entry.cal-suggestion {
     background: rgba(124, 58, 237, 0.14);
     border: 2px dashed #7c3aed;
@@ -270,9 +256,6 @@
     color: #7c3aed;
 }
 
-/* The "Add to timetable" confirmation reuses the app's generic .alert message component,
-   swapped into a suggestion block only ~34-100px tall - shrink it to fit instead of it being
-   clipped by .cal-entry's overflow:hidden. */
 .cal-suggestion-body .alert {
     margin: 0;
     padding: 2px 4px;

@@ -63,8 +63,6 @@ CREATE TABLE ai_advice_logs (
 );
 """)
 
-# Timetable entries are seeded relative to the current week (rather than fixed dates) so the
-# demo data always shows up as "this week" no matter when the image is built or demoed.
 today = datetime.now().date()
 monday = today - timedelta(days=today.weekday())
 
@@ -77,7 +75,6 @@ def weekday_name(day_offset):
     return (monday + timedelta(days=day_offset)).strftime("%A")
 
 
-# (username, day offset from this week's Monday, start, end, activity, category, notes, ai_generated)
 entries = [
     ("alex.wong", 0, "09:00", "10:30", "Advanced Software Development lecture", "Class", "Room 4.20", 0),
     ("alex.wong", 0, "13:00", "15:00", "ASD study group", "Study", "Prep for sprint review", 0),
@@ -122,7 +119,6 @@ cursor.executemany(
     seed_entries,
 )
 
-# acknowledgement: the following plan/advice text was drafted with generative AI as seed content
 plans = [
     ("alex.wong", "This week your schedule is well balanced, but Tuesday evening (soccer straight after your cafe shift) leaves little recovery time before Wednesday's study block. Consider moving the algorithms revision earlier in the week and adding a short review session right after each lecture while the material is still fresh."),
     ("alex.wong", "Your ASD study group and Web Application Engineering workshop sit on different days - use the study group session to consolidate the workshop content instead of starting from scratch each time."),

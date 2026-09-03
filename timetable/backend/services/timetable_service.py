@@ -10,13 +10,6 @@ from services.ollama_client import BLOCKED_OUTPUT, generate_advice, generate_wee
 
 CATEGORIES = ("Class", "Study", "Personal", "Work", "Assessment", "Other")
 PLAN_MAX_AGE_HOURS = int(os.getenv("PLAN_MAX_AGE_HOURS", "24"))
-# A real class-schedule feed is a weekly-recurring VEVENT spanning a whole semester, not just the
-# current week - importing only "this week" meant a recurring schedule that didn't happen to have
-# an occurrence in the current calendar week (e.g. imported over a weekend/break, or before the
-# semester's first class) reported "0 events found" and left the timetable looking empty even
-# though the feed had a full schedule in it. Import a forward-looking window instead, long enough
-# to cover a typical semester, so every week the recurrence lands on gets populated - the student
-# then sees it by navigating with the grid's own Previous/Next week buttons.
 IMPORT_RANGE_WEEKS = int(os.getenv("IMPORT_RANGE_WEEKS", "16"))
 TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 INJECTION_PATTERN = re.compile(
@@ -133,8 +126,6 @@ def validate_entry(payload, partial=False):
 
 
 def _times_overlap(start_a, end_a, start_b, end_b):
-    # Plain string comparison is safe here: every start/end has already passed TIME_PATTERN, so
-    # they're all zero-padded "HH:MM" strings, which compare in the same order as their times.
     return start_a < end_b and start_b < end_a
 
 
@@ -144,7 +135,7 @@ def _find_clash(username, date, start_time, end_time, exclude_id=None):
         if exclude_id is not None and entry["timetable_id"] == exclude_id:
             continue
         if entry.get("all_day"):
-            continue  # a due-date marker occupies no time and can't clash with anything
+            continue
         if _times_overlap(start_time, end_time, entry["start_time"], entry["end_time"]):
             return entry
     return None
@@ -159,11 +150,6 @@ def _clash_error(clash, date):
 
 
 def _find_duplicate_due(username, date, activity_name):
-    # Due-date entries never clash-check (see create_entry) since they don't occupy time, so
-    # without a separate check re-importing the same feed would create a fresh duplicate row for
-    # every due date on every import. Two due entries on the same day are "the same" here if they
-    # share an activity name - good enough for a same-feed re-import, without being so strict that
-    # a genuinely different assignment due the same day gets wrongly treated as a duplicate.
     day_entries = _json(database.list_entries(username, date, date))
     return any(
         entry.get("all_day") and entry["activity_name"] == activity_name for entry in day_entries
@@ -209,11 +195,6 @@ def delete_entry(timetable_id):
 
 
 def import_ical_schedule(username, ical_url, category="Class"):
-    # Reuses create_entry for every parsed occurrence rather than inserting rows directly, so the
-    # same validation and no-overlap enforcement that applies to a manually-created entry applies
-    # here too - an imported event that clashes with an existing entry (including one from an
-    # earlier import of the same feed - re-importing is then a safe no-op, since the first run's
-    # entries already occupy those slots) is simply skipped, not force-inserted.
     username = _require_username(username)
     category = str(category or "Class").strip().title()
     if category not in CATEGORIES:
@@ -240,12 +221,6 @@ def import_ical_schedule(username, ical_url, category="Class"):
         except ServiceError:
             skipped += 1
 
-    # Due dates (assignment/quiz/exam deadlines with no scheduled time - see ical_client.py) are
-    # imported as all-day "Assessment" entries regardless of the category chosen for timed events,
-    # since a due date isn't a class/study/work/personal time block - it's a distinct kind of
-    # thing. They never clash-check (create_entry(all_day=True) skips it - an all-day marker can't
-    # overlap a real time block), so re-importing the same feed needs its own duplicate guard
-    # instead, or every re-import would pile up fresh copies of the same due dates.
     due_imported = due_skipped = 0
     for event in due_events:
         if _find_duplicate_due(username, event["date"], event["activity_name"]):
@@ -276,10 +251,6 @@ def import_ical_schedule(username, ical_url, category="Class"):
 def _entries_to_text(entries):
     if not entries:
         return "No timetable entries are currently scheduled this week."
-    # Due-date entries (all_day=True, stored as 00:00-23:59 - see import_ical_schedule) are
-    # described as "DUE", not a 00:00-23:59 time range - the model has already struggled with
-    # multi-item reasoning over raw entry lists (see the AI weekly plan design notes below), so a
-    # fake all-day time range would be actively misleading rather than merely unused context.
     lines = []
     for entry in entries:
         if entry.get("all_day"):
@@ -292,8 +263,6 @@ def _entries_to_text(entries):
     return "\n".join(lines)
 
 
-# Matches CALENDAR_START_HOUR/CALENDAR_END_HOUR in views/html.py - the same 8am-11pm window the
-# calendar actually displays, so "free time" reported to the AI matches what the student can see.
 DAY_START_HOUR = 8
 DAY_END_HOUR = 23
 MIN_USEFUL_GAP_MINUTES = 30
@@ -309,11 +278,6 @@ def _hhmm_from_minutes(total_minutes):
 
 
 def _free_intervals_by_day(entries, week_start):
-    # Small/medium local LLMs are unreliable at spotting gaps by scanning a raw list of entries
-    # themselves (this is exactly why a completely empty day like Saturday was getting skipped
-    # for suggestions) - computing it here in Python is exact. Returns the raw per-day data; the
-    # AI-facing text version and the narrative-facing total/empty-day helpers below both build on
-    # this one computation rather than repeating it.
     occupied_by_date = {}
     for entry in entries:
         occupied_by_date.setdefault(entry["date"], []).append(
@@ -350,7 +314,8 @@ def _free_blocks_by_day(entries, week_start):
     for _ in range(7):
         day = intervals[current.isoformat()]
         if not day["has_entries"]:
-            free_text = "ENTIRELY FREE all day (08:00-20:00) - no entries at all"
+            window = f"{_hhmm_from_minutes(DAY_START_HOUR * 60)}-{_hhmm_from_minutes(DAY_END_HOUR * 60)}"
+            free_text = f"ENTIRELY FREE all day ({window}) - no entries at all"
         elif day["free"]:
             free_text = ", ".join(f"{_hhmm_from_minutes(s)}-{_hhmm_from_minutes(e)}" for s, e in day["free"])
         else:
@@ -371,8 +336,6 @@ def _empty_days(entries, week_start):
 
 
 def _rank_days_by_free_time(entries, week_start):
-    # Ranks every day with at least MIN_USEFUL_GAP_MINUTES free, most free time first. An entirely
-    # free day naturally ranks at or near the top, since it has the whole 8am-11pm window open.
     intervals = _free_intervals_by_day(entries, week_start)
     ranked = []
     current = week_start
@@ -395,12 +358,6 @@ def _rank_days_by_free_time(entries, week_start):
 
 
 def _plan_target_days(entries, week_start, suggest_minutes, max_count):
-    # Two rounds of real testing showed the model doesn't reliably prioritise the freest days on
-    # its own, even when told to (observed: skipped an entirely-free Saturday twice). Rather than
-    # keep asking more forcefully, Python now decides *which* days get a suggestion - ranked by
-    # actual free time - and the model's job narrows to picking a good time within each. A day's
-    # target duration is a roughly even split of the budget, rounded to 15 minutes, never more
-    # than that day's own largest free interval can actually hold.
     ranked = _rank_days_by_free_time(entries, week_start)
     if not ranked or suggest_minutes < MIN_USEFUL_GAP_MINUTES:
         return []
@@ -433,21 +390,8 @@ def _detect_clashes(entries):
     return clashes
 
 
-# Evidence-based targets rather than an arbitrary flat split of the week:
-#
-# - The "2-hour rule": ~2 hours of independent study per 1 hour of class time. This is the US
-#   Department of Education's credit-hour standard (one credit = 1h instruction + a minimum of 2h
-#   outside work/week) and the guideline most university academic-success programs use. NSSE
-#   research finds the average student actually studies only 10-13h/week regardless of course
-#   load, well under this benchmark - but students who do hit the ~2-3x ratio earn significantly
-#   higher GPAs. Anchoring the target to the student's own logged Class hours (rather than a flat
-#   % of the whole week) means it scales with their actual course load, not an arbitrary number.
-# - Paid work: research on working students finds 10-15h/week ideal, 15-20h "manageable," and a
-#   clear breaking point around 30h/week where academic performance starts to decline sharply.
-#   This can't be turned into a suggestion (a schedule tool shouldn't invent work shifts), so it's
-#   surfaced as an informational note in the narrative when relevant, not a target to hit.
 STUDY_TO_CLASS_RATIO = 2.0
-WORK_HOURS_CONCERN_THRESHOLD = 30 * 60  # minutes/week
+WORK_HOURS_CONCERN_THRESHOLD = 30 * 60
 
 
 def _weekly_balance(entries):
@@ -477,25 +421,15 @@ def _weekly_balance(entries):
         "work_minutes": work_minutes,
         "target_study_minutes": target_study_minutes,
         "gap_minutes": gap_minutes,
-        # What a single generation should ask the AI for - see MAX_SUGGESTED_GAP_MINUTES below.
         "suggest_minutes": min(gap_minutes, MAX_SUGGESTED_GAP_MINUTES),
     }
 
 
-# A student far below the target could have a genuine gap of many hours - asking the AI to close
-# all of it in one response would mean suggesting blocks across nearly all remaining free time
-# (defeating the whole point of leaving free time unscheduled) and bloating output badly. Cap what
-# a single generation asks for; the narrative says so explicitly when the full gap is bigger than
-# that, so it reads as one incremental step rather than a claim of having solved the whole gap.
-MAX_SUGGESTED_GAP_MINUTES = 240  # 4 hours
+MAX_SUGGESTED_GAP_MINUTES = 240
 MAX_SUGGESTION_COUNT = 4
 
 
 def _trim_to_budget(suggestions, budget_minutes, max_count):
-    # The model doesn't reliably hit the requested total exactly (observed: asked for ~4h, got
-    # 7h) - enforce the budget in code rather than trusting the instruction was followed. Keeps
-    # suggestions in the model's own order up to the count/time budget; always keeps at least one
-    # even if it alone exceeds the budget, rather than discarding everything over a technicality.
     accepted = []
     total_minutes = 0
     for suggestion in suggestions:
@@ -509,12 +443,6 @@ def _trim_to_budget(suggestions, budget_minutes, max_count):
     return accepted
 
 
-# The narrative shown to the student is now built entirely in Python (see _build_plan_narrative
-# below), not written by the model - a fixed template reads far more clearly than variable AI
-# prose, and it can't go out of sync with the final (filtered/trimmed) suggestion list the way
-# AI-written prose did (observed: narrative claimed "4 blocks", only 2 survived budget trimming).
-# _balance_text's only remaining job is telling the model how many/how much Study to suggest and
-# where - the model no longer writes any explanatory text at all.
 def _target_days_text(target_days):
     if not target_days:
         return "None."
@@ -551,13 +479,6 @@ def _balance_text(balance, target_days):
 
 
 def _plan_context_text(entries, week_start, balance, target_days):
-    # The clash list, free-time list, weekly balance, and target days are all computed exactly, in
-    # Python, from the same data - the model is told to treat them as ground truth rather than
-    # re-deriving (and, evidently, sometimes getting wrong) any of them itself from the raw entry
-    # list. In particular, *which* days to use is no longer left to the model's own judgement at
-    # all (see _rank_days_by_free_time) - two rounds of testing showed it doesn't reliably
-    # prioritise the freest day even when told to; Python now decides that deterministically and
-    # the model only picks a specific time within each already-chosen day.
     clashes = _detect_clashes(entries)
     clashes_text = "\n".join(clashes) if clashes else "None - do not describe any clash or overlap."
     return (
@@ -575,8 +496,6 @@ def _plan_context_text(entries, week_start, balance, target_days):
 
 
 def _synthesize_suggestion(day):
-    # Fallback for a target day the model didn't cover (or covered invalidly/clashing) - built
-    # from that day's own largest free interval, so it's guaranteed to fit without clashing.
     start, _ = day["largest_interval"]
     end = start + day["target_minutes"]
     return {
@@ -602,11 +521,6 @@ def _latest_plan(username):
 
 
 def _drop_clashing_suggestions(suggestions, entries):
-    # Suggested blocks must never clash with anything, the same way create_entry/update_entry now
-    # enforce for real entries: not with an existing entry (including one already accepted from
-    # an earlier "Add" click - the same rule now also catches partial overlaps, not just an exact
-    # repeated slot) and not with another suggestion in this same batch. Kept in the order the AI
-    # returned them, so the first of any clashing pair wins and the later one is dropped.
     accepted = []
     for suggestion in suggestions:
         against_entries = any(
@@ -632,9 +546,6 @@ WEEKDAY_ORDER = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturd
 
 
 def _diversify_by_day(suggestions):
-    # Prefer covering more distinct days over piling several suggestions on one day, so study
-    # time stays spread across the week rather than clustered - enforced here regardless of
-    # whether the model's own ordering already reflects the same instruction it was given.
     by_day = {}
     order = []
     for suggestion in suggestions:
@@ -652,9 +563,6 @@ def _diversify_by_day(suggestions):
 
 
 def _build_plan_narrative(balance, entries, week_start, accepted_suggestions):
-    # Built entirely from computed facts and the final (filtered/diversified/trimmed) suggestion
-    # list - never from AI prose - so it can never describe a suggestion that isn't actually on
-    # the calendar, and always follows the same clear structure.
     def hours(minutes):
         return round(minutes / 60, 1)
 
@@ -740,19 +648,10 @@ def _build_plan_narrative(balance, entries, week_start, accepted_suggestions):
 def get_or_create_plan(username, force=False):
     username = _require_username(username)
     entries, week_start, _week_end = list_entries(username)
-    # All-day due-date entries (see import_ical_schedule) are stored as 00:00-23:59 so they don't
-    # need a real time column, but that means every free-time/balance calculation below would
-    # otherwise see a due date as occupying the entire day - excluded here, once, rather than in
-    # each of those helpers individually.
     entries = [entry for entry in entries if not entry.get("all_day")]
 
     balance = _weekly_balance(entries)
     existing = _latest_plan(username)
-    # A plan row saved before suggestions were persisted at all has suggested_entries = NULL in
-    # the database, not "[]" - that's different from the AI genuinely finding nothing to suggest,
-    # and reusing it would keep serving a plan with no actionable suggestions forever (until the
-    # entries changed or the 24h cache expired). Treat NULL as "nothing usable to reuse" so it
-    # falls through and regenerates properly instead - a one-time self-heal for older rows.
     has_reusable_suggestions = existing is not None and existing.get("suggested_entries") is not None
     if existing and has_reusable_suggestions and not force:
         plan_updated = _parse_timestamp(existing.get("regenerated_at") or existing["created_at"])
@@ -771,9 +670,6 @@ def get_or_create_plan(username, force=False):
             stored_suggestions = _trim_to_budget(
                 stored_suggestions, balance["suggest_minutes"], MAX_SUGGESTION_COUNT
             )
-            # Rebuilt fresh every time (cheap - no AI call), not read back from the stored row, so
-            # the narrative can never drift out of sync with whichever suggestions survived the
-            # filters above on this particular view.
             plan_text = _build_plan_narrative(balance, entries, week_start, stored_suggestions)
             return {
                 **existing,
@@ -800,18 +696,11 @@ def get_or_create_plan(username, force=False):
             cleaned = validate_entry(suggestion)
         except ServiceError:
             continue
-        # The prompt asks for Study-only suggestions (no generic "relax"/"break" filler - free
-        # time is meant to stay unscheduled), but don't just trust it followed that instruction.
         if cleaned.get("category") != "Study":
             continue
         cleaned_suggestions.append(cleaned)
     cleaned_suggestions = _drop_clashing_suggestions(cleaned_suggestions, entries)
 
-    # Which days actually get a suggestion is Python's decision (target_days, ranked by free
-    # time), not the model's - so enforce it directly: keep at most one AI suggestion per target
-    # day (first one wins if it proposed more), drop anything for a day that isn't a target day at
-    # all, and synthesise a fallback (from that day's own largest free interval, so it can't
-    # clash) for any target day the model didn't cover or whose suggestion got filtered out above.
     by_target_date = {day["date"]: None for day in target_days}
     for suggestion in cleaned_suggestions:
         if suggestion["date"] in by_target_date and by_target_date[suggestion["date"]] is None:
@@ -821,11 +710,7 @@ def get_or_create_plan(username, force=False):
         chosen = by_target_date[day["date"]] or _synthesize_suggestion(day)
         final_suggestions.append(chosen)
 
-    # The model doesn't reliably hit the requested study-time total exactly - enforce the budget
-    # from COMPUTED WEEKLY BALANCE here too, rather than trusting the instruction was followed.
     cleaned_suggestions = _trim_to_budget(final_suggestions, balance["suggest_minutes"], MAX_SUGGESTION_COUNT)
-    # The narrative is built entirely from computed facts + this final suggestion list - the model
-    # is no longer asked to write any explanatory text at all (see PLAN_SYSTEM_PROMPT).
     plan_text = _build_plan_narrative(balance, entries, week_start, cleaned_suggestions)
     suggestions_json = json.dumps(cleaned_suggestions)
 

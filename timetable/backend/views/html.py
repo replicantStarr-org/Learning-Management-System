@@ -23,8 +23,6 @@ CATEGORY_SLUGS = {
     "Other": "cat-other",
 }
 
-# The grid shows this fixed 8am-11pm window. Must stay in sync with --cal-hour-height in
-# timetable/frontend/calendar.css, which is what actually renders the pixel heights below.
 CALENDAR_START_HOUR = 8
 CALENDAR_END_HOUR = 23
 PX_PER_HOUR = 56
@@ -54,10 +52,6 @@ def _format_hour_label(hour):
 
 
 def _assign_lanes(day_entries):
-    # Greedy interval-graph colouring: each entry takes the first lane whose previous
-    # occupant has already finished, so entries that overlap in time render side-by-side
-    # instead of stacking on top of each other. Entries seeded/created with no overlaps
-    # (the common case) all land in lane 0 and take the day column's full width.
     lane_ends = []
     assignments = []
     for entry in sorted(day_entries, key=lambda e: e["_start_min"]):
@@ -78,7 +72,6 @@ def _cal_entry_block(entry, lane_index, total_lanes, interactive=True):
     start_min = max(entry["_start_min"], window_start)
     end_min = min(entry["_end_min"], window_end)
     if end_min <= start_min:
-        # Entirely outside the visible 8am-11pm window - nothing sensible to draw.
         return ""
 
     px_per_min = PX_PER_HOUR / 60
@@ -93,9 +86,6 @@ def _cal_entry_block(entry, lane_index, total_lanes, interactive=True):
     )
     tooltip = escaped(f"{entry['activity_name']} ({entry['start_time']} - {entry['end_time']})")
 
-    # interactive=False renders a plain read-only block - used for the AI-plan preview, where
-    # the student's real entries are shown for context only and shouldn't be editable/deletable
-    # from inside that view.
     actions = ""
     if interactive:
         timetable_id = escaped(entry["timetable_id"])
@@ -135,10 +125,6 @@ def _due_pill(item):
 
 
 def _calendar_frame(week_start, render_day, render_due=None):
-    # Shared by the main weekly grid and the AI-plan preview: builds the day-header row, an
-    # optional all-day due-date banner row (render_due - omitted entirely, not just left empty,
-    # when the caller has no all-day entries to show, e.g. the read-only AI-plan preview), the
-    # hour-label gutter, and 7 day columns, delegating each day's actual blocks to render_day.
     column_height = (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * PX_PER_HOUR
     hour_labels = "".join(
         f'<div class="cal-hour-label" style="top: {(hour - CALENDAR_START_HOUR) * PX_PER_HOUR}px">{_format_hour_label(hour)}</div>'
@@ -146,7 +132,7 @@ def _calendar_frame(week_start, render_day, render_due=None):
     )
 
     day_headers = []
-    due_cells = []  # each day's raw content, before wrapping - so emptiness is checkable below
+    due_cells = []
     day_columns = []
     current = week_start
     today = date.today()
@@ -165,8 +151,6 @@ def _calendar_frame(week_start, render_day, render_due=None):
         )
         current = current + timedelta(days=1)
 
-    # Only rendered when at least one day actually has due-date content, so a week with nothing
-    # imported looks exactly like it did before this feature existed - no empty strip of clutter.
     due_row = ""
     if any(due_cells):
         due_columns = "".join(f'<div class="cal-due-col">{cell}</div>' for cell in due_cells)
@@ -339,9 +323,6 @@ def _cal_suggestion_block(item, lane_index, total_lanes, username):
     left = (lane_index / total_lanes) * 100
     width = (1 / total_lanes) * 100
 
-    # Embed the full JSON payload (rather than per-field string interpolation) and HTML-escape
-    # it as one unit, so free-text AI output containing quotes/ampersands can't break the
-    # hx-vals JSON once the browser HTML-decodes the attribute.
     vals = json.dumps(
         {
             "username": username,
@@ -354,9 +335,6 @@ def _cal_suggestion_block(item, lane_index, total_lanes, username):
             "ai_generated": "1",
         }
     )
-    # The "Add" button targets this inner body (not the outer positioned block) so the server's
-    # generic add-entry confirmation can swap in without needing to know or preserve this block's
-    # top/height/left/width - the outer .cal-entry keeps its position, only its contents change.
     body_id = escaped(item["_suggestion_id"])
     tooltip = escaped(f"Suggested: {item['activity_name']} ({item['start_time']} - {item['end_time']})")
 
@@ -394,14 +372,10 @@ def _plan_calendar(entries, suggested_entries, week_start, username):
         by_date.setdefault(item["date"], []).append(enriched)
 
     def render_day(date_iso):
-        # Real entries and suggestions are lane-assigned together, so a suggestion that clashes
-        # with an existing entry renders side-by-side with it instead of hiding one or the other.
         assignments, total_lanes = _assign_lanes(by_date.get(date_iso, []))
         return "".join(
             _cal_suggestion_block(item, lane_index, total_lanes, username)
             if item["_kind"] == "suggestion"
-            # interactive=False: this preview is read-only apart from accepting suggestions -
-            # the student's real entries show for context but can't be edited/deleted from here.
             else _cal_entry_block(item, lane_index, total_lanes, interactive=False)
             for item, lane_index in assignments
         )
