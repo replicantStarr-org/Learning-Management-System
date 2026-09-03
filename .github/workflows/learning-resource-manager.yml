@@ -1,0 +1,155 @@
+name: Learning Resource Manager CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "learning-resource-manager/**"
+      # The frontend image copies shared/assets into the nginx root.
+      - "shared/assets/**"
+      - ".github/workflows/learning-resource-manager.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "learning-resource-manager/**"
+      - "shared/assets/**"
+      - ".github/workflows/learning-resource-manager.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Everything in this workflow is scoped to this service; no step reaches
+    # into another team's folder.
+    working-directory: learning-resource-manager
+
+jobs:
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linters
+        # Pinned so a new Ruff or Mypy release cannot fail a build that has not
+        # changed. Settings live in learning-resource-manager/pyproject.toml.
+        run: pip install ruff==0.16.5 mypy==2.3.1
+
+      - name: Run Ruff
+        run: ruff check . --output-format=github
+
+      - name: Run Mypy on the backend
+        # The backend and database images each run from their own directory, so
+        # they are checked as separate import roots rather than as one package.
+        working-directory: learning-resource-manager/backend
+        run: mypy . --config-file ../pyproject.toml
+
+      - name: Run Mypy on the database
+        working-directory: learning-resource-manager/database
+        run: mypy . --config-file ../pyproject.toml
+
+  compose:
+    name: Compose Up and Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Write CI environment file
+        # .env is gitignored, so CI supplies its own. No secrets are involved:
+        # the database settings must match compose.yml, and the model settings
+        # are unused here because Ollama does not run on the runner.
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_NAME=l_r_db.db
+          DATABASE_PATH=/app/data
+          LANGUAGE_MODEL=qwen2.5:0.5b
+          OLLAMA_URL=host.docker.internal
+          OLLAMA_PORT=11434
+          EOF
+
+      - name: Build and start the services
+        # database_init is a one shot container, and the backend waits for it to
+        # exit successfully before starting.
+        run: docker compose up --detach --build
+
+      - name: Check the database initialised
+        run: |
+          set -euo pipefail
+
+          state="$(docker compose ps --all --format '{{.Service}} {{.ExitCode}}' \
+            | awk '$1 == "database_init" { print $2 }')"
+
+          if [[ "$state" != "0" ]]; then
+            echo "::error::database_init exited with ${state:-no status}."
+            exit 1
+          fi
+          echo "database_init completed successfully."
+
+      - name: Smoke test the running application
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          probe() {
+            local description="$1"
+            local url="$2"
+
+            for attempt in {1..10}; do
+              status="$(curl --silent --output /dev/null \
+                --connect-timeout 2 --max-time 10 \
+                --write-out '%{http_code}' "$url" || true)"
+
+              if [[ "$status" == "200" ]]; then
+                echo "$description responded with HTTP 200."
+                return 0
+              fi
+
+              echo "$description attempt $attempt/10 returned HTTP ${status:-000}."
+              if [[ "$attempt" -lt 10 ]]; then
+                sleep 3
+              fi
+            done
+
+            echo "::error::$description did not respond with HTTP 200 after 10 attempts."
+            return 1
+          }
+
+          # Asked of compose rather than written out here, so that changing a
+          # published port in compose.yml cannot leave these probes behind.
+          backend="http://localhost:$(docker compose port backend 5000 | awk -F: '{print $NF}')"
+          frontend="http://localhost:$(docker compose port frontend 80 | awk -F: '{print $NF}')"
+          echo "Backend on $backend, frontend on $frontend."
+
+          # Reads the database the database_init container built.
+          probe "Backend resource list" "$backend/api/resources/all"
+          # Reads the seeded highlights through the views, so a change to the
+          # highlight schema that the views were not updated for fails here.
+          probe "Highlight summary" "$backend/api/highlights/resource/1/summary"
+          # Serves the single page app.
+          probe "Frontend index" "$frontend/"
+          # Proves the nginx proxy reaches the backend container.
+          probe "Frontend to backend proxy" "$frontend/api/highlights/colours"
+          # Proves the content volume is mounted where PDF.js expects it.
+          probe "Learning resource PDF" "$frontend/content/pdf/1706.03762.pdf"
+
+          # The chat endpoint is deliberately not probed: it calls a language
+          # model running on the developer's host, which no runner provides.
+
+      - name: Dump service logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the services
+        if: always()
+        run: docker compose down --volumes --remove-orphans

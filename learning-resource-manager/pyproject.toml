@@ -1,0 +1,29 @@
+# Lint/type-check settings for the learning resource manager only. The other
+# services own their own tooling, so nothing here reaches outside this folder.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+# backend/ and database/ are the two Python roots; content/ is data.
+include = ["backend/**/*.py", "database/**/*.py"]
+# Each service is its own import root in its container (the backend runs from
+# /app/backend), so "services" and "controllers" are first party imports.
+src = ["backend", "database"]
+
+[tool.ruff.lint]
+# Pinned explicitly so a new Ruff release cannot change what CI enforces.
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # import sorting
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.mypy]
+python_version = "3.12"
+# The services import third party packages (Flask, ollama) that ship no stubs.
+ignore_missing_imports = true
+# Each service is its own import root at runtime, so mypy is pointed at
+# backend/ and database/ separately rather than at this directory.
+explicit_package_bases = true
