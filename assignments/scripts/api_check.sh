@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Exercises the assignment REST API end to end against a running stack.
-# Only the non-AI paths are covered: CI has no Ollama runtime, so the summary and
-# recommendation endpoints are validated locally instead (see assignments/design.md).
+# Only the non-AI paths are covered: CI has no Ollama runtime, so the summary
+# endpoint is validated locally instead (see assignments/design.md).
 set -euo pipefail
 
 BACKEND="${BACKEND_BASE:-http://localhost:5003}"

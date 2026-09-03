@@ -65,19 +65,6 @@ def get_latest_summary(assignment_id, conn):
     ).fetchone()
 
 
-def get_recommendations(assignment_id, conn):
-    return conn.execute(
-        """
-        SELECT recommendation_id, assignment_id, title, resource_type, reason,
-               source_resource_id, created_at
-        FROM assignment_recommendations
-        WHERE assignment_id = ?
-        ORDER BY recommendation_id
-        """,
-        (assignment_id,),
-    ).fetchall()
-
-
 def get_reminders(assignment_id, conn):
     return conn.execute(
         """
@@ -161,7 +148,6 @@ def get_assignment_details(assignment_id):
         body = dict(assignment)
         summary = get_latest_summary(assignment_id, conn)
         body["summary"] = dict(summary) if summary else None
-        body["recommendations"] = [dict(row) for row in get_recommendations(assignment_id, conn)]
         body["reminders"] = [dict(row) for row in get_reminders(assignment_id, conn)]
         return jsonify(body)
     finally:
@@ -237,7 +223,6 @@ def delete_assignment(assignment_id):
             return jsonify({"error": "Assignment not found"}), 404
 
         conn.execute("DELETE FROM assignment_reminders WHERE assignment_id = ?", (assignment_id,))
-        conn.execute("DELETE FROM assignment_recommendations WHERE assignment_id = ?", (assignment_id,))
         conn.execute("DELETE FROM assignment_summaries WHERE assignment_id = ?", (assignment_id,))
         conn.execute("DELETE FROM assignments WHERE assignment_id = ?", (assignment_id,))
         conn.commit()
@@ -275,51 +260,6 @@ def store_summary(assignment_id):
             (cursor.lastrowid,),
         ).fetchone()
         return jsonify(dict(summary)), 201
-    finally:
-        conn.close()
-
-
-@app.put("/assignments/<int:assignment_id>/recommendations")
-def replace_recommendations(assignment_id):
-    """Replace the stored recommendation set for an assignment.
-
-    Regenerating is a whole-set operation, so PUT of the full list keeps the write
-    idempotent instead of accumulating duplicates across regenerations.
-    """
-    body, error = get_json_body()
-    if error:
-        return error
-
-    recommendations = body.get("recommendations")
-    if not isinstance(recommendations, list) or not recommendations:
-        return jsonify({"error": "recommendations must be a non-empty list"}), 400
-
-    conn = get_db_connection()
-    try:
-        if not get_assignment(assignment_id, conn):
-            return jsonify({"error": "Assignment not found"}), 404
-
-        conn.execute("DELETE FROM assignment_recommendations WHERE assignment_id = ?", (assignment_id,))
-        for entry in recommendations:
-            title = str(entry.get("title", "")).strip()
-            reason = str(entry.get("reason", "")).strip()
-            if not title or not reason:
-                conn.rollback()
-                return jsonify({"error": "Every recommendation needs a title and a reason"}), 400
-            conn.execute(
-                """
-                INSERT INTO assignment_recommendations
-                    (assignment_id, title, resource_type, reason, source_resource_id)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    assignment_id, title,
-                    str(entry.get("resource_type", "Reading")).strip() or "Reading",
-                    reason, entry.get("source_resource_id"),
-                ),
-            )
-        conn.commit()
-        return jsonify([dict(row) for row in get_recommendations(assignment_id, conn)]), 201
     finally:
         conn.close()
 

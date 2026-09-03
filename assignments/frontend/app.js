@@ -1,4 +1,4 @@
-const BACKEND_BASE = "http://127.0.0.1:5003";
+const BACKEND_BASE = "http://localhost:5003";
 
 const queryParams = new URLSearchParams(window.location.search);
 const assignmentId = queryParams.get("id");

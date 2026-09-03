@@ -11,7 +11,6 @@ conn = sqlite3.connect(DATABASE_NAME)
 cursor = conn.cursor()
 
 cursor.execute("DROP TABLE IF EXISTS assignment_reminders;")
-cursor.execute("DROP TABLE IF EXISTS assignment_recommendations;")
 cursor.execute("DROP TABLE IF EXISTS assignment_summaries;")
 cursor.execute("DROP TABLE IF EXISTS assignments;")
 
@@ -52,20 +51,6 @@ CREATE TABLE assignment_summaries (
     assignment_id INTEGER NOT NULL REFERENCES assignments(assignment_id),
     ai_response TEXT NOT NULL,
     model TEXT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-""")
-
-cursor.execute("""
-CREATE TABLE assignment_recommendations (
-    recommendation_id INTEGER PRIMARY KEY,
-    assignment_id INTEGER NOT NULL REFERENCES assignments(assignment_id),
-    title TEXT NOT NULL,
-    resource_type TEXT NOT NULL,
-    reason TEXT NOT NULL,
-    -- Set when the recommendation was matched to a real row in the Learning Resource
-    -- Manager feature; NULL when the model suggested material we do not hold.
-    source_resource_id INTEGER,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """)
@@ -176,33 +161,6 @@ cursor.executemany(
     SUMMARIES,
 )
 
-RECOMMENDATIONS = [
-    (1, "Microservices Architecture Patterns", "Reading", "Explains service decomposition and the diagrams the report asks for.", 1),
-    (1, "Documenting Software Architectures", "Reading", "Gives a structure for architecture sections that maps onto the marking bullets.", None),
-    (2, "Flask REST API Design Guide", "Guide", "Covers the resource-oriented routing the backend microservice needs.", 2),
-    (2, "SQLite for Application Developers", "Reading", "Useful for the database microservice schema and seeding work.", 3),
-    (3, "GitHub Actions in Practice", "Guide", "Walks through build, service probing and artefact upload steps.", None),
-    (4, "Requirements Elicitation Techniques", "Reading", "Interview technique and question design for the transcript deliverable.", 4),
-    (5, "Running Effective Retrospectives", "Video", "Shows how to turn discussion into owned improvement actions.", None),
-    (6, "Database Normalisation Worked Examples", "Reading", "Step-by-step 1NF to 3NF decompositions with the reasoning shown.", 5),
-    (7, "Reading Query Execution Plans", "Guide", "Needed to explain the before and after plans in the case study.", 6),
-    (8, "WCAG 2.1 Quick Reference", "Reference", "The success criteria the component audit is graded against.", None),
-    (8, "Keyboard Accessibility Testing", "Video", "Demonstrates the manual keyboard pass the task requires.", 7),
-    (9, "Progressive Enhancement Revisited", "Reading", "Provides citable arguments for the essay's position.", None),
-    (10, "OWASP Top 10 for LLM Applications", "Reference", "Source of the attack paths the threat model must cover.", 8),
-    (11, "Retrieval Augmented Generation Explained", "Video", "Covers chunking and retrieval strategy choices for the prototype.", 9),
-    (12, "Evaluating Language Models Fairly", "Reading", "Explains sample size and metric selection for the poster.", 10),
-]
-
-cursor.executemany(
-    """
-    INSERT INTO assignment_recommendations
-        (assignment_id, title, resource_type, reason, source_resource_id)
-    VALUES (?, ?, ?, ?, ?)
-    """,
-    RECOMMENDATIONS,
-)
-
 
 def remind(days_before_due, due_days):
     return (NOW + timedelta(days=due_days - days_before_due)).strftime("%Y-%m-%d %H:%M:%S")
@@ -233,6 +191,6 @@ conn.commit()
 conn.close()
 
 print(
-    f"Seeded {len(ASSIGNMENTS)} assignments, {len(SUMMARIES)} summaries, "
-    f"{len(RECOMMENDATIONS)} recommendations and {len(REMINDERS)} reminders."
+    f"Seeded {len(ASSIGNMENTS)} assignments, {len(SUMMARIES)} summaries "
+    f"and {len(REMINDERS)} reminders."
 )

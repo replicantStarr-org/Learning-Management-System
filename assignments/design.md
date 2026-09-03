@@ -6,18 +6,17 @@ established by the [Subject Management](../subjects/design.md) and
 [Quiz Manager](../quizzes/design.md) features.
 
 The assignment feature lets students record the assessment tasks for their subjects, track their
-status, filter and search the list, see what is due next, and receive deadline notifications. Two
-AI capabilities run against Ollama: summarising an assignment brief, and recommending learning
-materials that help complete it.
+status, filter and search the list, see what is due next, and receive deadline notifications. An
+AI capability runs against Ollama to summarise an assignment brief so students can see at a glance
+what the marker is actually asking for.
 
 Ports (per the port assignment scheme in the [application design](../design.md), position 3):
 frontend `3003`, backend `5003`, database `6003`.
 
 The frontend is a multi-page Bootstrap 5 site (`index`, `assignment`, `create`, `edit`, `upcoming`,
 plus the shared `navbar.html` partial and an `app.js` that loads query-param-driven detail/edit
-fragments), matching the convention set by the other features. The Learning Hub home page
-(`access/frontend/index.html`) links to this feature with an "Assignment Tracker" card, and the
-shared navbar links back to the Learning Hub.
+fragments), matching the convention set by the other features. The shared navbar links back to the
+Learning Hub home page (`access/frontend/index.html`).
 
 ### Functionality Breakdown
 
@@ -38,7 +37,7 @@ shared navbar links back to the Learning Hub.
 
 ### Cross-feature integration
 
-Two read-only integrations, both best-effort - if either service is offline this feature keeps
+One read-only integration, best-effort - if the subjects service is offline this feature keeps
 working, it just loses some context:
 
 - **Subject Management** - the subject dropdown and the AI's subject context come from
@@ -52,14 +51,13 @@ working, it just loses some context:
 The endpoints required by the feature specification, all implemented with the matching HTTP verb:
 
 - `GET /assignments` - list assignments (`subject_id`, `status`, `priority`, `q` filters)
-- `GET /assignments/{id}` - one assignment with its cached summary, recommendations and reminders
+- `GET /assignments/{id}` - one assignment with its cached summary and reminders
 - `POST /assignments` - create
 - `PUT /assignments/{id}` - update (partial updates allowed)
-- `DELETE /assignments/{id}` - delete, cascading to its summaries, recommendations and reminders
+- `DELETE /assignments/{id}` - delete, cascading to its summaries and reminders
 - `GET /assignments/upcoming?days=N` - unfinished work due inside the window
 - `POST /assignments/{id}/summary` - generate (or return the cached) AI summary; `?force=true`
   regenerates
-- `POST /assignments/{id}/recommendations` - generate (or return the cached) recommendations
 
 Plus the endpoints the UI needs: `GET /assignments/{id}/edit` (edit form fragment),
 `GET /subjects/options` (subject dropdown), `GET /reminders` (notification panel) and
@@ -99,28 +97,22 @@ dead database service is a 503.
   weighting, timestamps (with an update trigger, as in the subjects and quizzes features)
 - `assignment_summaries` - cached AI summaries, one row per generation, with the model that
   produced it
-- `assignment_recommendations` - AI-recommended materials, with `source_resource_id` set when the
-  suggestion matched a real row in the Learning Resource Manager
 - `assignment_reminders` - `remind_at`, message and an `acknowledged` flag, driving notifications
 
-Seeded with 12 assignments, 12 summaries, 15 recommendations and 13 reminders (see
-`database/init_db.py`), satisfying the 10-row-per-table minimum. Due dates are seeded **relative to
-build time**, so the upcoming-deadline and notification screens always have live data to
-demonstrate rather than a wall of past dates.
+Seeded with 12 assignments, 12 summaries and 13 reminders (see `database/init_db.py`), satisfying
+the 10-row-per-table minimum. Due dates are seeded **relative to build time**, so the
+upcoming-deadline and notification screens always have live data to demonstrate rather than a wall
+of past dates.
 
 ### AI model choice
 
 Summaries are free text and run on `qwen2.5:0.5b`, the same fast model the subject feature uses.
-Recommendations must come back as a fixed JSON shape, which that 0.5B model cannot produce
-reliably - the quiz feature hit the same wall - so `llama3.1:8b` (also approved) is used there, via
-the separate `OLLAMA_MODEL` variable in the compose file. Both are overridable per environment.
+The model name is overridable per environment via `OLLAMA_SUMMARY_MODEL`.
 
-Both prompts treat the assignment text and the resource catalogue as untrusted data, refuse
-embedded instructions, and answer with a fixed sentinel (`ASSIGNMENT_REQUEST_BLOCKED`) that the
-service turns into a 422 rather than passing model output through. Free text that will reach the
-model is additionally screened for known injection phrasings before the call is made, and every
-model-supplied `source_resource_id` is checked against the real catalogue so a hallucinated id can
-never become a link.
+The summary prompt treats the assignment text as untrusted data, refuses embedded instructions,
+and answers with a fixed sentinel (`ASSIGNMENT_REQUEST_BLOCKED`) that the service turns into a 422
+rather than passing model output through. Free text that will reach the model is additionally
+screened for known injection phrasings before the call is made.
 
 ### Testing
 
@@ -129,8 +121,8 @@ catalogue size, filtering, upcoming, create, the automatically scheduled reminde
 rejected invalid input, 404 handling, delete, and a final count check that the fixture cleaned up
 after itself. The CI workflow ([`assignments.yml`](../.github/workflows/assignments.yml)) runs it
 after the HTTP smoke check, which is the "non-functional requirement validation script" hook the
-top-level design leaves open. The AI endpoints are excluded because GitHub's runners have no
-Ollama runtime; they are verified locally instead.
+top-level design leaves open. The AI summary endpoint is excluded because GitHub's runners have no
+Ollama runtime; it is verified locally instead.
 
 ### Known Limitations
 

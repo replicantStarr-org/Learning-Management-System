@@ -23,7 +23,7 @@
                 <p class="lead text-secondary mb-0">Unfinished work due inside your chosen window.</p>
             </div>
             <form class="d-flex align-items-end gap-2"
-                  hx-get="http://127.0.0.1:5003/assignments/upcoming"
+                  hx-get="http://localhost:5003/assignments/upcoming"
                   hx-target="#upcoming-list" hx-trigger="load, change">
                 <div>
                     <label class="form-label" for="days">Window</label>
@@ -40,7 +40,7 @@
         <section class="mb-4" aria-label="Deadline notifications">
             <h2 class="h5 mb-3">Notifications</h2>
             <div id="notifications" aria-live="polite"
-                 hx-get="http://127.0.0.1:5003/reminders?within_days=30"
+                 hx-get="http://localhost:5003/reminders?within_days=30"
                  hx-trigger="load, every 60s, assignmentsChanged from:body"></div>
         </section>
 
