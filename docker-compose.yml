@@ -4,3 +4,4 @@ include:
   - learning-resource-manager/compose.yml
   - assignments/docker-compose.yml
   - quizzes/docker-compose.yml
+  - timetable/docker-compose.yml
