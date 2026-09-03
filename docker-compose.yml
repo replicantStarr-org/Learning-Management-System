@@ -3,3 +3,4 @@ include:
   - subjects/docker-compose.yml
   - learning-resource-manager/compose.yml
   - quizzes/docker-compose.yml
+  - timetable/docker-compose.yml

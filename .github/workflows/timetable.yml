@@ -1,0 +1,121 @@
+name: Timetable Manager CI
+
+on:
+  pull_request:
+    paths:
+      - "timetable/**"
+      - "shared/**"
+      - ".github/workflows/timetable.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-images:
+    name: Build Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build timetable service images
+        working-directory: timetable
+        run: docker compose build
+
+  smoke-check:
+    name: Smoke Check
+    runs-on: ubuntu-latest
+    needs: build-images
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Start timetable services
+        working-directory: timetable
+        run: docker compose up --detach --build
+
+      - name: Probe timetable services
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          probe() {
+            local service="$1"
+            local url="$2"
+
+            for attempt in {1..8}; do
+              status="$(curl --silent --show-error --output /dev/null \
+                --connect-timeout 2 --max-time 5 \
+                --write-out '%{http_code}' "$url" || true)"
+
+              if [[ "$status" == "200" ]]; then
+                echo "$service responded with HTTP 200."
+                return 0
+              fi
+
+              echo "$service probe attempt $attempt/8 returned HTTP ${status:-000}."
+              if [[ "$attempt" -lt 8 ]]; then
+                sleep 2
+              fi
+            done
+
+            echo "::error::$service did not respond with HTTP 200 after 8 attempts."
+            return 1
+          }
+
+          probe "Timetable database" "http://localhost:6005/"
+          probe "Timetable backend" "http://localhost:5005/"
+          probe "Timetable frontend" "http://localhost:3005/"
+
+      - name: Stop timetable services
+        if: always()
+        working-directory: timetable
+        run: docker compose down --volumes
+
+  evidence-upload:
+    name: Evidence Upload
+    runs-on: ubuntu-latest
+    needs: smoke-check
+    steps:
+      - name: Create evidence reports
+        env:
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          timestamp="$(date --utc +'%Y-%m-%dT%H:%M:%SZ')"
+          mkdir -p evidence
+
+          jq --null-input \
+            --arg workflow_name "$WORKFLOW_NAME" \
+            --arg run_id "$RUN_ID" \
+            --arg commit_sha "$COMMIT_SHA" \
+            --arg branch "$BRANCH" \
+            --arg timestamp "$timestamp" \
+            '{
+              workflow_name: $workflow_name,
+              run_id: $run_id,
+              commit_sha: $commit_sha,
+              branch: $branch,
+              timestamp: $timestamp
+            }' > evidence/timetable-report.json
+
+          cat > evidence/timetable-report.md <<EOF
+          # Timetable Manager CI Evidence
+
+          - **Workflow:** $WORKFLOW_NAME
+          - **Run ID:** $RUN_ID
+          - **Commit SHA:** $COMMIT_SHA
+          - **Branch:** $BRANCH
+          - **Timestamp:** $timestamp
+          - **GitHub Actions run:** $RUN_URL
+          EOF
+
+      - name: Upload evidence reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: timetable-ci-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
