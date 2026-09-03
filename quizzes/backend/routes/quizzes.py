@@ -8,13 +8,16 @@ from services.quiz_service import (
     ServiceError,
     add_question,
     create_quiz,
+    delete_question,
     delete_quiz,
     generate_ai_quiz,
     get_or_create_feedback,
+    get_question,
     get_quiz,
     list_attempts,
     list_quizzes,
     submit_attempt,
+    update_question,
     update_quiz,
 )
 from services.subjects_client import list_subjects
@@ -26,6 +29,9 @@ from views.html import (
     feedback_result,
     generated_quiz_message,
     message,
+    question_display,
+    question_edit_form,
+    questions_panel,
     quiz_detail,
     quiz_edit_form,
     quiz_list,
@@ -62,6 +68,12 @@ def quizzes_changed(body, status=200, redirect=None):
     response.headers["HX-Trigger"] = "quizzesChanged"
     if redirect:
         response.headers["HX-Redirect"] = redirect
+    return response
+
+
+def questions_changed(body, status=200):
+    response = make_response(body, status)
+    response.headers["HX-Trigger"] = "questionsChanged, quizzesChanged"
     return response
 
 
@@ -128,7 +140,47 @@ def add_quiz_question(quiz_id):
     answer_texts = [data.get(f"answer_{i}", "") for i in range(1, 5)]
     correct_index = int(data.get("correct_index", 0))
     add_question(quiz_id, data.get("question_text"), data.get("explanation"), answer_texts, correct_index)
-    return quizzes_changed(message("Question added."))
+    return questions_changed(message("Question added."))
+
+
+@quizzes_bp.get("/quizzes/<int:quiz_id>/questions/manage")
+@handle_errors
+def manage_questions(quiz_id):
+    quiz = get_quiz(quiz_id)
+    return questions_panel(quiz_id, quiz["questions"])
+
+
+@quizzes_bp.get("/quizzes/<int:quiz_id>/questions/<int:question_id>")
+@handle_errors
+def question_by_id(quiz_id, question_id):
+    _, question = get_question(quiz_id, question_id)
+    return question_display(quiz_id, question)
+
+
+@quizzes_bp.get("/quizzes/<int:quiz_id>/questions/<int:question_id>/edit")
+@handle_errors
+def question_edit(quiz_id, question_id):
+    _, question = get_question(quiz_id, question_id)
+    return question_edit_form(quiz_id, question)
+
+
+@quizzes_bp.put("/quizzes/<int:quiz_id>/questions/<int:question_id>")
+@handle_errors
+def edit_question(quiz_id, question_id):
+    data = request.form
+    answer_texts = [data.get(f"answer_{i}", "") for i in range(1, 5)]
+    correct_index = int(data.get("correct_index", 0))
+    updated = update_question(
+        quiz_id, question_id, data.get("question_text"), data.get("explanation"), answer_texts, correct_index
+    )
+    return questions_changed(question_display(quiz_id, updated))
+
+
+@quizzes_bp.delete("/quizzes/<int:quiz_id>/questions/<int:question_id>")
+@handle_errors
+def remove_question(quiz_id, question_id):
+    delete_question(quiz_id, question_id)
+    return questions_changed("")
 
 
 @quizzes_bp.post("/quizzes/<int:quiz_id>/attempts")
