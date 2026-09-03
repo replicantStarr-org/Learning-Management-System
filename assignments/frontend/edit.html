@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit assignment | Learning Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/assets/theme.css" rel="stylesheet">
+    <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+    <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
+
+    <main class="container page-shell">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <a id="back-link" class="d-inline-block mb-4 text-decoration-none" href="/"><i class="bi bi-arrow-left me-1"></i> Back to assignment</a>
+                <script>
+                    const _id = new URLSearchParams(location.search).get("id");
+                    if (_id) document.getElementById("back-link").href = `/assignment.html?id=${encodeURIComponent(_id)}`;
+                </script>
+                <p class="text-primary fw-semibold mb-2">Assignment tracker</p>
+                <h1 class="display-6 fw-bold mb-4">Edit assignment</h1>
+                <section class="card border-0 shadow-sm">
+                    <div class="card-body p-4 p-md-5">
+                        <div id="assignment-view" data-assignment-view="edit" aria-live="polite">
+                            <div class="text-center py-5" role="status">
+                                <span class="spinner-border text-primary"></span>
+                                <p class="text-secondary mt-2">Loading assignment…</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>
