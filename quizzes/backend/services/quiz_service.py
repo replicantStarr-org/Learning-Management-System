@@ -99,7 +99,7 @@ def delete_quiz(quiz_id):
         _json(response, "Could not delete quiz")
 
 
-def add_question(quiz_id, question_text, explanation, answer_texts, correct_index):
+def _validate_question_payload(question_text, explanation, answer_texts, correct_index):
     question_text = str(question_text or "").strip()
     explanation = str(explanation or "").strip()
     answers = [str(text or "").strip() for text in answer_texts]
@@ -111,7 +111,7 @@ def add_question(quiz_id, question_text, explanation, answer_texts, correct_inde
     if not (0 <= correct_index < len(answers)) or not answers[correct_index]:
         raise ServiceError("A valid correct answer must be selected")
 
-    payload = {
+    return {
         "question_text": question_text,
         "explanation": explanation,
         "answers": [
@@ -120,7 +120,32 @@ def add_question(quiz_id, question_text, explanation, answer_texts, correct_inde
             if text
         ],
     }
+
+
+def add_question(quiz_id, question_text, explanation, answer_texts, correct_index):
+    payload = _validate_question_payload(question_text, explanation, answer_texts, correct_index)
     return _json(database.add_question(quiz_id, payload), "Could not add question")
+
+
+def get_question(quiz_id, question_id):
+    quiz = get_quiz(quiz_id)
+    question = next((q for q in quiz["questions"] if q["question_id"] == question_id), None)
+    if question is None:
+        raise ServiceError("Question not found", 404)
+    return quiz, question
+
+
+def update_question(quiz_id, question_id, question_text, explanation, answer_texts, correct_index):
+    payload = _validate_question_payload(question_text, explanation, answer_texts, correct_index)
+    return _json(
+        database.update_question(quiz_id, question_id, payload), "Could not update question"
+    )
+
+
+def delete_question(quiz_id, question_id):
+    response = database.delete_question(quiz_id, question_id)
+    if not response.ok:
+        _json(response, "Could not delete question")
 
 
 def submit_attempt(quiz_id, student_name, question_ids, answer_ids):

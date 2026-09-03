@@ -262,92 +262,222 @@ def _quiz_fields(quiz=None):
     """
 
 
-def _answer_summary_row(answer):
-    check = ' <i class="bi bi-check-lg text-success"></i>' if answer["is_correct"] else ""
-    return f"<li>{escaped(answer['answer_text'])}{check}</li>"
+OPTION_LETTERS = ("A", "B", "C", "D")
+
+
+def _answer_display_chip(answer):
+    if answer["is_correct"]:
+        return f"""
+        <div class="col">
+            <div class="answer-chip d-flex align-items-center gap-2 px-3 py-2 rounded border border-success-subtle bg-success-subtle text-success-emphasis">
+                <i class="bi bi-check-circle-fill flex-shrink-0" aria-hidden="true"></i>
+                <span>{escaped(answer['answer_text'])}</span>
+            </div>
+        </div>
+        """
+    return f"""
+    <div class="col">
+        <div class="answer-chip d-flex align-items-center gap-2 px-3 py-2 rounded border bg-body">
+            <i class="bi bi-circle text-secondary flex-shrink-0" aria-hidden="true"></i>
+            <span>{escaped(answer['answer_text'])}</span>
+        </div>
+    </div>
+    """
+
+
+def _question_action_buttons(quiz_id, question_id):
+    return f"""
+    <div class="d-flex gap-1 flex-shrink-0">
+        <button class="btn btn-sm btn-outline-secondary" type="button" title="Edit question"
+                hx-get="{BACKEND_BASE}/quizzes/{quiz_id}/questions/{question_id}/edit"
+                hx-target="#question-{question_id}" hx-swap="outerHTML">
+            <i class="bi bi-pencil" aria-hidden="true"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger" type="button" title="Delete question"
+                hx-delete="{BACKEND_BASE}/quizzes/{quiz_id}/questions/{question_id}"
+                hx-target="#question-{question_id}" hx-swap="outerHTML"
+                hx-confirm="Delete this question permanently?">
+            <i class="bi bi-trash" aria-hidden="true"></i>
+        </button>
+    </div>
+    """
+
+
+def question_display(quiz_id, question, index=None):
+    question_id = question["question_id"]
+    number = f"Q{index + 1}" if index is not None else "Q"
+    answers_html = "".join(_answer_display_chip(a) for a in question["answers"])
+    return f"""
+    <div class="card question-card mb-3" id="question-{question_id}">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div class="d-flex align-items-start gap-2">
+                    <span class="badge text-bg-primary mt-1">{number}</span>
+                    <p class="fw-semibold mb-0">{escaped(question['question_text'])}</p>
+                </div>
+                {_question_action_buttons(quiz_id, question_id)}
+            </div>
+            <div class="row row-cols-1 row-cols-md-2 g-2">{answers_html}</div>
+        </div>
+    </div>
+    """
+
+
+def _answer_option_rows(values, required_count=2):
+    def row(i, letter):
+        value = escaped(values[i]) if i < len(values) else ""
+        placeholder = "Answer option" if i < required_count else "Answer option (optional)"
+        required = "required" if i < required_count else ""
+        return f"""
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-light text-dark border fw-normal" style="min-width:1.75rem;">{letter}</span>
+            <input class="form-control" name="answer_{i + 1}" maxlength="200"
+                   placeholder="{placeholder}" value="{value}" {required}>
+        </div>
+        """
+
+    return "".join(row(i, letter) for i, letter in enumerate(OPTION_LETTERS))
+
+
+def _correct_index_select(field_id, values, correct_index, show_all=False):
+    def label(i, letter):
+        text = values[i] if i < len(values) else ""
+        return f"{letter} - {text}" if text else letter
+
+    indices = range(4) if show_all else [
+        i for i in range(4) if i < 2 or (i < len(values) and values[i])
+    ]
+    options = "".join(
+        f'<option value="{i}"{" selected" if i == correct_index else ""}>{escaped(label(i, OPTION_LETTERS[i]))}</option>'
+        for i in indices
+    )
+    return f'<select class="form-select" id="{field_id}" name="correct_index">{options}</select>'
+
+
+def question_edit_form(quiz_id, question):
+    question_id = question["question_id"]
+    answers = question["answers"]
+    values = [a["answer_text"] for a in answers]
+    correct_index = next((i for i, a in enumerate(answers) if a["is_correct"]), 0)
+
+    return f"""
+    <div class="card question-card question-edit-card mb-3" id="question-{question_id}">
+        <div class="card-body p-4">
+            <form hx-put="{BACKEND_BASE}/quizzes/{quiz_id}/questions/{question_id}"
+                  hx-target="#question-{question_id}" hx-swap="outerHTML">
+                <div class="mb-3">
+                    <label class="form-label small text-secondary text-uppercase fw-semibold">Question</label>
+                    <textarea class="form-control form-control-lg" name="question_text" rows="2"
+                              maxlength="500" required>{escaped(question['question_text'])}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-secondary text-uppercase fw-semibold">Answer options</label>
+                    {_answer_option_rows(values)}
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label small text-secondary text-uppercase fw-semibold" for="correct_index-{question_id}">Correct answer</label>
+                    {_correct_index_select(f"correct_index-{question_id}", values, correct_index)}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-secondary text-uppercase fw-semibold">Explanation
+                        <span class="text-secondary fw-normal text-lowercase">(shown if answered incorrectly)</span>
+                    </label>
+                    <textarea class="form-control" name="explanation" rows="2"
+                              maxlength="500" required>{escaped(question['explanation'])}</textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Save</button>
+                    <button class="btn btn-outline-secondary" type="button"
+                            hx-get="{BACKEND_BASE}/quizzes/{quiz_id}/questions/{question_id}"
+                            hx-target="#question-{question_id}" hx-swap="outerHTML">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    """
+
+
+def questions_panel(quiz_id, questions):
+    if not questions:
+        return """
+        <div class="text-center py-5 text-secondary border rounded-3 bg-body-tertiary">
+            <i class="bi bi-inbox display-6 d-block mb-2" aria-hidden="true"></i>
+            No questions yet - add one below.
+        </div>
+        """
+    return "".join(
+        question_display(quiz_id, question, index=index)
+        for index, question in enumerate(questions)
+    )
 
 
 def quiz_edit_form(quiz):
     quiz_id = escaped(quiz["quiz_id"])
-    questions_html = "".join(
-        f"""
-        <li class="list-group-item">
-            <p class="fw-semibold mb-1">{index + 1}. {escaped(question['question_text'])}</p>
-            <ul class="mb-0 ps-3">{"".join(_answer_summary_row(a) for a in question["answers"])}</ul>
-        </li>
-        """
-        for index, question in enumerate(quiz["questions"])
-    ) or '<li class="list-group-item text-secondary">No questions yet.</li>'
-
+    add_correct_select = _correct_index_select("correct_index", [], 0, show_all=True)
     return f"""
-    <div class="row g-4">
-        <div class="col-lg-6">
-            <section class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Quiz details</h2>
-                    <form hx-post="{BACKEND_BASE}/quizzes/update" hx-target="#form-result">
-                        <input type="hidden" name="quiz_id" value="{quiz_id}">
-                        {_quiz_fields(quiz)}
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary" type="submit">Save changes</button>
-                            <a class="btn btn-outline-secondary" href="/quiz.html?id={quiz_id}">Cancel</a>
-                        </div>
-                        <div id="form-result" aria-live="polite"></div>
-                    </form>
+    <section class="card border-0 shadow-sm mb-4 bg-body-tertiary">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h6 text-secondary text-uppercase fw-semibold mb-0">
+                    <i class="bi bi-gear me-1" aria-hidden="true"></i>Quiz details
+                </h2>
+                <a class="btn btn-sm btn-outline-secondary" href="/quiz.html?id={quiz_id}">
+                    <i class="bi bi-x-lg me-1" aria-hidden="true"></i>Close
+                </a>
+            </div>
+            <form hx-post="{BACKEND_BASE}/quizzes/update" hx-target="#form-result">
+                <input type="hidden" name="quiz_id" value="{quiz_id}">
+                {_quiz_fields(quiz)}
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" type="submit">Save details</button>
                 </div>
-            </section>
+                <div id="form-result" aria-live="polite"></div>
+            </form>
         </div>
-        <div class="col-lg-6">
-            <section class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Questions</h2>
-                    <ul class="list-group list-group-flush mb-0">{questions_html}</ul>
-                </div>
-            </section>
-            <section class="card border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Add a question</h2>
-                    <form hx-post="{BACKEND_BASE}/quizzes/{quiz_id}/questions" hx-target="#question-result">
-                        <div class="mb-3">
-                            <label class="form-label" for="question_text">Question</label>
-                            <textarea class="form-control" id="question_text" name="question_text" rows="2" maxlength="500" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="explanation">Explanation (shown if answered incorrectly)</label>
-                            <textarea class="form-control" id="explanation" name="explanation" rows="2" maxlength="500" required></textarea>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Option A</label>
-                                <input class="form-control" name="answer_1" maxlength="200" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Option B</label>
-                                <input class="form-control" name="answer_2" maxlength="200" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Option C</label>
-                                <input class="form-control" name="answer_3" maxlength="200">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Option D</label>
-                                <input class="form-control" name="answer_4" maxlength="200">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="correct_index">Correct option</label>
-                            <select class="form-select" id="correct_index" name="correct_index">
-                                <option value="0">A</option>
-                                <option value="1">B</option>
-                                <option value="2">C</option>
-                                <option value="3">D</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-primary" type="submit">Add question</button>
-                        <div id="question-result" aria-live="polite"></div>
-                    </form>
-                </div>
-            </section>
+    </section>
+
+    <section>
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-2">
+            <h2 class="h4 mb-0"><i class="bi bi-list-check me-2 text-primary" aria-hidden="true"></i>Questions</h2>
         </div>
-    </div>
+
+        <div id="questions-panel"
+             hx-get="{BACKEND_BASE}/quizzes/{quiz_id}/questions/manage"
+             hx-trigger="load, questionsChanged from:body"
+             hx-swap="innerHTML">
+            <div class="text-center py-4" role="status">
+                <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+                <h3 class="h6 text-uppercase text-secondary fw-semibold mb-3">
+                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Add a new question
+                </h3>
+                <form hx-post="{BACKEND_BASE}/quizzes/{quiz_id}/questions" hx-target="#question-result">
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary text-uppercase fw-semibold" for="question_text">Question</label>
+                        <textarea class="form-control form-control-lg" id="question_text" name="question_text" rows="2" maxlength="500" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary text-uppercase fw-semibold">Answer options</label>
+                        {_answer_option_rows([])}
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label small text-secondary text-uppercase fw-semibold" for="correct_index">Correct answer</label>
+                        {add_correct_select}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary text-uppercase fw-semibold" for="explanation">Explanation
+                            <span class="text-secondary fw-normal text-lowercase">(shown if answered incorrectly)</span>
+                        </label>
+                        <textarea class="form-control" id="explanation" name="explanation" rows="2" maxlength="500" required></textarea>
+                    </div>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add question</button>
+                    <div id="question-result" aria-live="polite"></div>
+                </form>
+            </div>
+        </div>
+    </section>
     """

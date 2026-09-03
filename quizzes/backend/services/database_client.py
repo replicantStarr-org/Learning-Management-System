@@ -29,6 +29,12 @@ class DatabaseClient:
     def add_question(self, quiz_id, question):
         return self._request("POST", f"/quizzes/{quiz_id}/questions", json=question)
 
+    def update_question(self, quiz_id, question_id, question):
+        return self._request("PUT", f"/quizzes/{quiz_id}/questions/{question_id}", json=question)
+
+    def delete_question(self, quiz_id, question_id):
+        return self._request("DELETE", f"/quizzes/{quiz_id}/questions/{question_id}")
+
     def submit_attempt(self, quiz_id, attempt):
         return self._request("POST", f"/quizzes/{quiz_id}/attempts", json=attempt)
 

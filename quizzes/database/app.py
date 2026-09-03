@@ -289,6 +289,76 @@ def add_question(quiz_id):
         conn.close()
 
 
+@app.put("/quizzes/<int:quiz_id>/questions/<int:question_id>")
+def update_question(quiz_id, question_id):
+    body, error = get_json_body()
+    if error:
+        return error
+
+    question_text = str(body.get("question_text", "")).strip()
+    explanation = str(body.get("explanation", "")).strip()
+    answers = body.get("answers")
+    if not question_text or not explanation:
+        return jsonify({"error": "question_text and explanation are required"}), 400
+    if not isinstance(answers, list) or len(answers) < 2:
+        return jsonify({"error": "At least two answers are required"}), 400
+    if not any(answer.get("is_correct") for answer in answers):
+        return jsonify({"error": "At least one answer must be marked correct"}), 400
+
+    conn = get_db_connection()
+    try:
+        if not get_quiz(quiz_id, conn):
+            return jsonify({"error": "Quiz not found"}), 404
+        existing = conn.execute(
+            "SELECT question_id FROM quiz_questions WHERE question_id = ? AND quiz_id = ?",
+            (question_id, quiz_id),
+        ).fetchone()
+        if not existing:
+            return jsonify({"error": "Question not found"}), 404
+
+        try:
+            conn.execute(
+                "UPDATE quiz_questions SET question_text = ?, explanation = ? WHERE question_id = ?",
+                (question_text, explanation, question_id),
+            )
+
+            existing_answers = conn.execute(
+                "SELECT answer_id FROM quiz_answers WHERE question_id = ? ORDER BY answer_order",
+                (question_id,),
+            ).fetchall()
+
+            for answer_order, answer in enumerate(answers, start=1):
+                answer_text = str(answer.get("text", "")).strip()
+                is_correct = int(bool(answer.get("is_correct")))
+                if answer_order <= len(existing_answers):
+                    conn.execute(
+                        "UPDATE quiz_answers SET answer_text = ?, is_correct = ?, answer_order = ? WHERE answer_id = ?",
+                        (answer_text, is_correct, answer_order, existing_answers[answer_order - 1]["answer_id"]),
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO quiz_answers (question_id, answer_text, is_correct, answer_order) VALUES (?, ?, ?, ?)",
+                        (question_id, answer_text, is_correct, answer_order),
+                    )
+
+            if len(answers) < len(existing_answers):
+                for row in existing_answers[len(answers):]:
+                    conn.execute("DELETE FROM quiz_answers WHERE answer_id = ?", (row["answer_id"],))
+
+            conn.commit()
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            return jsonify({"error": "Cannot remove an answer option that a student has already selected"}), 409
+
+        updated = next(
+            question for question in get_questions_with_answers(quiz_id, conn)
+            if question["question_id"] == question_id
+        )
+        return jsonify(updated)
+    finally:
+        conn.close()
+
+
 @app.delete("/quizzes/<int:quiz_id>/questions/<int:question_id>")
 def delete_question(quiz_id, question_id):
     conn = get_db_connection()
@@ -296,16 +366,21 @@ def delete_question(quiz_id, question_id):
         if not get_quiz(quiz_id, conn):
             return jsonify({"error": "Quiz not found"}), 404
 
-        conn.execute("DELETE FROM quiz_answers WHERE question_id = ?", (question_id,))
-        cursor = conn.execute(
-            "DELETE FROM quiz_questions WHERE question_id = ? AND quiz_id = ?", (question_id, quiz_id)
-        )
-        if cursor.rowcount == 0:
-            return jsonify({"error": "Question not found"}), 404
-        conn.execute(
-            "UPDATE quizzes SET question_count = question_count - 1 WHERE quiz_id = ?", (quiz_id,)
-        )
-        conn.commit()
+        try:
+            conn.execute("DELETE FROM quiz_answers WHERE question_id = ?", (question_id,))
+            cursor = conn.execute(
+                "DELETE FROM quiz_questions WHERE question_id = ? AND quiz_id = ?", (question_id, quiz_id)
+            )
+            if cursor.rowcount == 0:
+                conn.rollback()
+                return jsonify({"error": "Question not found"}), 404
+            conn.execute(
+                "UPDATE quizzes SET question_count = question_count - 1 WHERE quiz_id = ?", (quiz_id,)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            return jsonify({"error": "Cannot delete a question that a student has already attempted"}), 409
         return "", 204
     finally:
         conn.close()
