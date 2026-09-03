@@ -51,7 +51,7 @@ The list of features for this application is given below, where created path and
 - Learning Resource Manager - not yet created
 - Assignments/Task Manager - not yet created
 - Quiz/Knowledge Check Manager - `quizzes/` - [design doc](quizzes/design.md)
-- Timetable Manager - not yet created
+- Timetable Manager - `timetable/` - [design doc](timetable/design.md)
 
 
 Features are intended to be independent but are permitted to integrate with other features by querying the database service from other features.

@@ -29,7 +29,8 @@ top-level design's explicit note.
 ### Functionality Breakdown
 
 - **Weekly calendar grid**: an hour-by-hour view (8am-11pm, one column per day) rather than a plain
-  list, with previous/next week navigation. Entries are positioned by actual time and duration;
+  list, with previous/next week navigation and a "Today" button (disabled and highlighted when
+  already viewing the current week, otherwise jumps straight to it). Entries are positioned by actual time and duration;
   empty time is simply blank grid space. Clicking an empty area of the grid jumps straight to the
   add-entry form with that day and a snapped-to-the-half-hour time slot pre-filled. Entries that
   overlap in time (rare, but possible from older data) render side-by-side in separate lanes
@@ -103,10 +104,23 @@ top-level design's explicit note.
 
   Due-date entries never clash-check on creation, so re-importing the same feed needs its own
   duplicate guard (`_find_duplicate_due` - same username/date/activity name) instead, or every
-  re-import would pile up fresh copies. Rendered as a slim banner row of small flag pills above
-  the hourly grid, one per day (`_calendar_frame`'s `render_due` - Google-Calendar-style), which
-  is only rendered at all when at least one day in the week actually has one, so a week with
-  nothing imported looks exactly as it did before this existed.
+  re-import would pile up fresh copies. Rendered as a slim banner row of pills above the hourly
+  grid, one per day (`_calendar_frame`'s `render_due` - Google-Calendar-style), which is only
+  rendered at all when at least one day in the week actually has one, so a week with nothing
+  imported looks exactly as it did before this existed. Each pill shows the full title (wrapped
+  over up to 3 lines, not truncated to one - real due-date titles from a source feed can be long)
+  plus edit and delete actions, matching the actions available on a normal hourly-grid entry.
+  Editing one through the generic edit form works, but only its `date` field meaningfully affects
+  anything - `start_time`/`end_time` stay editable in the form (they're stored as `00:00`-`23:59`,
+  see above) and `category` still offers the full category list, but neither has any visible
+  effect, since whether something renders as a due-date pill vs. an hourly block depends only on
+  the `all_day` flag, which the edit form never changes. The iCal import modal's own "Import as
+  category" dropdown deliberately excludes `Assessment` (it only applies to timed events - due
+  dates always get `Assessment` regardless of what's selected there). Due-date entries are also
+  never shown in the AI-plan preview modal - `get_or_create_plan` filters `all_day` entries out of
+  `entries` before `_plan_calendar` ever sees them (see *AI weekly plan design* below), so a
+  student opening that modal during a week with due dates won't see them there, only on the main
+  grid.
 
 Both AI actions show a live "Ns elapsed" counter while running (generation is CPU-only on this
 hardware and can take one to a few minutes) instead of a static "please wait" message.
@@ -282,9 +296,17 @@ already ruled out - are asking for less output and bounding it:
 - The model doesn't always fully use its suggestion budget efficiently (e.g. two 2-hour blocks
   instead of spreading across more, shorter ones) - the code-level diversification helps but can't
   force the model to propose more candidates than it does.
-- `Assessment`/all-day entries can only be created via iCal import - the manual create/edit forms
+- `Assessment`/all-day entries can only be *created* via iCal import - the manual create/edit forms
   don't expose an "all day" toggle, so a manually-entered `Assessment` row would still need (and
-  clash-check against) a real start/end time like any other category.
+  clash-check against) a real start/end time like any other category. They *can* be edited
+  afterwards through the generic edit form, but as noted above only the `date` field has any real
+  effect there.
+- `POST /timetable/ai-plan` accepts a `force` flag to bypass the reuse cache and regenerate
+  immediately, but nothing in the frontend ever sends it - the one "Generate optimised plan"
+  button always omits it, so reuse-vs-regenerate is entirely automatic (governed by
+  `PLAN_MAX_AGE_HOURS` and whether entries changed since the plan was last built, per *AI weekly
+  plan design* above). `force` exists for a future "regenerate now" control, not a currently
+  reachable one.
 
 ### Additional Notes
 
