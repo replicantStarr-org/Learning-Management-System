@@ -67,6 +67,10 @@ jobs:
           probe "Subject backend" "http://localhost:5001/"
           probe "Subject frontend" "http://localhost:3001/"
 
+      - name: Test scriptable non-functional requirements
+        working-directory: subjects
+        run: bash scripts/nfr_validation.sh
+
       - name: Stop subject services
         if: always()
         working-directory: subjects
