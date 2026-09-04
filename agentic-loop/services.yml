@@ -88,6 +88,35 @@ services:
         identifier: question_id
         required_fields: [question_id, question_text, explanation]
 
+  - name: timetable
+    description: Weekly student timetable, AI-generated study plans and time-management advice.
+    endpoints:
+      - name: database-health
+        url: http://localhost:6005/
+        expect: json_object
+        required_fields: [service, status]
+
+      - name: list-entries
+        url: http://localhost:6005/timetable?username=alex.wong
+        expect: json_array
+        identifier: timetable_id
+        required_fields: [timetable_id, username, date, start_time, end_time, activity_name, category]
+        notes: >
+          username is a required query param with no default, so this is fixed to a seeded
+          student rather than templated.
+
+      - name: latest-plan
+        url: http://localhost:6005/timetable/plans/latest?username=alex.wong
+        expect: json_object
+        required_fields: [plan_id, username, plan_text]
+        notes: suggested_entries is a JSON-encoded string column, not a nested array.
+
+      - name: list-advice
+        url: http://localhost:6005/timetable/advice?username=alex.wong
+        expect: json_array
+        identifier: advice_id
+        required_fields: [advice_id, username, advice_text]
+
   - name: learning-resource-manager
     description: The PDF library, its highlights and the reading assistant.
     endpoints:
