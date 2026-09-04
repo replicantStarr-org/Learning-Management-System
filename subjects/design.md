@@ -26,7 +26,28 @@ Appropriate validation for the field lengths should be implemented, first as fro
 
 ### Endpoint Testing
 
-TODO
+The browser checks below should be performed with the three containers running. The browser entry point is the frontend on port 3001; the HTML/HTMX backend is on port 5001, and the JSON database API is on port 6001. Use a disposable subject when testing create, update and delete operations.
+
+| Function | Browser Validation | API Validation |
+|---|---|---|
+| Home page | Open `http://localhost:3001/` and confirm the Subjects page loads. | `curl -i http://localhost:3001/` |
+| Service health | The home page should load its subject list without an error. | `curl -i http://localhost:5001/` and `curl -i http://localhost:6001/` |
+| View all subjects | Open `http://localhost:3001/` and confirm subject cards are displayed. | `curl -i http://localhost:5001/subjects` |
+| View subject details | Click a subject card, or open `http://localhost:3001/subject.html?id=1`. | `curl -i http://localhost:5001/subjects/1` |
+| Subject not found | Open `http://localhost:3001/subject.html?id=999999999` and confirm a useful error and return link are shown. | `curl -i http://localhost:6001/subjects/999999999` (expected JSON 404), or `curl -i http://localhost:5001/subjects/999999999` (expected HTMX error response). |
+| Create subject | Select **Create subject** on the list page, complete the form, submit, and confirm the success message/detail page. | `curl -i -X POST http://localhost:5001/subjects -d 'code=CI001' -d 'name=CI Test Subject' -d 'description=Created by endpoint test' -d 'semester=Spring' -d 'coordinator=CI Tester' -d 'status=Open'` |
+| Edit subject | On a detail page select **Edit**, change a field, save, and confirm the updated value is displayed. | `curl -i -X POST http://localhost:5001/subjects/update -d 'subject_id=1' -d 'name=Updated Subject'` |
+| Delete subject | On a detail page select **Delete**, confirm the prompt, and verify the subject disappears from the list. | `curl -i -X POST http://localhost:5001/subjects/delete -d 'subject_id=1'` |
+| Subject validation | Submit the create/edit form with a blank required field or text beyond a maxlength and confirm an explanatory error is shown. | `curl -i -X POST http://localhost:5001/subjects -d 'code=CI001' -d 'name='` (expected validation error). |
+| Generate AI summary | Open a subject detail page and wait for the **AI summary** panel to populate. Reload it to check that a cached summary is indicated when still fresh. | `curl -i -X POST http://localhost:5001/subjects/1/summary` (requires a locally available Ollama model). |
+| Ask an AI question | On a subject detail page enter a question, submit it, observe the loading indicator, and confirm an answer appears. | `curl -i -X POST http://localhost:5001/subjects/questions -d 'subject_id=1' --data-urlencode 'question=What is this subject about?'` (requires Ollama). |
+| List stored summaries | There is no separate browser control; summaries are visible in the subject detail view. | `curl -i http://localhost:6001/subjects/1/summaries` |
+| Get stored summary | There is no separate browser control; this is exercised by the detail page's summary result. | First obtain an ID from `curl http://localhost:6001/subjects/1/summaries`, then run `curl -i http://localhost:6001/summaries/<summary_id>`. |
+| Delete stored summary | API validation only; summaries are managed automatically by the subject detail flow. | `curl -i -X DELETE http://localhost:6001/summaries/<summary_id>` using an ID returned by the list endpoint. |
+
+For a quick local run, use `bash scripts/endpoint_test_local.sh` from the `subjects` directory. This script includes the Ollama-dependent summary and question checks. It is intentionally not called by the GitHub Actions workflow; CI only runs `scripts/nfr_smoke.sh`, which makes no Ollama/model calls.
+
+Replace `1` with an ID returned by the list endpoint if the local database does not contain that seed ID. Expected: browser flows display the relevant page, loading state, success state, or user-facing error. API checks return the documented HTTP status and response body.
 
 ### Non-functional requirements (NFRs)
 
