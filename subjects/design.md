@@ -55,6 +55,8 @@ They should instead meet the availability and user-feedback requirements below.
 | NFR-17 | Maintainability | HTTP routing, business validation/AI logic, database access, and HTML rendering remain separated into their current modules. Repeated database or AI logic is not copied into route handlers. | Code review or a lightweight import/lint check. Confirm changes to validation do not require editing every route. |
 | NFR-18 | Maintainability / operability | The service can be built and started from a clean checkout using the documented Docker Compose configuration, with no manually created files or host-specific source paths required. | Remove generated data, run `docker compose build` followed by `docker compose up -d`, and exercise the health endpoints. |
 
+You can perform automated checks for most of these requirements after running the docker compose for the subject microservice by running `scripts/nfr_validation.sh`.
+
 
 ### Additional Notes
 
