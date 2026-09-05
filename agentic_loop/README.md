@@ -66,6 +66,22 @@ If these all pass, it will return a message saying that along with the content o
 
 #### DevOps Pipeline Collector
 
+The DevOps pipeline collector will run checks against the workflow for the respective microservice.
+It will also check against the artifacts for the specific microservice's latest run which can be found under `reports/` in the root of the repository.
+There should be a hardcoded mapping for each microservice to a `.yml` file
+along with a mapping for the respective folder under `reports/`.
+
+The check against the workflow file should check for the presence of three jobs based on substring, a job for building the docker images (`*build*`), a job for running a smoke check (`*smoke*`) and final job for uploading the artifact (`*evidence*`).
+It should also check that the workflow contains teardown with `docker-compose down -v`.
+
+For the reports, it should identify the appropriate subfolders under `reports/`
+and verify that there is at least one subfolder under that folder.
+For example, the `reports/subjects` folder should have a subfolder under it which contains all the artifacts from a given run.
+If the directory is empty, fail with a message here.
+Otherwise for each directory there should be two files, one `*report.json` and another `*report.md`.
+The `JSON` file should be checked for keys that contain the following substrings: `name`, `id`, `commit`, `branch` and `timestamp`.
+Finally, the workflow file should be returned to the model for review.
+
 ### Prompts
 
 prompt structure
