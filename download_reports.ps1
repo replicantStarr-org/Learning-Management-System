@@ -136,3 +136,6 @@ $lastDownloadTemp = Join-Path $reportsDir ".LAST_DOWNLOAD_TIME.tmp.$PID"
 Move-Item -LiteralPath $lastDownloadTemp -Destination $lastDownloadFile -Force
 
 Write-Output 'Reports downloaded successfully.'
+# Do not leak a handled gh failure (for a run with no artifacts) through
+# $LASTEXITCODE to the launcher.
+exit 0

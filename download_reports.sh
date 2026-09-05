@@ -86,8 +86,13 @@ tmp_dirs=()
 cleanup() {
   local tmp_dir
   for tmp_dir in "${tmp_dirs[@]}"; do
-    [[ -e "$tmp_dir" ]] && rm -rf -- "$tmp_dir"
+    if [[ -e "$tmp_dir" ]]; then
+      rm -rf -- "$tmp_dir"
+    fi
   done
+  # An EXIT trap must not turn a successful download into a failure when all
+  # temporary directories have already been moved into place.
+  return 0
 }
 trap cleanup EXIT
 
@@ -155,3 +160,4 @@ printf '%s\n' "$download_started_at" > "$last_download_tmp"
 mv -- "$last_download_tmp" "$last_download_file"
 
 echo "Reports downloaded successfully."
+exit 0
