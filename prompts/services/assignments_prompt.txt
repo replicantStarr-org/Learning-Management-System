@@ -1,1 +1,6 @@
-Scope: the Assignment Manager at {{SERVICE_PATH}}. It manages assignments, due dates, reminders, and assignment summaries while referring to subjects owned elsewhere. Favor clear assignment CRUD and avoid recommendations that duplicate another service's data ownership.
+Scope: the Assignment Manager at {{SERVICE_PATH}}.
+It supports assignment CRUD, filtering and search, upcoming-deadline views, status and priority tracking, and reminder notifications.
+Its data includes assignments, cached AI summaries, and acknowledgement-based reminders; AI summarizes requirements and key deliverables.
+It reads subject options and context from the Subjects database API on a best-effort basis, while retaining only a denormalized subject snapshot.
+The Subjects service still owns subject data, so recommendations must not introduce direct database access or duplicate that ownership.
+Review its layered frontend, routes, services, database, and CI behavior only as relevant to {{REVIEW_AREA}}.

@@ -1,1 +1,6 @@
-Scope: the Subjects Manager at {{SERVICE_PATH}}. It owns subject catalogue data and subject CRUD behavior used by other features. Preserve that ownership boundary and assess subject identifiers, catalogue operations, and AI-summary support only when shown by evidence.
+Scope: the Subjects Manager at {{SERVICE_PATH}}.
+It owns the subject catalogue and supports listing, viewing, creating, editing, and deleting subjects.
+Its UI includes catalogue cards, subject detail pages, and create/edit flows with validation in both frontend and backend layers.
+AI features answer questions about a subject and generate summaries that are stored and reused until stale or superseded by a subject update.
+Other services may read subject data only through this service's database CRUD API; this service remains the schema owner.
+Review its frontend, backend, database, and CI behavior only as relevant to {{REVIEW_AREA}} and the supplied evidence.

@@ -1,1 +1,6 @@
-Scope: the Timetable Manager at {{SERVICE_PATH}}. It owns timetable entries and planning/advice records. Consider timetable CRUD, calendar import, and AI planning boundaries only where they appear in the supplied evidence.
+Scope: the Timetable Manager at {{SERVICE_PATH}}.
+It provides a weekly calendar for creating, editing, and deleting class, study, work, personal, and assessment entries.
+It prevents overlapping timed entries and supports importing recurring and due-date events from iCal feeds with duplicate and unsafe-host checks.
+AI can suggest non-clashing study blocks and answer time-management questions; deterministic code computes availability, balance, and final validation.
+Timetable entries, cached plans, and advice logs are owned by this service and scoped by the demonstrative username value.
+Review its frontend, backend, database, external-input boundaries, and CI behavior only as relevant to {{REVIEW_AREA}}.

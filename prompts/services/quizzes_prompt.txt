@@ -1,1 +1,6 @@
-Scope: the Quiz Manager at {{SERVICE_PATH}}. It owns quizzes, questions, answers, attempts, and responses and may reference subjects. Assess coherent quiz lifecycle and REST structure without moving subject ownership into this service.
+Scope: the Quiz Manager at {{SERVICE_PATH}}.
+It lets students browse and manage quizzes, answer questions, submit graded attempts, review explanations, and view attempt history.
+Its database owns quizzes, questions, answer options, attempts, and individual responses.
+AI can generate subject-based practice quizzes and personalized feedback for incorrect answers, with generated content stored in the normal quiz lifecycle.
+Subject context is read through the Subjects database API; Quiz Manager must not directly access or take ownership of the Subjects schema.
+Review its frontend, backend, database, REST/HTMX conventions, and CI behavior only as relevant to {{REVIEW_AREA}}.

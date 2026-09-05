@@ -1,1 +1,6 @@
-Scope: the Learning Resource Manager at {{SERVICE_PATH}}. It manages learning resources, tags, highlights, and related AI interactions. Consider its established folder and Compose naming differences, while still applying the same evidence-based review criteria.
+Scope: the Learning Resource Manager at {{SERVICE_PATH}}.
+It manages a catalogue of learning resources and tags, including uploaded or linked document metadata.
+It also supports user highlights, highlight positions and comments, resource summaries, and chat interactions over learning content.
+Its implementation uses a static frontend, Flask backend controllers and services, and a SQLite database initialized from Python and SQL files.
+Unlike most feature folders, its Compose file and internal service names follow their existing resource-manager conventions; judge them against the common three-container responsibilities.
+Review only behavior relevant to {{REVIEW_AREA}} and avoid assuming requirements not present in the supplied evidence.

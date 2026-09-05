@@ -1,1 +1,6 @@
-Scope: the shared access service at {{SERVICE_PATH}}. It provides the common home page and user access functions used across the application. Pay particular attention to authentication data, session endpoints, and clear frontend/backend/database boundaries when relevant to the selected area.
+Scope: the shared Access service at {{SERVICE_PATH}}.
+It is the application's entry point and provides the common home page linking to all feature services.
+It includes registration, login, logout, and session checking, with usernames and hashed passwords stored in its own database.
+A browser cookie represents a demonstrative 24-hour session; the design intentionally does not provide real access control or per-user authorization.
+Review the static frontend, Flask backend, SQLite database API, and their boundaries only as relevant to {{REVIEW_AREA}}.
+Do not recommend making other feature services responsible for authentication unless the supplied evidence requires it.
