@@ -79,22 +79,22 @@ jobs:
           EOF
 
       - name: Build and start the services
-        # database_init is a one shot container, and the backend waits for it to
-        # exit successfully before starting.
+        # The database service runs for as long as the application does, and the
+        # backend waits for its health check before starting.
         run: docker compose up --detach --build
 
-      - name: Check the database initialised
+      - name: Check the database service is serving
         run: |
           set -euo pipefail
 
-          state="$(docker compose ps --all --format '{{.Service}} {{.ExitCode}}' \
-            | awk '$1 == "database_init" { print $2 }')"
+          health="$(docker compose ps --all --format '{{.Service}} {{.Health}}' \
+            | awk '$1 == "database" { print $2 }')"
 
-          if [[ "$state" != "0" ]]; then
-            echo "::error::database_init exited with ${state:-no status}."
+          if [[ "$health" != "healthy" ]]; then
+            echo "::error::database is ${health:-not running}."
             exit 1
           fi
-          echo "database_init completed successfully."
+          echo "database is healthy."
 
       - name: Smoke test the running application
         shell: bash
@@ -131,7 +131,8 @@ jobs:
           frontend="http://localhost:$(docker compose port frontend 80 | awk -F: '{print $NF}')"
           echo "Backend on $backend, frontend on $frontend."
 
-          # Reads the database the database_init container built.
+          # Reads the seeded resources back through the database service, so a
+          # backend that cannot reach it fails here.
           probe "Backend resource list" "$backend/api/resources/all"
           # Reads the seeded highlights through the views, so a change to the
           # highlight schema that the views were not updated for fails here.

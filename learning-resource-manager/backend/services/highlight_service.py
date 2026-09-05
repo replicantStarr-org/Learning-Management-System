@@ -1,7 +1,6 @@
 import re
-import sqlite3
 
-from services.database import connect
+from services.database import NEW_ROW_ID, DatabaseError, execute, fetch, transaction
 
 # No sign in yet, so every highlight belongs to the same placeholder user until
 # this is wired up to the access service.
@@ -39,22 +38,15 @@ class HighlightError(RuntimeError):
     pass
 
 def list_for_resource(resource_id):
-    with connect() as conn:
-        rows = conn.execute(SELECT_FOR_RESOURCE, (resource_id,)).fetchall()
-
-    return [dict(row) for row in rows]
+    return fetch(SELECT_FOR_RESOURCE, (resource_id,))
 
 def list_summary_for_resource(resource_id):
     """One entry per highlight, for the resource popup."""
-    with connect() as conn:
-        rows = conn.execute(SELECT_SUMMARY_FOR_RESOURCE, (resource_id,)).fetchall()
-
-    return [dict(row) for row in rows]
+    return fetch(SELECT_SUMMARY_FOR_RESOURCE, (resource_id,))
 
 def list_highlight_catalogue():
     """Every highlight in the library, for the chat service to read back."""
-    with connect() as conn:
-        return conn.execute(SELECT_CATALOGUE).fetchall()
+    return fetch(SELECT_CATALOGUE)
 
 def _clean_rects(rects):
     """Keep only well formed rectangles, clamped to the page box."""
@@ -92,19 +84,18 @@ def create_highlight(resource_id, name, colour, quote, comment, rects):
     quote = (quote or "").strip()[:QUOTE_LIMIT] or None
     comment = (comment or "").strip()[:COMMENT_LIMIT] or None
 
+    # The highlight and its rectangles go in as one transaction, so a highlight
+    # with nothing to draw cannot be left behind.
     try:
-        with connect() as conn:
-            cursor = conn.execute(
-                INSERT_HIGHLIGHT,
-                (resource_id, DEFAULT_USER_ID, name, colour, quote, comment),
-            )
-            highlight_id = cursor.lastrowid
-            for rect in cleaned:
-                conn.execute(INSERT_RECT, (highlight_id, *rect))
-    except sqlite3.Error as exc:
+        results = transaction([
+            (INSERT_HIGHLIGHT,
+             (resource_id, DEFAULT_USER_ID, name, colour, quote, comment)),
+            *((INSERT_RECT, (NEW_ROW_ID, *rect)) for rect in cleaned),
+        ])
+    except DatabaseError as exc:
         raise HighlightError("The highlight could not be saved.") from exc
 
-    return highlight_id
+    return results[0]["last_row_id"]
 
 def update_highlight(highlight_id, name, colour, comment):
     """Replace the three fields a reader can edit after the fact.
@@ -118,11 +109,8 @@ def update_highlight(highlight_id, name, colour, comment):
     comment = (comment or "").strip()[:COMMENT_LIMIT] or None
 
     try:
-        with connect() as conn:
-            changed = conn.execute(
-                UPDATE_HIGHLIGHT, (name, colour, comment, highlight_id)
-            ).rowcount
-    except sqlite3.Error as exc:
+        changed = execute(UPDATE_HIGHLIGHT, (name, colour, comment, highlight_id))["row_count"]
+    except DatabaseError as exc:
         raise HighlightError("The highlight could not be saved.") from exc
 
     if changed == 0:
@@ -131,7 +119,10 @@ def update_highlight(highlight_id, name, colour, comment):
     return highlight_id
 
 def delete_highlight(highlight_id):
-    with connect() as conn:
-        conn.execute(DELETE_RECTS, (highlight_id,))
-        if conn.execute(DELETE_HIGHLIGHT, (highlight_id,)).rowcount == 0:
-            raise HighlightError("That highlight no longer exists.")
+    results = transaction([
+        (DELETE_RECTS, (highlight_id,)),
+        (DELETE_HIGHLIGHT, (highlight_id,)),
+    ])
+
+    if results[1]["row_count"] == 0:
+        raise HighlightError("That highlight no longer exists.")

@@ -14,7 +14,9 @@ resources_bp = Blueprint('resources', __name__)
 
 @resources_bp.route('/all')
 def get_all():
-    return [tuple(row) for row in list_resources()]
+    # Rows arrive from the database service as dictionaries, so the values are
+    # taken by hand to keep this endpoint's column order shape.
+    return [tuple(row.values()) for row in list_resources()]
 
 @resources_bp.route('/all_html')
 def get_all_html():
