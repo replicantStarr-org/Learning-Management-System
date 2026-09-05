@@ -1,11 +1,5 @@
-./run.sh --area endpoint --service quizzes
-Downloading artifacts for Access Management CI (run 33735047474)...
-Downloading artifacts for Assignment Management CI (run 33736041714)...
-Downloading artifacts for Learning Resource Manager CI (run 33969894552)...
-Downloading artifacts for Quiz Management CI (run 33738232735)...
-Downloading artifacts for Subject Management CI (run 33843507891)...
-Downloading artifacts for Timetable Manager CI (run 33735047513)...
-Reports downloaded successfully.
+$ ./run.sh --area endpoint --service quizzes
+Reports are up to date.
 AGENTIC MICROSERVICE REVIEW
 [quizzes][endpoint][OBSERVE] Collecting and validating evidence
 [quizzes][endpoint][IMPLEMENT] Running implementation model
@@ -14,29 +8,29 @@ AGENTIC MICROSERVICE REVIEW
 
 RUNNING: Quiz Manager — Endpoint Implementation
 OBSERVE:
-Base URL: http://localhost:5000
-DELETE /quizzes/<int:quiz_id>/questions/<int:question_id> -> HTTP 404 (15ms)
-GET / -> HTTP 200 (4ms)
-GET /quizzes -> HTTP 404 (3ms)
-GET /quizzes/<int:quiz_id> -> HTTP 404 (3ms)
-GET /quizzes/<int:quiz_id>/attempts -> HTTP 404 (3ms)
-GET /quizzes/<int:quiz_id>/edit -> HTTP 404 (2ms)
-GET /quizzes/<int:quiz_id>/questions/<int:question_id> -> HTTP 404 (3ms)
-GET /quizzes/<int:quiz_id>/questions/<int:question_id>/edit -> HTTP 404 (3ms)
-GET /quizzes/<int:quiz_id>/questions/manage -> HTTP 404 (3ms)
-GET /subjects/options -> HTTP 404 (3ms)
-POST /attempts/<int:attempt_id>/feedback -> HTTP 404 (3ms)
-POST /quizzes -> HTTP 404 (2ms)
-POST /quizzes/<int:quiz_id>/attempts -> HTTP 404 (3ms)
-POST /quizzes/<int:quiz_id>/questions -> HTTP 404 (2ms)
-POST /quizzes/delete -> HTTP 404 (2ms)
-POST /quizzes/generate -> HTTP 404 (2ms)
-POST /quizzes/update -> HTTP 404 (2ms)
-POST /subjects/<int:subject_id>/quizzes/generate -> HTTP 404 (2ms)
-PUT /quizzes/<int:quiz_id>/questions/<int:question_id> -> HTTP 404 (2ms)
+Base URL: http://localhost:5043
+DELETE /quizzes/<int:quiz_id>/questions/<int:question_id> -> HTTP 200 (13ms)
+GET / -> HTTP 200 (3ms)
+GET /quizzes -> HTTP 200 (6ms)
+GET /quizzes/<int:quiz_id> -> HTTP 200 (7ms)
+GET /quizzes/<int:quiz_id>/attempts -> HTTP 200 (11ms)
+GET /quizzes/<int:quiz_id>/edit -> HTTP 200 (6ms)
+GET /quizzes/<int:quiz_id>/questions/<int:question_id> -> HTTP 200 (7ms)
+GET /quizzes/<int:quiz_id>/questions/<int:question_id>/edit -> HTTP 200 (7ms)
+GET /quizzes/<int:quiz_id>/questions/manage -> HTTP 200 (7ms)
+GET /subjects/options -> HTTP 200 (8ms)
+POST /attempts/<int:attempt_id>/feedback -> HTTP 200 (6ms)
+POST /quizzes -> HTTP 200 (3ms)
+POST /quizzes/<int:quiz_id>/attempts -> HTTP 200 (2ms)
+POST /quizzes/<int:quiz_id>/questions -> HTTP 200 (3ms)
+POST /quizzes/delete -> HTTP 200 (2ms)
+POST /quizzes/generate -> HTTP 200 (3ms)
+POST /quizzes/update -> HTTP 200 (2ms)
+POST /subjects/<int:subject_id>/quizzes/generate -> HTTP 200 (2ms)
+PUT /quizzes/<int:quiz_id>/questions/<int:question_id> -> HTTP 200 (1ms)
 
 IMPLEMENTATION:
-One concrete high-value improvement is the lack of consistent REST resource naming across the Quiz Manager. The current naming convention is inconsistent, with some endpoints mapping to the Quiz Manager's database and others mapping to the frontend. This makes it difficult to determine which endpoint ...
+One concrete improvement is to ensure consistent REST resource naming, appropriate GET/POST/PUT/PATCH/DELETE use, and CRUD coverage. The current implementation uses inconsistent naming conventions and lacks proper CRUD coverage. For example, the GET /quizzes endpoint does not return quiz details, and the DELETE /quizzes/<int:quiz_id>/questions/<int:question_id> endpoint does ...
 
 REVIEW:
-Approved: The recommendation to improve consistent REST resource naming across the Quiz Manager is sound. Evidence shows inconsistent naming conventions, with some endpoints mapping to the database and others to the frontend, making it difficult to determine which endpoint is responsible for a specific action.
+Approved: The recommendation is sound. The evidence shows inconsistent REST resource naming (e.g., /quizzes/delete vs. /quizzes/<int:quiz_id>/delete) and lacks proper CRUD coverage (e.g., GET /quizzes/<int:quiz_id>/attempts returns data, but GET /quizzes/<int:quiz_id>/edit does not).
