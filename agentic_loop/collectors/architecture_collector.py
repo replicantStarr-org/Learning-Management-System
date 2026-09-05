@@ -14,7 +14,7 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
     if missing_directories:
         return False, "Missing required service directories: " + ", ".join(missing_directories)
 
-    required = [root / "backend" / "app.py"]
+    required = [root / "backend" / "app.py", root / "database" / "app.py"]
     index_candidates = [root / "frontend" / "index.html", root / "frontend" / "templates" / "index.html", root / "frontend" / "src" / "index.html"]
     missing = [str(path.relative_to(repo_root)) for path in required if not path.is_file()]
     if not any(path.is_file() for path in index_candidates):
