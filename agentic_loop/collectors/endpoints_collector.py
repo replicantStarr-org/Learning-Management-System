@@ -53,7 +53,18 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
         return False, "No Flask endpoints were found under the backend directory."
 
     variable = f"{service.key.upper()}_BASE_URL"
-    default_url = "http://localhost:7050" if service.key == "resources" else "http://localhost:5000"
+    # Feature backends use the same port offset as the rest of the
+    # application.  Probing every service on port 5000 reaches only the
+    # access backend and produces misleading 404s for otherwise valid routes.
+    backend_ports = {
+        "access": 5000,
+        "subjects": 5001,
+        "assignments": 5003,
+        "resources": 7050,
+        "quizzes": 5004,
+        "timetable": 5005,
+    }
+    default_url = f"http://localhost:{backend_ports.get(service.key, 5000)}"
     base_url = os.getenv(variable, os.getenv("SERVICE_BASE_URL", default_url)).rstrip("/")
     evidence: list[str] = []
     failures: list[str] = []

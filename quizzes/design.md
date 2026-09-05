@@ -43,19 +43,29 @@ independently - but see Known Limitations below.
 
 ### Backend/API Functions
 
-- `GET /quizzes` - list all quizzes
-- `GET /quizzes/{id}` - quiz details (renders the take-quiz form)
-- `GET /quizzes/{id}/edit` - edit form fragment for a quiz
-- `POST /quizzes/{id}/attempts` - submit a quiz attempt (grades it and returns the results view)
-- `GET /quizzes/{id}/attempts` - previous attempts for a quiz
-- `POST /subjects/{id}/quizzes/generate` - generate an AI practice quiz for a subject
-- `POST /attempts/{id}/feedback` - generate/fetch AI feedback for an attempt's incorrect answers
+The backend uses resource-oriented paths and HTTP verbs for CRUD:
 
-Plus supporting CRUD used by the management UI, following the same flat-route/`HX-Redirect`
-convention as the subjects feature: `POST /quizzes` (create), `POST /quizzes/update`,
-`POST /quizzes/delete`, `POST /quizzes/{id}/questions` (add question), and `POST /quizzes/generate`
-(the form-friendly equivalent of the subject-scoped generate endpoint, since a plain HTML form can't
-submit a path parameter without page-specific server rendering).
+- `GET /quizzes` - list all quizzes
+- `POST /quizzes` - create a quiz
+- `GET /quizzes/{id}` - quiz details (renders the take-quiz form)
+- `PUT /quizzes/{id}` - update quiz metadata
+- `DELETE /quizzes/{id}` - delete a quiz
+- `GET /quizzes/{id}/questions` - list a quiz's questions
+- `POST /quizzes/{id}/questions` - add a question
+- `GET /quizzes/{id}/questions/{question_id}` - get one question
+- `PUT /quizzes/{id}/questions/{question_id}` - update a question
+- `DELETE /quizzes/{id}/questions/{question_id}` - delete a question
+- `POST /quizzes/{id}/attempts` - submit a quiz attempt
+- `GET /quizzes/{id}/attempts` - previous attempts for a quiz
+- `GET /attempts/{id}` - get a submitted attempt
+- `GET /attempts/{id}/feedback` - read cached AI feedback
+- `POST /attempts/{id}/feedback` - create/fetch AI feedback for an attempt
+- `POST /quiz-generations` - create an AI-generated quiz from a subject ID
+- `POST /subjects/{id}/quiz-generations` - create an AI-generated quiz for a subject
+
+Edit forms are alternate HTML representations of the resources, selected with
+`GET /quizzes/{id}?view=edit` and `GET /quizzes/{id}/questions/{question_id}?view=edit`.
+Subject options are served from `GET /subjects`.
 
 ### Database Tables
 

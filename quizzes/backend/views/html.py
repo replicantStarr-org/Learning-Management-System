@@ -114,8 +114,7 @@ def _quiz_header(quiz):
         <div class="d-flex align-items-start gap-2">
             <a class="btn btn-outline-primary" href="/edit.html?id={quiz_id}">Edit</a>
             <button class="btn btn-outline-danger" type="button"
-                    hx-post="{BACKEND_BASE}/quizzes/delete"
-                    hx-vals='{{"quiz_id": "{quiz_id}"}}'
+                    hx-delete="{BACKEND_BASE}/quizzes/{quiz_id}"
                     hx-confirm="Delete this quiz permanently?">Delete</button>
         </div>
     </div>
@@ -289,7 +288,7 @@ def _question_action_buttons(quiz_id, question_id):
     return f"""
     <div class="d-flex gap-1 flex-shrink-0">
         <button class="btn btn-sm btn-outline-secondary" type="button" title="Edit question"
-                hx-get="{BACKEND_BASE}/quizzes/{quiz_id}/questions/{question_id}/edit"
+                hx-get="{BACKEND_BASE}/quizzes/{quiz_id}/questions/{question_id}?view=edit"
                 hx-target="#question-{question_id}" hx-swap="outerHTML">
             <i class="bi bi-pencil" aria-hidden="true"></i>
         </button>
@@ -425,8 +424,7 @@ def quiz_edit_form(quiz):
                     <i class="bi bi-x-lg me-1" aria-hidden="true"></i>Close
                 </a>
             </div>
-            <form hx-post="{BACKEND_BASE}/quizzes/update" hx-target="#form-result">
-                <input type="hidden" name="quiz_id" value="{quiz_id}">
+            <form hx-put="{BACKEND_BASE}/quizzes/{quiz_id}" hx-target="#form-result">
                 {_quiz_fields(quiz)}
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary" type="submit">Save details</button>
@@ -442,7 +440,7 @@ def quiz_edit_form(quiz):
         </div>
 
         <div id="questions-panel"
-             hx-get="{BACKEND_BASE}/quizzes/{quiz_id}/questions/manage"
+             hx-get="{BACKEND_BASE}/quizzes/{quiz_id}/questions"
              hx-trigger="load, questionsChanged from:body"
              hx-swap="innerHTML">
             <div class="text-center py-4" role="status">
