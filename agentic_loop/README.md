@@ -72,7 +72,7 @@ There should be a hardcoded mapping for each microservice to a `.yml` file
 along with a mapping for the respective folder under `reports/`.
 
 The check against the workflow file should check for the presence of three jobs based on substring, a job for building the docker images (`*build*`), a job for running a smoke check (`*smoke*`) and final job for uploading the artifact (`*evidence*`).
-It should also check that the workflow contains teardown with `docker-compose down -v`.
+It should also check that the workflow contains teardown with `docker-compose down -v` (or `--volumes`).
 
 For the reports, it should identify the appropriate subfolders under `reports/`
 and verify that there is at least one subfolder under that folder.
@@ -117,7 +117,9 @@ Appropriate format placeholders should be used to tell the agents which part the
 
 ### TODO
 
+
 - ideally all files under `pipelines/` can be poofed
+
 
 - auto-download artifacts for workflow runs
 
