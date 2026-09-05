@@ -59,7 +59,7 @@ Instead, the result will be recorded and passed back as evidence to the models.
 #### Application Architecture Collector
 
 The collector for application architecture will verify the microservice has the required `backend`, `frontend` and `database` folders.
-It will then check that frontend and backend services have an `app.py` and that the frontend service contains an `index.html`.
+It will then check that database and backend services have an `app.py` and that the frontend service contains an `index.html`.
 Finally it will check for the presence of the `docker-compose.yml` (or any `*compose.yml`) and verify it has three services, each one should have a substring of `frontend`, `backend` or `database`, no two services should have the same substring.
 
 If these all pass, it will return a message saying that along with the content of the `docker-compose.yml` file.
