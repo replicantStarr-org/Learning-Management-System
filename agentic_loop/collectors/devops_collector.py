@@ -1,49 +1,73 @@
+import json
+import re
 from pathlib import Path
 
+import yaml
 
-REQUIRED_WORKFLOW_JOBS = ["build-images", "smoke-check", "evidence-pack"]
-REQUIRED_REPORT_KEYS = ["workflow_name", "run_id", "commit_sha", "branch", "generated_timestamp"]
+from config.review_config import ServiceConfig
 
 
-def collect(app_dir: Path, repo_root: Path) -> tuple[bool, str]:
-    workflow_path = repo_root / ".github" / "workflows" / "lab5-ci.yml"
-    reports_dir = app_dir / "reports"
+REQUIRED_JOB_PARTS = ("build", "smoke", "evidence")
+REQUIRED_REPORT_KEY_PARTS = ("name", "id", "commit", "branch", "timestamp")
+TEARDOWN = re.compile(r"docker(?:-|\s+)compose\s+down\b[^\n]*(?:-v\b|--volumes\b)", re.IGNORECASE)
 
-    required_paths = [
-        workflow_path,
-        reports_dir / "report.json",
-        reports_dir / "report.md",
-        reports_dir / "run-view.md",
-    ]
 
-    missing: list[str] = []
-    for path in required_paths:
-        if not path.exists():
-            if path.is_absolute() and repo_root in path.parents:
-                missing.append(str(path.relative_to(repo_root)))
-            elif path.is_absolute() and app_dir in path.parents:
-                missing.append(str(path.relative_to(app_dir)))
-            else:
-                missing.append(str(path))
+def _all_keys(value) -> list[str]:
+    if isinstance(value, dict):
+        return [str(key) for key in value] + [key for child in value.values() for key in _all_keys(child)]
+    if isinstance(value, list):
+        return [key for child in value for key in _all_keys(child)]
+    return []
 
-    if missing:
-        return False, "DevOps evidence incomplete. Missing: " + ", ".join(missing)
+
+def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
+    workflow_path = repo_root / ".github" / "workflows" / service.workflow
+    reports_root = repo_root / "reports" / service.reports_directory
+    if not workflow_path.is_file():
+        return False, f"Missing mapped workflow: {workflow_path.relative_to(repo_root)}"
+    if not reports_root.is_dir():
+        return False, f"Missing mapped reports directory: {reports_root.relative_to(repo_root)}"
+
+    run_directories = sorted(path for path in reports_root.iterdir() if path.is_dir())
+    if not run_directories:
+        return False, f"No downloaded artifact run exists under {reports_root.relative_to(repo_root)}."
 
     workflow_text = workflow_path.read_text(encoding="utf-8")
-    report_json = (reports_dir / "report.json").read_text(encoding="utf-8")
-
-    missing_jobs = [job for job in REQUIRED_WORKFLOW_JOBS if job not in workflow_text]
+    try:
+        workflow = yaml.safe_load(workflow_text) or {}
+    except yaml.YAMLError as exc:
+        return False, f"Invalid workflow YAML: {exc}"
+    jobs = workflow.get("jobs", {})
+    if not isinstance(jobs, dict):
+        return False, "Workflow does not define a jobs mapping."
+    missing_jobs = [part for part in REQUIRED_JOB_PARTS if not any(part in str(job).lower() for job in jobs)]
     if missing_jobs:
-        return False, "Workflow missing required jobs: " + ", ".join(missing_jobs)
+        return False, "Workflow missing job IDs containing: " + ", ".join(missing_jobs)
+    if not TEARDOWN.search(workflow_text):
+        return False, "Workflow teardown must run docker compose down with -v or --volumes."
 
-    missing_keys = [key for key in REQUIRED_REPORT_KEYS if key not in report_json]
-    if missing_keys:
-        return False, "report.json missing required keys: " + ", ".join(missing_keys)
+    summaries: list[str] = []
+    errors: list[str] = []
+    for run_directory in run_directories:
+        json_files = list(run_directory.glob("*report.json"))
+        markdown_files = list(run_directory.glob("*report.md"))
+        if not json_files or not markdown_files:
+            errors.append(f"{run_directory.name}: requires one *report.json and one *report.md")
+            continue
+        try:
+            report = json.loads(json_files[0].read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"{json_files[0].name}: invalid JSON ({exc})")
+            continue
+        keys = [key.lower() for key in _all_keys(report)]
+        missing_keys = [part for part in REQUIRED_REPORT_KEY_PARTS if not any(part in key for key in keys)]
+        if missing_keys:
+            errors.append(f"{json_files[0].name}: missing keys containing {', '.join(missing_keys)}")
+        summaries.append(f"{run_directory.name}: {json_files[0].name}, {markdown_files[0].name}")
 
-    teardown_ok = "docker-compose down -v" in workflow_text
-    teardown_text = "includes" if teardown_ok else "does not include"
-
+    if errors:
+        return False, "; ".join(errors)
     return True, (
-        "DevOps evidence: workflow defines build-images, smoke-check, and evidence-pack; "
-        f"teardown {teardown_text} docker-compose down -v; report.json contains run metadata keys."
+        f"Validated jobs: {', '.join(jobs)}. Validated artifact runs: {'; '.join(summaries)}. "
+        "Teardown removes volumes.\n\nWorkflow YAML:\n" + workflow_text
     )

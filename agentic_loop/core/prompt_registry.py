@@ -1,20 +1,33 @@
 from pathlib import Path
 
+from config.review_config import ModeConfig, ServiceConfig
+
 
 class PromptRegistry:
-    def __init__(self, app_dir: Path):
-        self.app_dir = app_dir
-        self.root = app_dir / "prompts"
+    """Loads auto-discovered agent, area, and service prompt fragments."""
 
-    def resolve(self, family: str, relative_file: str) -> Path:
-        candidate = self.root / family / relative_file
-        if not candidate.exists():
-            rel = candidate.relative_to(self.app_dir)
-            raise FileNotFoundError(f"Missing prompt file: {rel}")
-        return candidate
+    def __init__(self, repo_root: Path):
+        self.root = repo_root / "prompts"
 
-    def read(self, family: str, relative_file: str) -> str:
-        return self.resolve(family, relative_file).read_text(encoding="utf-8").strip()
+    def _read(self, directory: str, filename: str) -> str:
+        candidate = self.root / directory / filename
+        if not candidate.is_file():
+            raise FileNotFoundError(f"Missing prompt file: {candidate}")
+        return candidate.read_text(encoding="utf-8").strip()
 
-    def family_path(self, family: str) -> Path:
-        return self.root / family
+    def compose(self, agent: str, mode: ModeConfig, service: ServiceConfig) -> str:
+        fragments = (
+            self._read("agents", f"{agent}_prompt.txt"),
+            self._read("areas", mode.prompt_name),
+            self._read("services", f"{service.key}_prompt.txt"),
+        )
+        values = {
+            "{{AGENT_ROLE}}": agent,
+            "{{REVIEW_AREA}}": mode.label,
+            "{{SERVICE_NAME}}": service.label,
+            "{{SERVICE_PATH}}": service.directory,
+        }
+        combined = "\n\n".join(fragments)
+        for placeholder, value in values.items():
+            combined = combined.replace(placeholder, value)
+        return combined

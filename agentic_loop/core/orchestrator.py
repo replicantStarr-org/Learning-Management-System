@@ -1,122 +1,57 @@
 from pathlib import Path
+from typing import Callable
 
 from collectors import architecture_collector, db_collector, devops_collector, endpoints_collector
-from config.review_config import ModeConfig
+from config.review_config import ModeConfig, ServiceConfig
 from core.ai_runner import AIRunner
 from core.prompt_registry import PromptRegistry
-from pipelines import architecture_pipeline, db_pipeline, devops_pipeline, endpoints_pipeline
 
 
-COLLECTORS = {
-  "db": db_collector.collect,
-  "endpoints": endpoints_collector.collect,
-  "architecture": architecture_collector.collect,
-  "devops": devops_collector.collect,
+Collector = Callable[[Path, ServiceConfig], tuple[bool, str]]
+COLLECTORS: dict[str, Collector] = {
+    "database": db_collector.collect,
+    "endpoint": endpoints_collector.collect,
+    "architecture": architecture_collector.collect,
+    "devops": devops_collector.collect,
 }
 
 
-def _stage(mode_label: str, step: str, message: str) -> None:
-  print(f"[{mode_label}][{step}] {message}")
+def _stage(mode: ModeConfig, service: ServiceConfig, step: str, message: str) -> None:
+    print(f"[{service.key}][{mode.key}][{step}] {message}")
 
 
-def run_mode(mode: ModeConfig, app_dir: Path, repo_root: Path, prompts: PromptRegistry, ai: AIRunner) -> str:
-  _stage(mode.label, "START", "Starting review flow")
-  _stage(mode.label, "OBSERVE", "Collecting evidence")
-  collector = COLLECTORS[mode.key]
-  ok, evidence = collector(app_dir, repo_root)
-  if not ok:
-    _stage(mode.label, "OBSERVE", "Failed")
-    return f"OBSERVE FAILED: {evidence}"
-  _stage(mode.label, "OBSERVE", "Complete")
+def run_mode(
+    mode: ModeConfig,
+    service: ServiceConfig,
+    repo_root: Path,
+    prompts: PromptRegistry,
+    ai: AIRunner,
+) -> str:
+    _stage(mode, service, "OBSERVE", "Collecting and validating evidence")
+    ok, evidence = COLLECTORS[mode.key](repo_root, service)
+    if not ok:
+        _stage(mode, service, "OBSERVE", "Validation failed; model calls skipped")
+        return f"OBSERVE FAILED: {evidence}"
 
-  if mode.key in {"db", "endpoints"}:
-    _stage(mode.label, "PROMPTS", f"Loading prompt family: {mode.prompt_family}")
-    system_prompt = prompts.read(mode.prompt_family, mode.implementation_prompts[0])
-    task_prompt = prompts.read(mode.prompt_family, mode.implementation_prompts[1])
-    context_prompt = prompts.read(mode.prompt_family, mode.implementation_prompts[2])
-    _stage(mode.label, "PROMPTS", "Loaded implementation prompt set")
+    implementation_prompt = prompts.compose("implementation", mode, service)
+    implementation_input = f"VALIDATION EVIDENCE:\n{evidence}"
+    _stage(mode, service, "IMPLEMENT", "Running implementation model")
+    recommendation, error = ai.call(implementation_prompt, implementation_input)
+    if error:
+        return f"IMPLEMENTATION MODEL FAILED: {error}"
 
-    if mode.key == "db":
-      user_prompt = db_pipeline.build_user_prompt(task_prompt, context_prompt, evidence)
-    else:
-      user_prompt = endpoints_pipeline.build_user_prompt(task_prompt, context_prompt, evidence)
-
-    _stage(mode.label, "LLM", "Running implementation model")
-    output, err = ai.call(system_prompt, user_prompt, review=False)
-    if err:
-      _stage(mode.label, "LLM", "Failed")
-      return f"MODEL FAILED: {err}"
-    _stage(mode.label, "LLM", "Complete")
-    _stage(mode.label, "DONE", "Review complete")
-    return f"OBSERVE: {evidence}\n\nREVIEW: {output}"
-
-  if mode.key == "architecture":
-    _stage(mode.label, "PROMPTS", f"Loading prompt family: {mode.prompt_family}")
-    system_prompt = prompts.read(mode.prompt_family, mode.implementation_prompts[0])
-    task_prompt = prompts.read(mode.prompt_family, mode.implementation_prompts[1])
-    implementation_user_prompt = architecture_pipeline.build_implementation_prompt(task_prompt, evidence)
-    _stage(mode.label, "PROMPTS", "Loaded architecture implementation prompts")
-
-    _stage(mode.label, "LLM", "Running architecture model")
-    implementation_output, err = ai.call(system_prompt, implementation_user_prompt, review=False)
-    if err:
-      _stage(mode.label, "LLM", "Failed")
-      return f"MODEL FAILED: {err}"
-    _stage(mode.label, "LLM", "Architecture model complete")
-
-    review_system_prompt = prompts.read(mode.prompt_family, mode.review_prompts[0])
-    review_user_prompt = architecture_pipeline.build_review_prompt(implementation_output, evidence)
-    _stage(mode.label, "PROMPTS", "Loaded architecture review prompt")
-    _stage(mode.label, "LLM", "Running review model")
-    review_output, review_err = ai.call(review_system_prompt, review_user_prompt, review=True)
-    if review_err:
-      review_output = review_err
-      _stage(mode.label, "LLM", "Review model failed")
-    else:
-      _stage(mode.label, "LLM", "Review model complete")
-
-    _stage(mode.label, "DONE", "Review complete")
-
-    return (
-      f"OBSERVE: {evidence}\n\n"
-      f"ARCHITECTURE: {implementation_output}\n"
-      f"REVIEW: {review_output}"
+    review_prompt = prompts.compose("review", mode, service)
+    review_input = (
+        f"IMPLEMENTATION RECOMMENDATION:\n{recommendation}\n\n"
+        f"VALIDATION EVIDENCE:\n{evidence}"
     )
+    _stage(mode, service, "REVIEW", "Running review model")
+    review, review_error = ai.call(review_prompt, review_input, review=True)
+    if review_error:
+        return (
+            f"OBSERVE:\n{evidence}\n\nIMPLEMENTATION:\n{recommendation}\n\n"
+            f"REVIEW MODEL FAILED: {review_error}"
+        )
 
-  if mode.key == "devops":
-    _stage(mode.label, "PROMPTS", f"Loading prompt family: {mode.prompt_family}")
-    task_prompt = prompts.read(mode.prompt_family, mode.implementation_prompts[0])
-    system_prompt = (
-      "You are a precise DevOps review assistant. "
-      "Use only supplied evidence and reply in at most 30 words."
-    )
-    implementation_user_prompt = devops_pipeline.build_implementation_prompt(task_prompt, evidence)
-    _stage(mode.label, "PROMPTS", "Loaded DevOps implementation prompt")
-
-    _stage(mode.label, "LLM", "Running DevOps implementation model")
-    implementation_output, err = ai.call(system_prompt, implementation_user_prompt, review=False)
-    if err:
-      _stage(mode.label, "LLM", "Failed")
-      return f"MODEL FAILED: {err}"
-    _stage(mode.label, "LLM", "DevOps implementation model complete")
-
-    review_system_prompt = prompts.read(mode.prompt_family, mode.review_prompts[0])
-    review_user_prompt = devops_pipeline.build_review_prompt(implementation_output, evidence)
-    _stage(mode.label, "PROMPTS", "Loaded DevOps review prompt")
-    _stage(mode.label, "LLM", "Running DevOps review model")
-    review_output, review_err = ai.call(review_system_prompt, review_user_prompt, review=True)
-    if review_err:
-      review_output = review_err
-      _stage(mode.label, "LLM", "DevOps review model failed")
-    else:
-      _stage(mode.label, "LLM", "DevOps review model complete")
-
-    _stage(mode.label, "DONE", "Review complete")
-
-    return (
-      f"OBSERVE: {evidence}\n\n"
-      f"DEVOPS: {implementation_output}\n"
-      f"REVIEW: {review_output}"
-    )
-
-  return "Unknown mode."
+    _stage(mode, service, "DONE", "Review complete")
+    return f"OBSERVE:\n{evidence}\n\nIMPLEMENTATION:\n{recommendation}\n\nREVIEW:\n{review}"

@@ -1,63 +1,63 @@
+import argparse
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from config.review_config import build_mode_config
+from config.review_config import MODES, SERVICES, ModeConfig, ServiceConfig
 from core.ai_runner import AIRunner
 from core.orchestrator import run_mode
 from core.prompt_registry import PromptRegistry
-from core.reporter import print_menu, print_prompt_map, print_result
+from core.reporter import print_result
 
 
-def _resolve_roots() -> tuple[Path, Path]:
-  module_dir = Path(__file__).resolve().parent
-  app_dir = module_dir.parent
-  repo_root = app_dir.parent
-  return app_dir, repo_root
+def _choose(title: str, options: dict) -> object | None:
+    values = list(options.values())
+    print(f"\n{title}")
+    for number, value in enumerate(values, 1):
+        print(f"{number} - {value.label}")
+    print("0 - Exit")
+    while True:
+        choice = input("Choice: ").strip()
+        if choice == "0":
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= len(values):
+            return values[int(choice) - 1]
+        print(f"Enter a number from 0 to {len(values)}.")
 
 
-def _menu_choice_to_key(choice: str) -> str | None:
-  return {
-    "1": "db",
-    "2": "endpoints",
-    "3": "architecture",
-    "4": "devops",
-  }.get(choice)
-
-
-def _print_mode_mapping(app_dir: Path) -> None:
-  prompt_map = {
-    "DB": app_dir / "prompts" / "service",
-    "Endpoints": app_dir / "prompts" / "service",
-    "Architecture": app_dir / "prompts" / "lab4",
-    "DevOps": app_dir / "prompts" / "lab5",
-  }
-  print_prompt_map({key: str(path) for key, path in prompt_map.items()})
+def _arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Review one area of one ASD microservice.")
+    parser.add_argument("--area", choices=MODES, help="review area (omit for the interactive menu)")
+    parser.add_argument("--service", choices=SERVICES, help="microservice (omit for the interactive menu)")
+    args = parser.parse_args()
+    if bool(args.area) != bool(args.service):
+        parser.error("--area and --service must be supplied together")
+    return args
 
 
 def main() -> None:
-  app_dir, repo_root = _resolve_roots()
-  load_dotenv(dotenv_path=app_dir / ".env")
+    agent_dir = Path(__file__).resolve().parent
+    repo_root = agent_dir.parent
+    load_dotenv(dotenv_path=agent_dir / ".env")
+    args = _arguments()
 
-  mode_config = build_mode_config()
-  prompts = PromptRegistry(app_dir)
-  ai = AIRunner()
+    print("AGENTIC MICROSERVICE REVIEW")
+    if args.area:
+        mode: ModeConfig = MODES[args.area]
+        service: ServiceConfig = SERVICES[args.service]
+    else:
+        selected_mode = _choose("Choose a review area", MODES)
+        if selected_mode is None:
+            return
+        selected_service = _choose("Choose a microservice", SERVICES)
+        if selected_service is None:
+            return
+        mode = selected_mode
+        service = selected_service
 
-  print("AGENTIC LOOP (MODULAR)")
-  _print_mode_mapping(app_dir)
+    result = run_mode(mode, service, repo_root, PromptRegistry(repo_root), AIRunner())
+    print_result(f"{service.label} — {mode.label}", result)
 
-  while True:
-    print_menu()
-    choice = input("Choose a review target: ").strip()
 
-    if choice == "0":
-      print("Loop closed.")
-      break
-
-    mode_key = _menu_choice_to_key(choice)
-    if not mode_key:
-      print("Invalid choice. Select 0, 1, 2, 3, or 4.")
-      continue
-
-    result = run_mode(mode_config[mode_key], app_dir, repo_root, prompts, ai)
-    print_result(mode_config[mode_key].label, result)
+if __name__ == "__main__":
+    main()

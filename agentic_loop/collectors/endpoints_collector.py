@@ -4,75 +4,72 @@ from pathlib import Path
 
 import requests
 
-
-ROUTE_PATTERN = re.compile(r"@\w+_bp\.(get|post)\(\"([^\"]+)\"\)")
-
-
-def _test_endpoint(base_url: str, method: str, path: str) -> str:
-    """Test a single endpoint and return evidence string."""
-    url = f"{base_url}{path}"
-    
-    try:
-        if method.upper() == "GET":
-            response = requests.get(url, timeout=2)
-        elif method.upper() == "POST":
-            response = requests.post(url, data={"question": "test"}, timeout=2)
-        else:
-            return f"{method.upper()} {path} [UNSUPPORTED METHOD]"
-        
-        elapsed_ms = int(response.elapsed.total_seconds() * 1000)
-        status = response.status_code
-        
-        if status == 200:
-            return f"{method.upper()} {path} returned {status} in {elapsed_ms}ms"
-        else:
-            return f"{method.upper()} {path} returned {status} in {elapsed_ms}ms"
-    
-    except requests.exceptions.ConnectionError:
-        return f"{method.upper()} {path} [CONNECTION REFUSED - app not running]"
-    except requests.exceptions.Timeout:
-        return f"{method.upper()} {path} [TIMEOUT]"
-    except Exception as exc:
-        return f"{method.upper()} {path} [ERROR: {type(exc).__name__}]"
+from config.review_config import ServiceConfig, service_path
 
 
-def collect(app_dir: Path, repo_root: Path) -> tuple[bool, str]:
-    """Collect live endpoint evidence by making real HTTP requests."""
-    flask_base_url = os.getenv("FLASK_BASE_URL", "http://localhost:5001")
-    
-    route_files = [
-        app_dir / "enrolment-service" / "routes" / "normal_ui.py",
-        app_dir / "enrolment-service" / "routes" / "ai_mode.py",
-    ]
+SHORTCUT_ROUTE = re.compile(r"@\w+\.(get|post|put|patch|delete)\(\s*['\"]([^'\"]+)['\"]", re.IGNORECASE)
+GENERIC_ROUTE = re.compile(
+    r"@\w+\.route\(\s*['\"]([^'\"]*)['\"](?P<args>.*?)\)", re.IGNORECASE | re.DOTALL
+)
+METHODS = re.compile(r"methods\s*=\s*\[([^]]+)\]", re.IGNORECASE)
+QUOTED = re.compile(r"['\"]([A-Za-z]+)['\"]")
+BLUEPRINT = re.compile(
+    r"register_blueprint\(\s*(\w+)\s*,\s*url_prefix\s*=\s*['\"]([^'\"]+)['\"]", re.IGNORECASE
+)
+BLUEPRINT_NAME = re.compile(r"(\w+)\s*=\s*Blueprint\(")
+PARAMETER = re.compile(r"<(?:(?:int|string|float|path|uuid):)?[^>]+>")
 
-    missing = [str(path.relative_to(app_dir)) for path in route_files if not path.exists()]
-    if missing:
-        return False, "Missing route files: " + ", ".join(missing)
 
-    endpoints: list[tuple[str, str]] = []
+def _runnable_path(path: str) -> str:
+    return PARAMETER.sub("1", path) or "/"
 
-    for route_file in route_files:
-        content = route_file.read_text(encoding="utf-8")
-        for method, route in ROUTE_PATTERN.findall(content):
-            endpoints.append((method, route))
 
-    if not endpoints:
-        return False, "No Flask routes found in route files."
+def _routes(backend: Path) -> list[tuple[str, str]]:
+    prefixes: dict[str, str] = {}
+    for source in backend.rglob("*.py"):
+        for blueprint, prefix in BLUEPRINT.findall(source.read_text(encoding="utf-8")):
+            prefixes[blueprint] = prefix.rstrip("/")
 
-    # Test each endpoint with real HTTP requests
-    evidence_parts = []
-    connection_failures = 0
-    
-    for method, route in sorted(set(endpoints)):
-        result = _test_endpoint(flask_base_url, method, route)
-        evidence_parts.append(result)
-        if "CONNECTION REFUSED" in result:
-            connection_failures += 1
-    
-    evidence = "Live endpoint evidence: " + "; ".join(evidence_parts) + "."
-    
-    # If all endpoints failed to connect, warn that app isn't running
-    if connection_failures == len(endpoints):
-        return False, "Flask app not running. Start the app first, then run the agentic loop."
-    
-    return True, evidence
+    found: list[tuple[str, str]] = []
+    for source in backend.rglob("*.py"):
+        text = source.read_text(encoding="utf-8")
+        owner_match = BLUEPRINT_NAME.search(text)
+        prefix = prefixes.get(owner_match.group(1), "") if owner_match else ""
+        found.extend((method.upper(), prefix + path) for method, path in SHORTCUT_ROUTE.findall(text))
+        for match in GENERIC_ROUTE.finditer(text):
+            method_match = METHODS.search(match.group("args"))
+            methods = QUOTED.findall(method_match.group(1)) if method_match else ["GET"]
+            found.extend((method.upper(), prefix + match.group(1)) for method in methods)
+    return sorted(set(found))
+
+
+def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
+    backend = service_path(repo_root, service) / "backend"
+    if not backend.is_dir():
+        return False, f"Missing backend directory: {backend.relative_to(repo_root)}"
+
+    routes = _routes(backend)
+    if not routes:
+        return False, "No Flask endpoints were found under the backend directory."
+
+    variable = f"{service.key.upper()}_BASE_URL"
+    default_url = "http://localhost:7050" if service.key == "resources" else "http://localhost:5000"
+    base_url = os.getenv(variable, os.getenv("SERVICE_BASE_URL", default_url)).rstrip("/")
+    evidence: list[str] = []
+    failures: list[str] = []
+    session = requests.Session()
+    for method, declared_path in routes:
+        path = _runnable_path(declared_path)
+        try:
+            response = session.request(method, base_url + path, timeout=2)
+            elapsed = int(response.elapsed.total_seconds() * 1000)
+            evidence.append(f"{method} {declared_path} -> HTTP {response.status_code} ({elapsed}ms)")
+        except requests.RequestException as exc:
+            result = f"{method} {declared_path} -> connection failure ({type(exc).__name__})"
+            evidence.append(result)
+            failures.append(result)
+
+    result = f"Base URL: {base_url}\n" + "\n".join(evidence)
+    if failures:
+        return False, f"{len(failures)} endpoint(s) did not respond.\n{result}"
+    return True, result
