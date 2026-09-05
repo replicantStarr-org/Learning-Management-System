@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# CI reports, these should not be checked in, they are downloaded on-demand for the agentic loop
+reports/
