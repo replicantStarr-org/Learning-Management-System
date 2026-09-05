@@ -161,6 +161,7 @@ jobs:
     needs: compose
     steps:
       - name: Create evidence reports
+        working-directory: .
         env:
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
