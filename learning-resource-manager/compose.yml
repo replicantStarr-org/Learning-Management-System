@@ -6,27 +6,30 @@ services:
     env_file:
       - ".env"
     environment:
-      - DATABASE_PATH=/app/data
       - CONTENT_PATH=/content
+      # Every statement goes to the database service over this address; the
+      # backend never opens the database file itself.
+      - DATABASE_SERVICE_URL=http://database:5000
       # Ollama runs on the host, so "localhost" from inside this container would
       # be the container itself.
       - OLLAMA_URL=host.docker.internal
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # The database file lives on the shared volume, so the backend must not
-    # start until database_init has finished writing it.
+    # Nothing the backend serves works until the database service answers, so
+    # wait for its health check rather than just for the container to start.
     depends_on:
-      database_init:
-        condition: service_completed_successfully
+      database:
+        condition: service_healthy
     volumes:
-      - l_r_data:/app/data
       # Writable here because uploads land in it; the frontend mounts it read
       # only because it just serves the files.
       - ./content:/content
     ports:
       - "7050:5000"
 
-  database_init:
+  # Owns the database file and runs the statements the backend sends it. The
+  # port is deliberately not published: only the backend has any business here.
+  database:
     build:
       context: database
       dockerfile: Dockerfile
@@ -36,6 +39,14 @@ services:
       - DATABASE_PATH=/app/data
     volumes:
       - l_r_data:/app/data
+    healthcheck:
+      # python rather than curl, because the slim image ships no HTTP client.
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
 
   frontend:
     build:

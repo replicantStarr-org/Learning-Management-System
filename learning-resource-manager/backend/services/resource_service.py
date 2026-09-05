@@ -1,10 +1,9 @@
 import os
-import sqlite3
 from pathlib import Path
 
 from werkzeug.utils import secure_filename
 
-from services.database import connect, query
+from services.database import NEW_ROW_ID, DatabaseError, fetch, query, transaction
 
 PDF_MAGIC = b"%PDF-"
 PDF_MEDIUM = "PDF"
@@ -80,34 +79,34 @@ def create_resource(upload, title, author, description, tag_ids):
 
     destination, location = _store_pdf(upload)
 
+    # The resource and its tags go in as one transaction, so the tag rows cannot
+    # outlive a resource that failed to save.
     try:
-        with connect() as conn:
-            cursor = conn.execute(
-                INSERT_RESOURCE,
-                (location, (author or "").strip() or None, PDF_MEDIUM,
-                 title, (description or "").strip() or None),
-            )
-            resource_id = cursor.lastrowid
-            for tag_id in tag_ids:
-                conn.execute(INSERT_RESOURCE_TAG, (resource_id, tag_id))
-    except sqlite3.Error as exc:
+        results = transaction([
+            (INSERT_RESOURCE,
+             (location, (author or "").strip() or None, PDF_MEDIUM,
+              title, (description or "").strip() or None)),
+            *((INSERT_RESOURCE_TAG, (NEW_ROW_ID, tag_id)) for tag_id in tag_ids),
+        ])
+    except DatabaseError as exc:
         # Do not leave a file behind that nothing in the database points at.
         destination.unlink(missing_ok=True)
         raise ResourceError("The resource could not be saved.") from exc
 
-    return resource_id
+    return results[0]["last_row_id"]
 
 def delete_resource(resource_id):
-    with connect() as conn:
-        row = conn.execute(SELECT_LOCATION, (resource_id,)).fetchone()
-        if row is None:
-            raise ResourceError("That resource no longer exists.")
+    rows = fetch(SELECT_LOCATION, (resource_id,))
+    if not rows:
+        raise ResourceError("That resource no longer exists.")
 
-        conn.execute(DELETE_RESOURCE_TAGS, (resource_id,))
-        conn.execute(DELETE_RESOURCE, (resource_id,))
+    transaction([
+        (DELETE_RESOURCE_TAGS, (resource_id,)),
+        (DELETE_RESOURCE, (resource_id,)),
+    ])
 
     # Only remove files this application owns, under the pdf folder.
-    stored = Path(row["location"])
+    stored = Path(rows[0]["location"])
     target = _pdf_directory() / stored.name
     if stored.parent.as_posix() == "/content/pdf":
         target.unlink(missing_ok=True)
