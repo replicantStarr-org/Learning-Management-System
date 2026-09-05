@@ -24,3 +24,19 @@ This includes the five feature microservice + the shared access microservice:
 
 
 
+### TODO
+
+- describe what is collected and reviewed for each area
+- prompt and report layouts
+    - each microservice has its own prompts for review
+    - shared prompts for things that must always be true, i.e CRUD endpoints
+- how each collector works, what it should collect, i.e endpoints that can be reviewed for CRUD etc
+- file structure for prompts and auto-discovery
+- auto-download artifacts for workflow runs
+- database collector inputs init_db script and reviews that
+
+
+
+
+
+
