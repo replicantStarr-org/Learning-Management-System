@@ -84,22 +84,45 @@ Finally, the workflow file should be returned to the model for review.
 
 ### Prompts
 
-prompt structure
+Each area + microservice will also have prompts which serve as instructions for the models alongside the evidence provided by the collectors.
+The prompts will be stored under `prompts/` in the root of the repository in a way that allows auto-discovery of the correct prompts for the task, rather than having to build out a manual mapping in code.
 
+There also needs to be shared prompts for the following scenarios:
+1. Reviewing the same area for different microservices, for example, all endpoint reviews should involve checking the endpoints follow CRUD/REST APIs formatting, regardless of which service it is. There can be one prompt for each area that is shared between microservices.
+2. The agentic loop involves both a implementation and review agent. The instructions for a given area, and also a microservice can probably be shared between both of these. Then each of them will have a fragment added based on if they are implementation or review. This way you have a single prompt for each microservice that is used for both + a generic implementation prompt and review prompt that can be used for all combinations.
+
+The following format will be used:
+
+- `agents/`
+    - `implementation_prompt.txt`
+    - `review_prompt.txt`
+- `areas/`
+    - `database_prompt.txt`
+    - `endpoint_prompt.txt`
+    - `architecture_prompt.txt`
+    - `devops_prompt.txt`
+- `services/`
+    - `access_prompt.txt`
+    - `subjects_prompt.txt`
+    - `quizzes_prompt.txt`
+    - `resources_prompt.txt`
+    - `timetable_prompt.txt`
+    - `assignments_prompt.txt`
+
+These prompts will be combined into a single prompt which will then be combined
+with the evidence from the collectors to form the input into the model.
+For example, if you are running the agentic loop againast the architecture of the access microservice and we are at the implementation agent phase.
+The `implementation_prompt.txt`, `architecture_prompt.txt` and `access_prompt.txt` would be combined into the final prompt.
+Appropriate format placeholders should be used to tell the agents which part they are reviewing along with other information to be injected or to put together the prompts in an appropriate way.
 
 ### TODO
 
-- describe what is collected and reviewed for each area
-- prompt and report layouts
-    - each microservice has its own prompts for review
-    - shared prompts for things that must always be true, i.e CRUD endpoints
-- how each collector works, what it should collect, i.e endpoints that can be reviewed for CRUD etc
-- file structure for prompts and auto-discovery
+- ideally all files under `pipelines/` can be poofed
+
 - auto-download artifacts for workflow runs
-- database collector inputs init_db script and reviews that
 
 
-
+- run.sh and run.ps1, error message if download fails, explaining why `gh` is requried and giving a flag to skip devops download if not doing devops review or if want to populate `reports/` manually
 
 
 
