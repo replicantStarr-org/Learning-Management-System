@@ -59,7 +59,7 @@ jobs:
         run: mypy . --config-file ../pyproject.toml
 
   compose:
-    name: Compose Up and Smoke Test
+    name: Build, Compose Up and Smoke Test
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
