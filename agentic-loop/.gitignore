@@ -1,8 +1,0 @@
-# Reports are run output, not source.
-reports/
-
-# Tooling caches.
-__pycache__/
-
-# Built by run.sh on first use.
-.venv/
