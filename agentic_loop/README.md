@@ -23,6 +23,26 @@ This includes the five feature microservice + the shared access microservice:
 > Note: The above paths are given relative to the repository root. (`../` relative to this file)
 
 
+### Collectors
+
+Collectors are used to collect the concrete parts of the implementation, aka, evidence, that will be reviewed by the model.
+There is a collector for each area the agentic loop supports.
+Each collector can also observe and perform validation on the data it collects.
+This allows us to introduce some determinstic guardrails into the agentic workflow.
+This validation can also be used to short circuit the agentic loop at the observe phase.
+To achieve this, each collector returns a `tuple[bool, str]`.
+The boolean represents if validation passed,
+with the string being the evidence and other applicable information to be passed the model or output to the screen.
+The collector for each area is described in detail below.
+
+#### Database Collector
+
+The
+
+
+
+### Prompts
+
 
 ### TODO
 
