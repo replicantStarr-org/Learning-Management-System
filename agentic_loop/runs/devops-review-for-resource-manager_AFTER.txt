@@ -1,0 +1,225 @@
+$ ./run.sh --area devops --service resources
+Reports are up to date.
+AGENTIC MICROSERVICE REVIEW
+[resources][devops][OBSERVE] Collecting and validating evidence
+[resources][devops][IMPLEMENT] Running implementation model
+[resources][devops][REVIEW] Running review model
+[resources][devops][DONE] Review complete
+
+RUNNING: Learning Resource Manager — DevOps Pipeline
+OBSERVE:
+Validated jobs: lint, compose, evidence-upload. Validated artifact runs: learning-resource-manager-ci-evidence-33969450476: learning-resource-manager-report.json, learning-resource-manager-report.md. Teardown removes volumes.
+
+Workflow YAML:
+name: Learning Resource Manager CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "learning-resource-manager/**"
+      # The frontend image copies shared/assets into the nginx root.
+      - "shared/assets/**"
+      - ".github/workflows/learning-resource-manager.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "learning-resource-manager/**"
+      - "shared/assets/**"
+      - ".github/workflows/learning-resource-manager.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Everything in this workflow is scoped to this service; no step reaches
+    # into another team's folder.
+    working-directory: learning-resource-manager
+
+jobs:
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linters
+        # Pinned so a new Ruff or Mypy release cannot fail a build that has not
+        # changed. Settings live in learning-resource-manager/pyproject.toml.
+        run: pip install ruff==0.16.5 mypy==2.3.1
+
+      - name: Run Ruff
+        run: ruff check . --output-format=github
+
+      - name: Run Mypy on the backend
+        # The backend and database images each run from their own directory, so
+        # they are checked as separate import roots rather than as one package.
+        working-directory: learning-resource-manager/backend
+        run: mypy . --config-file ../pyproject.toml
+
+      - name: Run Mypy on the database
+        working-directory: learning-resource-manager/database
+        run: mypy . --config-file ../pyproject.toml
+
+  compose:
+    name: Build, Compose Up and Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Write CI environment file
+        # .env is gitignored, so CI supplies its own. No secrets are involved:
+        # the database settings must match compose.yml, and the model settings
+        # are unused here because Ollama does not run on the runner.
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_NAME=l_r_db.db
+          DATABASE_PATH=/app/data
+          LANGUAGE_MODEL=qwen2.5:0.5b
+          OLLAMA_URL=host.docker.internal
+          OLLAMA_PORT=11434
+          EOF
+
+      - name: Build and start the services
+        # The database service runs for as long as the application does, and the
+        # backend waits for its health check before starting.
+        run: docker compose up --detach --build
+
+      - name: Check the database service is serving
+        run: |
+          set -euo pipefail
+
+          health="$(docker compose ps --all --format '{{.Service}} {{.Health}}' \
+            | awk '$1 == "database" { print $2 }')"
+
+          if [[ "$health" != "healthy" ]]; then
+            echo "::error::database is ${health:-not running}."
+            exit 1
+          fi
+          echo "database is healthy."
+
+      - name: Smoke test the running application
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          probe() {
+            local description="$1"
+            local url="$2"
+
+            for attempt in {1..10}; do
+              status="$(curl --silent --output /dev/null \
+                --connect-timeout 2 --max-time 10 \
+                --write-out '%{http_code}' "$url" || true)"
+
+              if [[ "$status" == "200" ]]; then
+                echo "$description responded with HTTP 200."
+                return 0
+              fi
+
+              echo "$description attempt $attempt/10 returned HTTP ${status:-000}."
+              if [[ "$attempt" -lt 10 ]]; then
+                sleep 3
+              fi
+            done
+
+            echo "::error::$description did not respond with HTTP 200 after 10 attempts."
+            return 1
+          }
+
+          # Asked of compose rather than written out here, so that changing a
+          # published port in compose.yml cannot leave these probes behind.
+          backend="http://localhost:$(docker compose port backend 5000 | awk -F: '{print $NF}')"
+          frontend="http://localhost:$(docker compose port frontend 80 | awk -F: '{print $NF}')"
+          echo "Backend on $backend, frontend on $frontend."
+
+          # Reads the seeded resources back through the database service, so a
+          # backend that cannot reach it fails here.
+          probe "Backend resource list" "$backend/api/resources/all"
+          # Reads the seeded highlights through the views, so a change to the
+          # highlight schema that the views were not updated for fails here.
+          probe "Highlight summary" "$backend/api/highlights/resource/1/summary"
+          # Serves the single page app.
+          probe "Frontend index" "$frontend/"
+          # Proves the nginx proxy reaches the backend container.
+          probe "Frontend to backend proxy" "$frontend/api/highlights/colours"
+          # Proves the content volume is mounted where PDF.js expects it.
+          probe "Learning resource PDF" "$frontend/content/pdf/1706.03762.pdf"
+
+          # The chat endpoint is deliberately not probed: it calls a language
+          # model running on the developer's host, which no runner provides.
+
+      - name: Dump service logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the services
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  evidence-upload:
+    name: Evidence Upload
+    runs-on: ubuntu-latest
+    needs: compose
+    steps:
+      - name: Create evidence reports
+        working-directory: .
+        env:
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          timestamp="$(date --utc +'%Y-%m-%dT%H:%M:%SZ')"
+          mkdir -p evidence
+
+          jq --null-input \
+            --arg workflow_name "$WORKFLOW_NAME" \
+            --arg run_id "$RUN_ID" \
+            --arg commit_sha "$COMMIT_SHA" \
+            --arg branch "$BRANCH" \
+            --arg timestamp "$timestamp" \
+            '{
+              workflow_name: $workflow_name,
+              run_id: $run_id,
+              commit_sha: $commit_sha,
+              branch: $branch,
+              timestamp: $timestamp
+            }' > evidence/learning-resource-manager-report.json
+
+          cat > evidence/learning-resource-manager-report.md <<EOF
+          # Learning Resource Manager CI Evidence
+
+          - **Workflow:** $WORKFLOW_NAME
+          - **Run ID:** $RUN_ID
+          - **Commit SHA:** $COMMIT_SHA
+          - **Branch:** $BRANCH
+          - **Timestamp:** $timestamp
+          - **GitHub Actions run:** $RUN_URL
+          EOF
+
+      - name: Upload evidence reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: learning-resource-manager-ci-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+
+
+IMPLEMENTATION:
+One concrete high-value improvement is to ensure that the evidence reports are uploaded and accessible during the pipeline. This involves adding a step to upload the evidence reports to a specified location, such as a GitHub Actions repository or a local file system. This change ...
+
+REVIEW:
+Approved: The pipeline already uploads evidence reports to a GitHub Actions repository as an artifact, which is accessible after the pipeline run. Evidence: learning-resource-manager-ci-evidence-33969450476: learning-resource-manager-report.json, learning-resource-manager-report.md.

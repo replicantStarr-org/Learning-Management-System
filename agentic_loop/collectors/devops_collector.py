@@ -40,9 +40,17 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
     jobs = workflow.get("jobs", {})
     if not isinstance(jobs, dict):
         return False, "Workflow does not define a jobs mapping."
-    missing_jobs = [part for part in REQUIRED_JOB_PARTS if not any(part in str(job).lower() for job in jobs)]
+    missing_jobs = [
+        part
+        for part in REQUIRED_JOB_PARTS
+        if not any(
+            part in str(job_id).lower()
+            or (isinstance(job, dict) and part in str(job.get("name", "")).lower())
+            for job_id, job in jobs.items()
+        )
+    ]
     if missing_jobs:
-        return False, "Workflow missing job IDs containing: " + ", ".join(missing_jobs)
+        return False, "Workflow missing job IDs or names containing: " + ", ".join(missing_jobs)
     if not TEARDOWN.search(workflow_text):
         return False, "Workflow teardown must run docker compose down with -v or --volumes."
 

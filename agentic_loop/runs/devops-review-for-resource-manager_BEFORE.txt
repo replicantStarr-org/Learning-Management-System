@@ -1,0 +1,34 @@
+$ ./run.sh
+Downloading artifacts for Access Management CI (run 33735047474)...
+Downloading artifacts for Assignment Management CI (run 33736041714)...
+Downloading artifacts for Learning Resource Manager CI (run 33968728640)...
+Warning: no artifacts found for Learning Resource Manager CI (run 33968728640); continuing.
+Downloading artifacts for Quiz Management CI (run 33738232735)...
+Downloading artifacts for Subject Management CI (run 33843507891)...
+Downloading artifacts for Timetable Manager CI (run 33735047513)...
+Reports downloaded successfully.
+AGENTIC MICROSERVICE REVIEW
+
+Choose a review area
+1 - Database
+2 - Endpoint Implementation
+3 - Application Architecture
+4 - DevOps Pipeline
+0 - Exit
+Choice: 4
+
+Choose a microservice
+1 - Shared home page
+2 - Subjects Manager
+3 - Assignment Manager
+4 - Learning Resource Manager
+5 - Quiz Manager
+6 - Timetable Manager
+0 - Exit
+Choice: 4
+[resources][devops][OBSERVE] Collecting and validating evidence
+[resources][devops][OBSERVE] Validation failed; model calls skipped
+
+RUNNING: Learning Resource Manager — DevOps Pipeline
+OBSERVE FAILED: No downloaded artifact run exists under reports/learning-resource-manager.
+
