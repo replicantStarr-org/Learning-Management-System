@@ -47,11 +47,22 @@ The database collector will take the `init_db.py` (may be named something differ
 6. Return the result of this check + all `CREATE TABLE` statements as a string
 
 
-####
+#### Endpoint Collector
 
+The endpoint collector will collect a list of endpoints from the selected microservice.
+The collector will search all files in the `backend` folder and use a regex to find endpoints.
+If no endpoints are found, it will fail first.
+Otherwise it will send a request to each endpoint, verifying no connection failures.
+It will not fail based on the status code of the endpoint, as long as the endpoint responds quickly enough the collector will pass the test.
+Instead, the result will be recorded and passed back as evidence to the models.
 
+#### Application Architecture Collector
+
+#### DevOps Pipeline Collector
 
 ### Prompts
+
+prompt structure
 
 
 ### TODO
