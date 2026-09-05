@@ -115,16 +115,4 @@ For example, if you are running the agentic loop againast the architecture of th
 The `implementation_prompt.txt`, `architecture_prompt.txt` and `access_prompt.txt` would be combined into the final prompt.
 Appropriate format placeholders should be used to tell the agents which part they are reviewing along with other information to be injected or to put together the prompts in an appropriate way.
 
-### TODO
-
-
-- ideally all files under `pipelines/` can be poofed
-
-
-- auto-download artifacts for workflow runs
-
-
-- run.sh and run.ps1, error message if download fails, explaining why `gh` is requried and giving a flag to skip devops download if not doing devops review or if want to populate `reports/` manually
-
-
 
