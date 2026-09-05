@@ -36,7 +36,7 @@ async function loadQuiz() {
         return;
     }
 
-    const suffix = quizView.dataset.quizView === "edit" ? "/edit" : "";
+    const suffix = quizView.dataset.quizView === "edit" ? "?view=edit" : "";
     try {
         const response = await fetch(
             `http://localhost:5004/quizzes/${quizId}${suffix}`

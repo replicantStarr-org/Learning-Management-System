@@ -25,7 +25,7 @@
                                 <div class="col-md-6">
                                     <label class="form-label" for="subject_id">Subject</label>
                                     <select class="form-select" id="subject_id" name="subject_id" required autofocus
-                                            hx-get="http://localhost:5004/subjects/options" hx-trigger="load" hx-target="this" hx-swap="innerHTML"
+                                            hx-get="http://localhost:5004/subjects" hx-trigger="load" hx-target="this" hx-swap="innerHTML"
                                             onchange="document.getElementById('subject_name').value = this.options[this.selectedIndex].text">
                                         <option value="" disabled selected>Loading subjects…</option>
                                     </select>

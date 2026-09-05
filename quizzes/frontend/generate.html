@@ -21,12 +21,12 @@
                 <p class="text-secondary mb-4">Pick a subject, difficulty, and number of questions - the AI will write the quiz for you.</p>
                 <section class="card border-0 shadow-sm">
                     <div class="card-body p-4 p-md-5">
-                        <form hx-post="http://localhost:5004/quizzes/generate" hx-target="#form-result" hx-indicator="#generate-loading">
+                        <form hx-post="http://localhost:5004/quiz-generations" hx-target="#form-result" hx-indicator="#generate-loading">
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label" for="subject_id">Subject</label>
                                     <select class="form-select" id="subject_id" name="subject_id" required autofocus
-                                            hx-get="http://localhost:5004/subjects/options" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+                                            hx-get="http://localhost:5004/subjects" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
                                         <option value="" disabled selected>Loading subjects…</option>
                                     </select>
                                 </div>

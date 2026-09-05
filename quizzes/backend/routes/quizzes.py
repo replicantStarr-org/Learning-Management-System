@@ -12,6 +12,7 @@ from services.quiz_service import (
     delete_quiz,
     generate_ai_quiz,
     get_or_create_feedback,
+    get_attempt,
     get_question,
     get_quiz,
     list_attempts,
@@ -77,22 +78,53 @@ def questions_changed(body, status=200):
     return response
 
 
+def request_data():
+    """Return a dictionary for both browser forms and REST JSON clients."""
+    payload = request.get_json(silent=True)
+    return payload if isinstance(payload, dict) else request.form.to_dict()
+
+
+def question_form_values(data):
+    """Normalise the form representation and the JSON answer representation."""
+    answers = data.get("answers")
+    if isinstance(answers, list):
+        answer_texts = [
+            answer.get("text", answer.get("answer_text", ""))
+            for answer in answers[:4]
+            if isinstance(answer, dict)
+        ]
+        correct_index = next(
+            (index for index, answer in enumerate(answers[:4]) if isinstance(answer, dict) and answer.get("is_correct")),
+            -1,
+        )
+        return data.get("question_text"), data.get("explanation"), answer_texts, correct_index
+
+    answer_texts = [data.get(f"answer_{i}", "") for i in range(1, 5)]
+    try:
+        correct_index = int(data.get("correct_index", 0))
+    except (TypeError, ValueError) as exc:
+        raise ServiceError("A valid correct answer must be selected") from exc
+    return data.get("question_text"), data.get("explanation"), answer_texts, correct_index
+
+
 @quizzes_bp.get("/quizzes")
 @handle_errors
 def all_quizzes():
     return quiz_list(list_quizzes())
 
 
-@quizzes_bp.get("/subjects/options")
+@quizzes_bp.get("/subjects")
 @handle_errors
 def subject_dropdown_options():
+    # Subjects are owned by the Subjects service.  This endpoint is only a
+    # presentation of that resource for the quiz forms; it does not proxy CRUD.
     return subject_options(list_subjects())
 
 
 @quizzes_bp.post("/quizzes")
 @handle_errors
 def add_quiz():
-    quiz = create_quiz(request.form.to_dict())
+    quiz = create_quiz(request_data())
     return quizzes_changed(
         message(f'"{quiz["title"]}" was created.'),
         201,
@@ -103,47 +135,37 @@ def add_quiz():
 @quizzes_bp.get("/quizzes/<int:quiz_id>")
 @handle_errors
 def quiz_by_id(quiz_id):
-    return quiz_detail(get_quiz(quiz_id))
+    quiz = get_quiz(quiz_id)
+    if request.args.get("view") == "edit":
+        return quiz_edit_form(quiz)
+    return quiz_detail(quiz)
 
 
-@quizzes_bp.get("/quizzes/<int:quiz_id>/edit")
+@quizzes_bp.put("/quizzes/<int:quiz_id>")
 @handle_errors
-def quiz_edit(quiz_id):
-    return quiz_edit_form(get_quiz(quiz_id))
-
-
-@quizzes_bp.post("/quizzes/update")
-@handle_errors
-def edit_quiz():
-    data = request.form.to_dict()
-    quiz_id = data.pop("quiz_id", None)
-    if not str(quiz_id or "").isdigit():
-        raise ServiceError("A valid quiz ID is required")
-    quiz = update_quiz(int(quiz_id), data)
+def edit_quiz(quiz_id):
+    data = request_data()
+    quiz = update_quiz(quiz_id, data)
     return quizzes_changed(message(f'"{quiz["title"]}" was updated.'))
 
 
-@quizzes_bp.post("/quizzes/delete")
+@quizzes_bp.delete("/quizzes/<int:quiz_id>")
 @handle_errors
-def remove_quiz():
-    quiz_id = request.form.get("quiz_id", "")
-    if not quiz_id.isdigit():
-        raise ServiceError("A valid quiz ID is required")
-    delete_quiz(int(quiz_id))
-    return quizzes_changed("", redirect=f"{FRONTEND_BASE}/?message=Quiz%20deleted.")
+def remove_quiz(quiz_id):
+    delete_quiz(quiz_id)
+    return quizzes_changed("", 204, redirect=f"{FRONTEND_BASE}/?message=Quiz%20deleted.")
 
 
 @quizzes_bp.post("/quizzes/<int:quiz_id>/questions")
 @handle_errors
 def add_quiz_question(quiz_id):
-    data = request.form
-    answer_texts = [data.get(f"answer_{i}", "") for i in range(1, 5)]
-    correct_index = int(data.get("correct_index", 0))
-    add_question(quiz_id, data.get("question_text"), data.get("explanation"), answer_texts, correct_index)
+    data = request_data()
+    question_text, explanation, answer_texts, correct_index = question_form_values(data)
+    add_question(quiz_id, question_text, explanation, answer_texts, correct_index)
     return questions_changed(message("Question added."))
 
 
-@quizzes_bp.get("/quizzes/<int:quiz_id>/questions/manage")
+@quizzes_bp.get("/quizzes/<int:quiz_id>/questions")
 @handle_errors
 def manage_questions(quiz_id):
     quiz = get_quiz(quiz_id)
@@ -154,24 +176,18 @@ def manage_questions(quiz_id):
 @handle_errors
 def question_by_id(quiz_id, question_id):
     _, question = get_question(quiz_id, question_id)
+    if request.args.get("view") == "edit":
+        return question_edit_form(quiz_id, question)
     return question_display(quiz_id, question)
-
-
-@quizzes_bp.get("/quizzes/<int:quiz_id>/questions/<int:question_id>/edit")
-@handle_errors
-def question_edit(quiz_id, question_id):
-    _, question = get_question(quiz_id, question_id)
-    return question_edit_form(quiz_id, question)
 
 
 @quizzes_bp.put("/quizzes/<int:quiz_id>/questions/<int:question_id>")
 @handle_errors
 def edit_question(quiz_id, question_id):
-    data = request.form
-    answer_texts = [data.get(f"answer_{i}", "") for i in range(1, 5)]
-    correct_index = int(data.get("correct_index", 0))
+    data = request_data()
+    question_text, explanation, answer_texts, correct_index = question_form_values(data)
     updated = update_question(
-        quiz_id, question_id, data.get("question_text"), data.get("explanation"), answer_texts, correct_index
+        quiz_id, question_id, question_text, explanation, answer_texts, correct_index
     )
     return questions_changed(question_display(quiz_id, updated))
 
@@ -186,10 +202,14 @@ def remove_question(quiz_id, question_id):
 @quizzes_bp.post("/quizzes/<int:quiz_id>/attempts")
 @handle_errors
 def add_attempt(quiz_id):
-    form = request.form
-    question_ids = [key[2:] for key in form.keys() if key.startswith("q_")]
-    answer_ids = [form.get(key) for key in form.keys() if key.startswith("q_")]
-    attempt = submit_attempt(quiz_id, form.get("student_name"), question_ids, answer_ids)
+    payload = request_data()
+    if isinstance(payload.get("responses"), list):
+        question_ids = [item.get("question_id") for item in payload["responses"] if isinstance(item, dict)]
+        answer_ids = [item.get("selected_answer_id") for item in payload["responses"] if isinstance(item, dict)]
+    else:
+        question_ids = [key[2:] for key in payload if key.startswith("q_")]
+        answer_ids = [payload.get(key) for key in payload if key.startswith("q_")]
+    attempt = submit_attempt(quiz_id, payload.get("student_name"), question_ids, answer_ids)
     return attempt_result(attempt)
 
 
@@ -201,15 +221,32 @@ def attempt_history(quiz_id):
     return attempts_list(quiz, attempts)
 
 
+@quizzes_bp.get("/attempts/<int:attempt_id>")
+@handle_errors
+def attempt_by_id(attempt_id):
+    return attempt_result(get_attempt(attempt_id))
+
+
+@quizzes_bp.get("/attempts/<int:attempt_id>/feedback")
+@handle_errors
+def stored_attempt_feedback(attempt_id):
+    attempt = get_attempt(attempt_id)
+    if not attempt.get("ai_feedback"):
+        raise ServiceError("Feedback has not been generated for this attempt", 404)
+    return feedback_result(attempt)
+
+
 @quizzes_bp.post("/attempts/<int:attempt_id>/feedback")
 @handle_errors
 def attempt_feedback(attempt_id):
+    # Feedback generation is a POST because it may create the cached
+    # feedback sub-resource. GET above only reads an existing representation.
     attempt = get_or_create_feedback(attempt_id)
     return feedback_result(attempt)
 
 
 def _generate(subject_id):
-    form = request.form
+    form = request_data()
     quiz = generate_ai_quiz(
         subject_id,
         form.get("difficulty"),
@@ -219,16 +256,18 @@ def _generate(subject_id):
     return quizzes_changed(generated_quiz_message(quiz), 201)
 
 
-@quizzes_bp.post("/quizzes/generate")
+@quizzes_bp.post("/quiz-generations")
 @handle_errors
-def generate_quiz_from_form():
-    subject_id_raw = request.form.get("subject_id", "")
-    if not subject_id_raw.isdigit():
+def create_quiz_generation():
+    """Create a generated quiz from the quiz-generation resource."""
+    subject_id_raw = request_data().get("subject_id", "")
+    if not str(subject_id_raw).isdigit():
         raise ServiceError("A valid subject ID is required")
     return _generate(int(subject_id_raw))
 
 
-@quizzes_bp.post("/subjects/<int:subject_id>/quizzes/generate")
+@quizzes_bp.post("/subjects/<int:subject_id>/quiz-generations")
 @handle_errors
-def generate_quiz_for_subject(subject_id):
+def create_subject_quiz_generation(subject_id):
+    """Nested REST form for generating a quiz for one subject."""
     return _generate(subject_id)
