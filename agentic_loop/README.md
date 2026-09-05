@@ -37,7 +37,17 @@ The collector for each area is described in detail below.
 
 #### Database Collector
 
-The
+The database collector will take the `init_db.py` (may be named something differently, find a python file with init + `db` or `data`, also collect any `.sql` files in the folder) from the respective `database` container and do the following:
+
+1. Copy the file to a temporary directory
+2. Use `runpy` to run the file in the current context
+3. Verify that a `.db` file was created in the temporary directory, either as a direct child or in a nested folder
+4. Use a regex to extract all `CREATE TABLE` statements from selected files
+5. `SELECT COUNT(*)` from all matched tables named, verify at least 5 seeded entries for each table
+6. Return the result of this check + all `CREATE TABLE` statements as a string
+
+
+####
 
 
 
