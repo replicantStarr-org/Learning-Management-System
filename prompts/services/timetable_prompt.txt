@@ -1,0 +1,1 @@
+Scope: the Timetable Manager at {{SERVICE_PATH}}. It owns timetable entries and planning/advice records. Consider timetable CRUD, calendar import, and AI planning boundaries only where they appear in the supplied evidence.

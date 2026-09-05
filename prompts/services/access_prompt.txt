@@ -1,0 +1,1 @@
+Scope: the shared access service at {{SERVICE_PATH}}. It provides the common home page and user access functions used across the application. Pay particular attention to authentication data, session endpoints, and clear frontend/backend/database boundaries when relevant to the selected area.

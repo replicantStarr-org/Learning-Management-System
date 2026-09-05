@@ -1,0 +1,1 @@
+Review the three-container application architecture. Assess separation of frontend, backend, and database responsibilities, Compose service topology, naming, and maintainability. Base conclusions on the supplied file validation and Compose YAML, not on assumed runtime behavior.

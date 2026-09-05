@@ -1,0 +1,1 @@
+Scope: the Assignment Manager at {{SERVICE_PATH}}. It manages assignments, due dates, reminders, and assignment summaries while referring to subjects owned elsewhere. Favor clear assignment CRUD and avoid recommendations that duplicate another service's data ownership.

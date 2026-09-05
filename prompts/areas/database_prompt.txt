@@ -1,0 +1,1 @@
+Review the database schema and seed data. Check table purpose, keys, constraints, relationships, data integrity, and whether every discovered table has at least five useful seed rows. Keep recommendations within database initialization and schema design.

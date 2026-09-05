@@ -1,0 +1,1 @@
+Review the mapped GitHub Actions workflow and downloaded run artifacts. Check build, smoke-test, and evidence jobs, dependency flow, reliable always-run teardown with volume removal, report metadata, and artifact publication. Recommend pipeline changes only, not application-code changes.

@@ -1,0 +1,1 @@
+Scope: the Subjects Manager at {{SERVICE_PATH}}. It owns subject catalogue data and subject CRUD behavior used by other features. Preserve that ownership boundary and assess subject identifiers, catalogue operations, and AI-summary support only when shown by evidence.

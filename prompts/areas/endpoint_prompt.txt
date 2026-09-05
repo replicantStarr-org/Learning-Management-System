@@ -1,0 +1,1 @@
+Review the discovered HTTP endpoints and live responses. Check consistent REST resource naming, appropriate GET/POST/PUT/PATCH/DELETE use, CRUD coverage, parameter design, and response reliability. Treat every connection failure as a concrete defect; do not infer response bodies not shown.

@@ -1,0 +1,1 @@
+Scope: the Quiz Manager at {{SERVICE_PATH}}. It owns quizzes, questions, answers, attempts, and responses and may reference subjects. Assess coherent quiz lifecycle and REST structure without moving subject ownership into this service.

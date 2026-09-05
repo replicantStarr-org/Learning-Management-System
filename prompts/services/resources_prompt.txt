@@ -1,0 +1,1 @@
+Scope: the Learning Resource Manager at {{SERVICE_PATH}}. It manages learning resources, tags, highlights, and related AI interactions. Consider its established folder and Compose naming differences, while still applying the same evidence-based review criteria.
