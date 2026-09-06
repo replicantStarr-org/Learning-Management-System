@@ -1,5 +1,5 @@
 services:
-  backend:
+  learning-resource-manager-backend:
     build:
       context: backend
       dockerfile: Dockerfile
@@ -29,7 +29,7 @@ services:
 
   # Owns the database file and runs the statements the backend sends it. The
   # port is deliberately not published: only the backend has any business here.
-  database:
+  learning-resource-manager-database:
     build:
       context: database
       dockerfile: Dockerfile
@@ -48,7 +48,7 @@ services:
       retries: 12
       start_period: 5s
 
-  frontend:
+  learning-resource-manager-frontend:
     build:
       context: ..
       dockerfile: learning-resource-manager/frontend/Dockerfile
