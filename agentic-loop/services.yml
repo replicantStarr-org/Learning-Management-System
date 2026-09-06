@@ -108,3 +108,31 @@ services:
         url: http://localhost:7050/api/resources/all_html
         expect: html
         notes: An HTMX fragment, checked for emptiness and leaked errors only.
+
+  - name: assignments
+    description: Assignment authoring, deadlines, reminders and summaries.
+    endpoints:
+      - name: database-health
+        url: http://localhost:6003/
+        expect: json_object
+        required_fields: [service, status]
+
+      - name: list-assignments
+        url: http://localhost:6003/assignments
+        expect: json_array
+        identifier: assignment_id
+        required_fields: [assignment_id, subject_id, subject_name, title, description, requirements, due_at]
+        notes: >
+          subject_name is denormalised from the subjects feature, so it can drift
+          out of step with the subject catalogue.
+
+      - name: upcoming-assignments
+        url: http://localhost:6003/assignments/upcoming
+        expect: json_array
+        identifier: assignment_id
+        required_fields: [assignment_id, subject_id, subject_name, title, due_at, status]
+
+      - name: assignment-detail
+        url: http://localhost:6003/assignments/1
+        expect: json_object
+        required_fields: [assignment_id, subject_id, subject_name, title, description, requirements, due_at, summary, reminders]
