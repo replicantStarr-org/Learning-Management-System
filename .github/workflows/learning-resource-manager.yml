@@ -51,7 +51,7 @@ jobs:
       - name: Run Mypy on the backend
         # The backend and database images each run from their own directory, so
         # they are checked as separate import roots rather than as one package.
-        working-directory: learning-resource-manager/learning-resource-manager-backend
+        working-directory: learning-resource-manager/backend
         run: mypy . --config-file ../pyproject.toml
 
       - name: Run Mypy on the database
@@ -88,13 +88,13 @@ jobs:
           set -euo pipefail
 
           health="$(docker compose ps --all --format '{{.Service}} {{.Health}}' \
-            | awk '$1 == "database" { print $2 }')"
+            | awk '$1 == "learning-resource-manager-database" { print $2 }')"
 
           if [[ "$health" != "healthy" ]]; then
-            echo "::error::database is ${health:-not running}."
+            echo "::error::learning-resource-manager-database is ${health:-not running}."
             exit 1
           fi
-          echo "database is healthy."
+          echo "learning-resource-manager-database is healthy."
 
       - name: Smoke test the running application
         shell: bash
@@ -127,8 +127,8 @@ jobs:
 
           # Asked of compose rather than written out here, so that changing a
           # published port in compose.yml cannot leave these probes behind.
-          backend="http://localhost:$(docker compose port backend 5000 | awk -F: '{print $NF}')"
-          frontend="http://localhost:$(docker compose port frontend 80 | awk -F: '{print $NF}')"
+          backend="http://localhost:$(docker compose port learning-resource-manager-backend 5000 | awk -F: '{print $NF}')"
+          frontend="http://localhost:$(docker compose port learning-resource-manager-frontend 80 | awk -F: '{print $NF}')"
           echo "Backend on $backend, frontend on $frontend."
 
           # Reads the seeded resources back through the database service, so a

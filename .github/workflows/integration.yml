@@ -1,11 +1,181 @@
-# This will be our CI for all 5 services together, for now this remains empty, add to as we go.
+# CI for all services together. The root docker-compose.yml only includes the
+# per service compositions, so what it can break is what they do to each other:
+# a dropped include, a renamed service, two compositions claiming one port. None
+# of that shows up when a composition is started on its own, so this workflow
+# brings the whole hub up at once and probes every composition in it.
 name: Integration of all Services
 
-on: [push, workflow_dispatch]
+on:
+  pull_request:
+    paths:
+      - "docker-compose.yml"
+      - ".github/workflows/integration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  placeholder:
+  smoke-check:
+    name: Smoke Check Every Composition
     runs-on: ubuntu-latest
     steps:
-      - name: Placeholder
-        run: exit 0
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Write the learning resource manager environment file
+        # The only included composition with an env_file, and .env is not
+        # committed. The database settings must match its compose.yml, and the
+        # model settings are unused here because Ollama does not run on the
+        # runner.
+        run: |
+          cat > learning-resource-manager/.env <<'EOF'
+          DATABASE_NAME=l_r_db.db
+          DATABASE_PATH=/app/data
+          LANGUAGE_MODEL=qwen2.5:0.5b
+          OLLAMA_URL=host.docker.internal
+          OLLAMA_PORT=11434
+          EOF
+
+      - name: Build and start every included composition
+        run: docker compose up --detach --build
+
+      - name: Check every service of every included composition is running
+        # Asked of the include list rather than written out here, so that adding
+        # a composition to docker-compose.yml cannot leave this check behind.
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t compositions < <(bash .github/scripts/included-compositions.sh)
+
+          if [[ "${#compositions[@]}" -eq 0 ]]; then
+            echo "::error::No compositions found in the include list of docker-compose.yml."
+            exit 1
+          fi
+          echo "Included compositions: ${compositions[*]}"
+
+          running="$(docker compose ps --services --status running)"
+          failed=0
+
+          for composition in "${compositions[@]}"; do
+            while read -r service; do
+              if grep --line-regexp --quiet "$service" <<<"$running"; then
+                echo "$composition: $service is running."
+              else
+                echo "::error::$composition: $service is not running."
+                failed=1
+              fi
+            done < <(docker compose --file "$composition" config --services)
+          done
+
+          exit "$failed"
+
+      - name: Probe every included composition
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          probe() {
+            local description="$1"
+            local url="$2"
+
+            for attempt in {1..10}; do
+              status="$(curl --silent --output /dev/null \
+                --connect-timeout 2 --max-time 10 \
+                --write-out '%{http_code}' "$url" || true)"
+
+              if [[ "$status" == "200" ]]; then
+                echo "$description responded with HTTP 200."
+                return 0
+              fi
+
+              echo "$description attempt $attempt/10 returned HTTP ${status:-000}."
+              if [[ "$attempt" -lt 10 ]]; then
+                sleep 3
+              fi
+            done
+
+            echo "::error::$description did not respond with HTTP 200 after 10 attempts."
+            return 1
+          }
+
+          # The learning resource manager is the one composition on a bridge
+          # network, so its ports are published mappings. Asked of compose
+          # rather than written out here, so that changing a published port in
+          # its compose.yml cannot leave these probes behind. The others run
+          # with network_mode host, where the port is whatever the app binds.
+          l_r_backend="http://localhost:$(docker compose port learning-resource-manager-backend 5000 | awk -F: '{print $NF}')"
+          l_r_frontend="http://localhost:$(docker compose port learning-resource-manager-frontend 80 | awk -F: '{print $NF}')"
+
+          # One entry per included composition, as "url|description" lines. A
+          # composition with no entry here fails the coverage check below. The
+          # learning resource manager chat endpoint is deliberately absent: it
+          # calls a language model running on the developer's host, which no
+          # runner provides.
+          declare -A probes=(
+            ["access/docker-compose.yml"]="
+              http://localhost:6000/|Access database
+              http://localhost:5000/|Access backend
+              http://localhost:3000/login|Access frontend
+            "
+            ["subjects/docker-compose.yml"]="
+              http://localhost:6001/|Subject database
+              http://localhost:5001/|Subject backend
+              http://localhost:3001/|Subject frontend
+            "
+            ["learning-resource-manager/compose.yml"]="
+              $l_r_backend/api/resources/all|Learning resource backend
+              $l_r_frontend/|Learning resource frontend
+              $l_r_frontend/api/highlights/colours|Learning resource frontend to backend proxy
+            "
+            ["assignments/docker-compose.yml"]="
+              http://localhost:6003/|Assignment database
+              http://localhost:5003/|Assignment backend
+              http://localhost:3003/|Assignment frontend
+            "
+            ["quizzes/docker-compose.yml"]="
+              http://localhost:6004/|Quiz database
+              http://localhost:5004/|Quiz backend
+              http://localhost:3004/|Quiz frontend
+            "
+            ["timetable/docker-compose.yml"]="
+              http://localhost:6005/|Timetable database
+              http://localhost:5005/|Timetable backend
+              http://localhost:3005/|Timetable frontend
+            "
+          )
+
+          mapfile -t compositions < <(bash .github/scripts/included-compositions.sh)
+
+          # A composition added to docker-compose.yml without probes would
+          # otherwise be reported as passing without having been tested at all.
+          uncovered=0
+          for composition in "${compositions[@]}"; do
+            if [[ -z "${probes[$composition]:-}" ]]; then
+              echo "::error::$composition is included by docker-compose.yml but has no probes in this workflow."
+              uncovered=1
+            fi
+          done
+          if [[ "$uncovered" -ne 0 ]]; then
+            exit 1
+          fi
+
+          failed=0
+          for composition in "${compositions[@]}"; do
+            echo "--- $composition ---"
+            while read -r entry; do
+              [[ -n "$entry" ]] || continue
+              probe "${entry#*|}" "${entry%%|*}" || failed=1
+            done < <(sed 's/^[[:space:]]*//; s/[[:space:]]*$//' <<<"${probes[$composition]}")
+          done
+
+          exit "$failed"
+
+      - name: Show the logs of every composition
+        if: failure()
+        run: docker compose logs --no-color --timestamps
+
+      - name: Stop every composition
+        if: always()
+        run: docker compose down --volumes

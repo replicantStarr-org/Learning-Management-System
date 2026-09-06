@@ -9,7 +9,7 @@ services:
       - CONTENT_PATH=/content
       # Every statement goes to the database service over this address; the
       # backend never opens the database file itself.
-      - DATABASE_SERVICE_URL=http://database:5000
+      - DATABASE_SERVICE_URL=http://learning-resource-manager-database:5000
       # Ollama runs on the host, so "localhost" from inside this container would
       # be the container itself.
       - OLLAMA_URL=host.docker.internal
@@ -18,7 +18,7 @@ services:
     # Nothing the backend serves works until the database service answers, so
     # wait for its health check rather than just for the container to start.
     depends_on:
-      database:
+      learning-resource-manager-database:
         condition: service_healthy
     volumes:
       # Writable here because uploads land in it; the frontend mounts it read
@@ -39,6 +39,8 @@ services:
       - DATABASE_PATH=/app/data
     volumes:
       - l_r_data:/app/data
+    ports:
+      - "7051:5000"
     healthcheck:
       # python rather than curl, because the slim image ships no HTTP client.
       test: ["CMD", "python", "-c",
@@ -53,7 +55,7 @@ services:
       context: ..
       dockerfile: learning-resource-manager/frontend/Dockerfile
     depends_on:
-      backend:
+      learning-resource-manager-backend:
         condition: service_started
     volumes:
       - ./content:/content:ro
