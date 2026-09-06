@@ -51,7 +51,7 @@ jobs:
       - name: Run Mypy on the backend
         # The backend and database images each run from their own directory, so
         # they are checked as separate import roots rather than as one package.
-        working-directory: learning-resource-manager/backend
+        working-directory: learning-resource-manager/learning-resource-manager-backend
         run: mypy . --config-file ../pyproject.toml
 
       - name: Run Mypy on the database
