@@ -1,6 +1,9 @@
 from mcp.server import MCPServer
 from sys import stderr
 
+MCP_HOST = "127.0.0.1"
+MCP_PORT = 8000
+
 mcp = MCPServer("LMS MCP Server")
 
 
@@ -14,5 +17,5 @@ def log(message):
     print(message, file=stderr)
 
 if __name__ == "__main__":
-    log("Starting LMS MCP Server...")
-    mcp.run()
+    log(f"Starting LMS MCP Server on http://{MCP_HOST}:{MCP_PORT}/mcp...")
+    mcp.run("streamable-http", host=MCP_HOST, port=MCP_PORT, streamable_http_path="/mcp")
