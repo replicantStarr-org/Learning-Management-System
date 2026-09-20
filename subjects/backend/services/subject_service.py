@@ -131,6 +131,16 @@ def update_subject_tags(subject_id, tag_ids):
     )
 
 
+def get_subject_tags(subject_id):
+    return _json(database.get_subject_tags(subject_id), "Could not load subject tags")
+
+
+def delete_subject_tag(subject_id, tag_id):
+    response = database.delete_subject_tag(subject_id, tag_id)
+    if not response.ok:
+        _json(response, "Could not remove subject tag")
+
+
 def subject_page_data(subject_id):
     subject = get_subject(subject_id)
     return subject, list_tags()
