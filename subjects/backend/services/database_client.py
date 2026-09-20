@@ -26,6 +26,26 @@ class DatabaseClient:
     def delete_subject(self, subject_id):
         return self._request("DELETE", f"/subjects/{subject_id}")
 
+    def list_tags(self):
+        return self._request("GET", "/tags")
+
+    def get_tag(self, tag_id):
+        return self._request("GET", f"/tags/{tag_id}")
+
+    def create_tag(self, name):
+        return self._request("POST", "/tags", json={"name": name})
+
+    def update_tag(self, tag_id, name):
+        return self._request("PUT", f"/tags/{tag_id}", json={"name": name})
+
+    def delete_tag(self, tag_id):
+        return self._request("DELETE", f"/tags/{tag_id}")
+
+    def replace_subject_tags(self, subject_id, tag_ids):
+        return self._request(
+            "PUT", f"/subjects/{subject_id}/tags", json={"tag_ids": tag_ids}
+        )
+
     def list_summaries(self, subject_id):
         return self._request("GET", f"/subjects/{subject_id}/summaries")
 

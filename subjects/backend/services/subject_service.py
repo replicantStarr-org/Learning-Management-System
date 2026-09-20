@@ -87,6 +87,55 @@ def delete_subject(subject_id):
         _json(response, "Could not delete subject")
 
 
+def list_tags():
+    return _json(database.list_tags(), "Could not load tags")
+
+
+def validate_tag_name(name):
+    name = str(name or "").strip()
+    if not name:
+        raise ServiceError("Tag name cannot be empty")
+    if len(name) > 120:
+        raise ServiceError("Tag name must be 120 characters or fewer")
+    return name
+
+
+def get_tag(tag_id):
+    return _json(database.get_tag(tag_id), "Could not load tag")
+
+
+def create_tag(name):
+    return _json(database.create_tag(validate_tag_name(name)), "Could not create tag")
+
+
+def update_tag(tag_id, name):
+    return _json(
+        database.update_tag(tag_id, validate_tag_name(name)), "Could not update tag"
+    )
+
+
+def delete_tag(tag_id):
+    response = database.delete_tag(tag_id)
+    if not response.ok:
+        _json(response, "Could not delete tag")
+
+
+def update_subject_tags(subject_id, tag_ids):
+    try:
+        tag_ids = [int(tag_id) for tag_id in tag_ids]
+    except (TypeError, ValueError):
+        raise ServiceError("Tag IDs must be valid integers")
+    return _json(
+        database.replace_subject_tags(subject_id, tag_ids),
+        "Could not update subject tags",
+    )
+
+
+def subject_page_data(subject_id):
+    subject = get_subject(subject_id)
+    return subject, list_tags()
+
+
 def _parse_timestamp(value):
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     return parsed.replace(tzinfo=parsed.tzinfo or timezone.utc).astimezone(timezone.utc)

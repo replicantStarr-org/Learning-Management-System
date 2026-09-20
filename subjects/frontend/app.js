@@ -3,6 +3,28 @@ const subjectId = queryParams.get("id");
 const subjectView = document.querySelector("[data-subject-view]");
 const pageMessage = document.querySelector("#page-message");
 
+function closeAllTagMenus() {
+    document.querySelectorAll("#tag-manager details[open]").forEach((menu) => {
+        menu.removeAttribute("open");
+    });
+}
+
+function closeOtherTagMenus(currentMenu) {
+    document.querySelectorAll("#tag-manager details[open]").forEach((menu) => {
+        if (menu !== currentMenu) menu.removeAttribute("open");
+    });
+}
+
+document.addEventListener("click", (event) => {
+    const insideTagDropdown = event.target.closest?.("#tag-manager .dropdown-menu");
+    const tagDropdownToggle = event.target.closest?.("#tag-manager [data-bs-toggle='dropdown']");
+    if (!insideTagDropdown && !tagDropdownToggle) closeAllTagMenus();
+});
+
+document.addEventListener("hidden.bs.dropdown", (event) => {
+    if (event.target.closest?.("#tag-manager")) closeAllTagMenus();
+});
+
 if (pageMessage && queryParams.has("message")) {
     pageMessage.textContent = queryParams.get("message");
     pageMessage.hidden = false;

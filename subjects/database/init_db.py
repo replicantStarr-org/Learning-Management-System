@@ -12,8 +12,10 @@ conn = sqlite3.connect(
 
 cursor = conn.cursor()
 
-cursor.execute("DROP TABLE IF EXISTS subjects;")
+cursor.execute("DROP TABLE IF EXISTS subject_tags;")
 cursor.execute("DROP TABLE IF EXISTS subject_ai_summaries;")
+cursor.execute("DROP TABLE IF EXISTS tags;")
+cursor.execute("DROP TABLE IF EXISTS subjects;")
 
 cursor.execute("""
 CREATE TABLE subjects (
@@ -48,6 +50,24 @@ CREATE TABLE subject_ai_summaries (
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """)
+
+cursor.execute("""
+CREATE TABLE tags (
+    tag_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE
+);
+""")
+
+cursor.execute("""
+CREATE TABLE subject_tags (
+    subject_id INTEGER NOT NULL REFERENCES subjects(subject_id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(tag_id) ON DELETE CASCADE,
+    PRIMARY KEY (subject_id, tag_id)
+);
+""")
+
+tags = [("Core",), ("Elective",), ("Practical",)]
+cursor.executemany("INSERT INTO tags (name) VALUES (?)", tags)
 
 subjects = [
     # this description was taken from https://coursehandbook.uts.edu.au/subject/2026/41026
