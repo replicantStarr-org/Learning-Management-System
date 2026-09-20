@@ -1,10 +1,15 @@
 from mcp.server import MCPServer
 from sys import stderr
 
+from subjects_tools import register_subject_tools
+
 MCP_HOST = "127.0.0.1"
 MCP_PORT = 8000
 
 mcp = MCPServer("LMS MCP Server")
+
+
+register_subject_tools(mcp)
 
 
 @mcp.tool()

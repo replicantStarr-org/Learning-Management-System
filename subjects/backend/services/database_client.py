@@ -46,6 +46,12 @@ class DatabaseClient:
             "PUT", f"/subjects/{subject_id}/tags", json={"tag_ids": tag_ids}
         )
 
+    def get_subject_tags(self, subject_id):
+        return self._request("GET", f"/subjects/{subject_id}/tags")
+
+    def delete_subject_tag(self, subject_id, tag_id):
+        return self._request("DELETE", f"/subjects/{subject_id}/tags/{tag_id}")
+
     def list_summaries(self, subject_id):
         return self._request("GET", f"/subjects/{subject_id}/summaries")
 

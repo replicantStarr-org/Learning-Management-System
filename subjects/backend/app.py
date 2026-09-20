@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 
+from routes.api import api_bp
 from routes.subjects import subjects_bp
 
 
@@ -8,6 +9,7 @@ def create_app():
     app = Flask(__name__)
     CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
     app.register_blueprint(subjects_bp)
+    app.register_blueprint(api_bp)
 
     @app.get("/")
     def health():
