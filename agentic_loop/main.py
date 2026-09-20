@@ -26,12 +26,16 @@ def _choose(title: str, options: dict) -> object | None:
 
 
 def _arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Review one area of one ASD microservice.")
+    parser = argparse.ArgumentParser(description="Review one area of an ASD microservice or the MCP server.")
     parser.add_argument("--area", choices=MODES, help="review area (omit for the interactive menu)")
     parser.add_argument("--service", choices=SERVICES, help="microservice (omit for the interactive menu)")
     args = parser.parse_args()
+    if args.area == "mcp":
+        # The MCP server is a standalone review target. Accepting an optional
+        # service here keeps the CLI backwards-compatible while ignoring it.
+        return args
     if bool(args.area) != bool(args.service):
-        parser.error("--area and --service must be supplied together")
+        parser.error("--area and --service must be supplied together (MCP only needs --area mcp)")
     return args
 
 
@@ -44,19 +48,23 @@ def main() -> None:
     print("AGENTIC MICROSERVICE REVIEW")
     if args.area:
         mode: ModeConfig = MODES[args.area]
-        service: ServiceConfig = SERVICES[args.service]
+        service: ServiceConfig | None = None if mode.key == "mcp" else SERVICES[args.service]
     else:
         selected_mode = _choose("Choose a review area", MODES)
         if selected_mode is None:
             return
-        selected_service = _choose("Choose a microservice", SERVICES)
-        if selected_service is None:
-            return
         mode = selected_mode
-        service = selected_service
+        if mode.key == "mcp":
+            service = None
+        else:
+            selected_service = _choose("Choose a microservice", SERVICES)
+            if selected_service is None:
+                return
+            service = selected_service
 
     result = run_mode(mode, service, repo_root, PromptRegistry(repo_root), AIRunner())
-    print_result(f"{service.label} — {mode.label}", result)
+    title = mode.label if service is None else f"{service.label} — {mode.label}"
+    print_result(title, result)
 
 
 if __name__ == "__main__":

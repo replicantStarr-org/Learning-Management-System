@@ -4,15 +4,16 @@ The agentic loop takes artifiacts, code and prompts from the repository.
 It suggests improvements by first running inputs through an implementation model and
 then refining, rejecting and filtering them with a review model.
 
-The agentic loop supports review of four different areas:
+The agentic loop supports review of five different areas:
 - Database
 - Endpoint Implementation
 - Application Architecture
 - DevOps Pipeline
+- MCP Server (the running server in `../mcp`)
 
-To keep the review focused,
-you must also choose which microservice the review is for.
-This includes the five feature microservice + the shared access microservice:
+To keep feature reviews focused, you must also choose which microservice the review is for.
+The MCP review is standalone and targets `../mcp` directly.
+The feature reviews include the five microservices + the shared access microservice:
 - Shared home page - `access/`
 - Subjects Manager - `subjects/`
 - Assignment Manager - `assignments/`
@@ -22,6 +23,11 @@ This includes the five feature microservice + the shared access microservice:
 
 > Note: The above paths are given relative to the repository root. (`../` relative to this file)
 
+
+### Running the MCP review
+
+Start the server first with `../mcp/run.sh`, then run `./run.sh --area mcp`.
+The MCP review does not require a `--service` argument.
 
 ### Collectors
 
@@ -64,6 +70,14 @@ Finally it will check for the presence of the `docker-compose.yml` (or any `*com
 
 If these all pass, it will return a message saying that along with the content of the `docker-compose.yml` file.
 
+#### MCP Server Collector
+
+The MCP collector connects to the already-running server in `../mcp` at
+`http://127.0.0.1:8000/mcp` using the MCP client library over Streamable HTTP. It first lists the
+remote tools, then calls only the existing `echo` tool. A connection failure,
+missing `echo` tool, or incorrect echo response fails observation and skips the
+model calls. Set `MCP_SERVER_URL` to override the endpoint.
+
 #### DevOps Pipeline Collector
 
 The DevOps pipeline collector will run checks against the workflow for the respective microservice.
@@ -101,6 +115,7 @@ The following format will be used:
     - `endpoint_prompt.txt`
     - `architecture_prompt.txt`
     - `devops_prompt.txt`
+    - `mcp_prompt.txt`
 - `services/`
     - `access_prompt.txt`
     - `subjects_prompt.txt`

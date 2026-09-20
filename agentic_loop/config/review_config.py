@@ -23,6 +23,7 @@ MODES = {
     "endpoint": ModeConfig("endpoint", "Endpoint Implementation", "endpoint_prompt.txt"),
     "architecture": ModeConfig("architecture", "Application Architecture", "architecture_prompt.txt"),
     "devops": ModeConfig("devops", "DevOps Pipeline", "devops_prompt.txt"),
+    "mcp": ModeConfig("mcp", "MCP Server", "mcp_prompt.txt"),
 }
 
 SERVICES = {
