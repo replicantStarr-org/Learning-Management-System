@@ -11,8 +11,8 @@ The agentic loop supports review of five different areas:
 - DevOps Pipeline
 - MCP Server (the running server in `../mcp`)
 
-To keep feature reviews focused, you must also choose which microservice the review is for.
-The MCP review is standalone and targets `../mcp` directly.
+To keep reviews focused, choose which microservice the review is for for every review area, including MCP.
+An MCP review targets `../mcp` and the selected service's MCP tool area.
 The feature reviews include the five microservices + the shared access microservice:
 - Shared home page - `access/`
 - Subjects Manager - `subjects/`
@@ -26,8 +26,9 @@ The feature reviews include the five microservices + the shared access microserv
 
 ### Running the MCP review
 
-Start the server first with `../mcp/run.sh`, then run `./run.sh --area mcp`.
-The MCP review does not require a `--service` argument.
+Start the server first with `../mcp/run.sh`, then run `./run.sh --area mcp --service subjects`.
+The selected service must be running as well, because the MCP collector exercises its tools through the MCP server.
+The collector currently has a subjects review and can be extended by adding another service review method to its service mapping.
 
 ### Collectors
 
@@ -73,10 +74,13 @@ If these all pass, it will return a message saying that along with the content o
 #### MCP Server Collector
 
 The MCP collector connects to the already-running server in `../mcp` at
-`http://127.0.0.1:8000/mcp` using the MCP client library over Streamable HTTP. It first lists the
-remote tools, then calls only the existing `echo` tool. A connection failure,
-missing `echo` tool, or incorrect echo response fails observation and skips the
-model calls. Set `MCP_SERVER_URL` to override the endpoint.
+`http://127.0.0.1:8000/mcp` using the MCP client library over Streamable HTTP. It lists the
+remote tools and dispatches to a service-specific review method. The subjects review verifies
+all non-AI subject and tag tools using a disposable
+subject/tag CRUD fixture and cleans it up. A connection failure, missing expected tool, failed
+lifecycle operation, or incorrect response fails observation and skips the model calls. Set
+`MCP_SERVER_URL` to override the endpoint. Add future service reviews to the collector's
+service-to-review mapping rather than adding service-specific branching to the orchestrator.
 
 #### DevOps Pipeline Collector
 
