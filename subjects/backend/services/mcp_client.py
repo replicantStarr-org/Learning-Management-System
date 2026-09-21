@@ -24,18 +24,31 @@ MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8000/mcp")
 MCP_TIMEOUT_SECONDS = float(os.getenv("MCP_TIMEOUT_SECONDS", "10"))
 
 
+def _decode_json_text(value: Any) -> Any:
+    """Unwrap JSON returned as a string by an MCP tool."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except ValueError:
+        return value
+
+
 def _content_to_value(result: CallToolResult) -> Any:
-    """Convert the typed MCP result to the JSON value returned by the API."""
+    """Unwrap the MCP result while preserving the returned JSON value."""
     if result.structured_content is not None:
-        return result.structured_content
+        value = _decode_json_text(result.structured_content)
+        if (
+            isinstance(value, dict)
+            and set(value) == {"result"}
+            and isinstance(value["result"], str)
+        ):
+            return _decode_json_text(value["result"])
+        return value
 
     values = [item.text for item in result.content if isinstance(item, TextContent)]
-
     if len(values) == 1:
-        try:
-            return json.loads(values[0])
-        except (TypeError, ValueError):
-            return values[0]
+        return _decode_json_text(values[0])
     return values
 
 
