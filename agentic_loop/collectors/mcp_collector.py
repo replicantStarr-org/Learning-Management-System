@@ -14,6 +14,8 @@ from config.review_config import ServiceConfig
 DEFAULT_MCP_URL = "http://127.0.0.1:8000/mcp"
 SUBJECT_TOOL_NAMES = {
     "subjects_list",
+    "subjects_query_by_tag",
+    "subjects_query_by_field",
     "subjects_get",
     "subjects_create",
     "subjects_update",
@@ -131,6 +133,24 @@ async def _review_subjects(session: ClientSession, tool_names: set[str]) -> list
         if not any(item.get("tag_id") == tag_id for item in assigned):
             raise RuntimeError("subjects_subject_tags_set did not assign the tag")
         evidence.append("subjects_subject_tags_set passed")
+
+        by_tag = await _call(
+            session,
+            "subjects_query_by_tag",
+            {"tag": f"Agentic MCP Review {fixture}"},
+        )
+        if not any(item.get("subject_id") == subject_id for item in by_tag):
+            raise RuntimeError("subjects_query_by_tag did not find the assigned subject")
+        evidence.append("subjects_query_by_tag passed")
+
+        by_field = await _call(
+            session,
+            "subjects_query_by_field",
+            {"field": "code", "value": f"MCP{fixture}"},
+        )
+        if not any(item.get("subject_id") == subject_id for item in by_field):
+            raise RuntimeError("subjects_query_by_field did not find the created subject")
+        evidence.append("subjects_query_by_field passed")
 
         listed_tags = await _call(session, "subjects_tags_list")
         if not any(item.get("tag_id") == tag_id for item in listed_tags):
