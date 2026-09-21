@@ -30,9 +30,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Start subject services
+      - name: Start subject services with MCP disabled
         working-directory: subjects
-        run: docker compose up --detach --build
+        run: MCP_ENABLED=false docker compose up --detach --build
 
       - name: Probe subject services
         shell: bash
@@ -66,6 +66,14 @@ jobs:
           probe "Subject database" "http://localhost:6001/"
           probe "Subject backend" "http://localhost:5001/"
           probe "Subject frontend" "http://localhost:3001/"
+
+      - name: Verify MCP integration is disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --silent --show-error --fail http://localhost:5001/mcp/status)"
+          echo "$response"
+          jq -e '.enabled == false and .mcp_enabled == false' <<< "$response"
 
       - name: Test scriptable non-functional requirements
         working-directory: subjects
