@@ -1,12 +1,14 @@
 """
 MCP tools for the subjects microservice.
 
-The tools call into the backend API to avoid duplicating business logic.
+Most tools call the backend API to avoid duplicating business logic. The two
+read-only query tools call the database API directly because they are MCP-only
+capabilities.
 """
 
 import json
 import os
-from typing import Any
+from typing import Any, Literal
 
 import requests
 
@@ -59,6 +61,18 @@ class SubjectsApiClient:
             raise SubjectsApiError("The subjects service returned invalid JSON.") from exc
 
 
+class SubjectsDatabaseApiClient(SubjectsApiClient):
+    """Client for read-only subject queries owned by the database API."""
+
+    def __init__(self):
+        super().__init__(
+            base_url=os.getenv(
+                "SUBJECTS_DATABASE_API_URL", "http://127.0.0.1:6001"
+            ),
+            timeout=float(os.getenv("SUBJECTS_DATABASE_API_TIMEOUT_SECONDS", "10")),
+        )
+
+
 def _json_result(value: Any) -> str:
     if value is None:
         value = {"ok": True}
@@ -67,11 +81,33 @@ def _json_result(value: Any) -> str:
 
 def register_subject_tools(mcp):
     client = SubjectsApiClient()
+    database_client = SubjectsDatabaseApiClient()
 
     @mcp.tool(name="subjects_list")
     def subjects_list() -> str:
         """List all subjects."""
         return _json_result(client.request("GET", "/subjects"))
+
+    @mcp.tool(name="subjects_query_by_tag")
+    def subjects_query_by_tag(tag: str) -> str:
+        """Find subjects assigned to a tag, using the database query API."""
+        return _json_result(
+            database_client.request("GET", "/subjects/query/tag", params={"tag": tag})
+        )
+
+    @mcp.tool(name="subjects_query_by_field")
+    def subjects_query_by_field(
+        field: Literal["code", "name", "semester", "coordinator", "status"],
+        value: str,
+    ) -> str:
+        """Find subjects whose selected field contains the supplied value."""
+        return _json_result(
+            database_client.request(
+                "GET",
+                "/subjects/query/field",
+                params={"field": field, "value": value},
+            )
+        )
 
     @mcp.tool(name="subjects_get")
     def subjects_get(subject_id: int) -> str:
