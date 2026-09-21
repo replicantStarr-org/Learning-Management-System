@@ -342,7 +342,7 @@ assert_status "requests recover after database outage" "$BACKEND/subjects" 200
 
 # NFR-15 and NFR-16: static checks for loading/error feedback and basic
 # accessibility. Responsive layout and keyboard operation remain manual checks.
-for page in index.html create.html edit.html subject.html; do
+for page in index.html create.html edit.html subject.html mcp.html; do
     page_body="$TMP_DIR/$page"
     request_body "$page_body" "$FRONTEND/$page" >/dev/null
     grep -Fq '<html lang="en">' "$page_body" \
@@ -354,6 +354,10 @@ subject_body="$TMP_DIR/subject.html"
 detail_ui="$TMP_DIR/detail-ui"
 request_body "$detail_ui" "$BACKEND/subjects/$REFERENCE_ID" >/dev/null
 grep -Fq 'aria-live' "$index_body" || fail 'subject list is missing aria-live feedback'
+mcp_page="$TMP_DIR/mcp.html"
+request_body "$mcp_page" "$FRONTEND/mcp" >/dev/null
+grep -Fq 'MCP Tools' "$mcp_page" || fail 'MCP page is missing its heading'
+grep -Fq 'mcp-toggle' "$mcp_page" || fail 'MCP page is missing its mode switch'
 grep -Fq 'role="status"' "$index_body" || fail 'subject list is missing loading status feedback'
 grep -Fq 'aria-live="polite"' "$create_body" || fail 'create form is missing result feedback'
 for field in code name semester coordinator status description; do
@@ -365,7 +369,8 @@ pass "loading/error feedback and basic accessibility markers"
 
 # NFR-17 and NFR-18: lightweight source/configuration checks. The workflow's
 # earlier build step supplies the clean-build verification.
-for file in backend/routes/subjects.py backend/services/subject_service.py \
+for file in backend/routes/subjects.py backend/routes/mcp.py \
+    backend/services/subject_service.py backend/services/mcp_client.py \
     backend/services/database_client.py backend/views/html.py; do
     [[ -f "$file" ]] || fail "expected separation-of-concerns module is missing: $file"
 done

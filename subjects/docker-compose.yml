@@ -34,6 +34,10 @@ services:
       OLLAMA_BASE_URL: http://localhost:11434/v1
       OLLAMA_MODEL: qwen2.5:0.5b
       SUMMARY_MAX_AGE_HOURS: 168
+      # MCP is enabled by default for local application use. CI passes
+      # MCP_ENABLED=false on the compose command line.
+      MCP_ENABLED: "${MCP_ENABLED:-true}"
+      MCP_SERVER_URL: http://127.0.0.1:8000/mcp
     depends_on:
       subject-database:
         condition: service_started
