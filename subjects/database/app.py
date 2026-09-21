@@ -13,6 +13,13 @@ SUBJECT_FIELDS = (
     "coordinator",
     "status",
 )
+QUERY_FIELDS = {
+    "code",
+    "name",
+    "semester",
+    "coordinator",
+    "status",
+}
 
 
 def get_db_connection():
@@ -107,6 +114,57 @@ def create_summary(subject_id, body):
 @app.get("/")
 def health():
     return jsonify({"service": "database-service", "status": "running"})
+
+
+@app.get("/subjects/query/tag")
+def query_subjects_by_tag():
+    tag_name = request.args.get("tag", "").strip()
+    if not tag_name:
+        return jsonify({"error": "tag is required"}), 400
+
+    conn = get_db_connection()
+    try:
+        subjects = conn.execute(
+            """
+            SELECT s.subject_id, s.code, s.name
+            FROM subjects AS s
+            JOIN subject_tags AS st ON st.subject_id = s.subject_id
+            JOIN tags AS t ON t.tag_id = st.tag_id
+            WHERE t.name = ? COLLATE NOCASE
+            ORDER BY s.subject_id
+            """,
+            (tag_name,),
+        ).fetchall()
+        return jsonify([subject_dict(row, conn) for row in subjects])
+    finally:
+        conn.close()
+
+
+@app.get("/subjects/query/field")
+def query_subjects_by_field():
+    field = request.args.get("field", "").strip().lower()
+    value = request.args.get("value", "").strip()
+    if field not in QUERY_FIELDS:
+        return jsonify({"error": "field must be one of: " + ", ".join(sorted(QUERY_FIELDS))}), 400
+    if not value:
+        return jsonify({"error": "value is required"}), 400
+
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{escaped}%"
+    conn = get_db_connection()
+    try:
+        subjects = conn.execute(
+            f"""
+            SELECT subject_id, code, name
+            FROM subjects
+            WHERE {field} LIKE ? COLLATE NOCASE ESCAPE '\\'
+            ORDER BY subject_id
+            """,
+            (pattern,),
+        ).fetchall()
+        return jsonify([subject_dict(row, conn) for row in subjects])
+    finally:
+        conn.close()
 
 
 @app.get("/subjects")
