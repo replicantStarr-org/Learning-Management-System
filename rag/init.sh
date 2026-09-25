@@ -27,4 +27,4 @@ echo "Installing dependencies (chromadb can take a few minutes)"
 
 echo
 echo "Setup complete. Start the server with:"
-echo "  $VENV_PYTHON http_server.py"
+echo "  $VENV_PYTHON -m server.http_server"

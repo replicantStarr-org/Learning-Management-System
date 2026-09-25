@@ -58,4 +58,4 @@ Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "-r", "requirements.t
 
 Write-Host ""
 Write-Host "Setup complete. Start the server with:"
-Write-Host "  $VenvPython http_server.py"
+Write-Host "  $VenvPython -m server.http_server"
