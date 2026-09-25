@@ -1,7 +1,8 @@
 """Retrieval precision and recall at k against the seed data of each service.
 
-Run after ingesting with every configured service up. A result counts as
+Run after ingesting with every implemented service up. A result counts as
 relevant when its chunk id starts with one of the benchmark's expected prefixes.
+Each connector adds its own benchmarks here (see pipeline/connectors/AGENTS.md).
 """
 
 from pathlib import Path
@@ -13,32 +14,12 @@ K = 5
 
 BENCHMARKS = [
     {
-        "query": "When is the Release 0 Technical Report due?",
-        "relevant": ["assignments:assignment:1:"],
-    },
-    {
-        "query": "Who coordinates Database Systems?",
-        "relevant": ["subjects:subject:2:"],
-    },
-    {
-        "query": "What does CI/CD stand for?",
-        "relevant": ["quizzes:quiz_question:2:", "assignments:assignment:3:"],
-    },
-    {
-        "query": "Which assignments are due for AIT505 Applied Artificial Intelligence?",
-        "relevant": ["assignments:assignment:10:", "assignments:assignment:11:", "assignments:assignment:12:"],
-    },
-    {
-        "query": "Which subjects run in the Winter semester?",
-        "relevant": ["subjects:subject:6:", "subjects:subject:7:", "subjects:subject:11:", "subjects:subject:13:"],
-    },
-    {
         "query": "Who wrote Attention Is All You Need?",
         "relevant": ["learning-resources:learning_resource:1:"],
     },
     {
-        "query": "What does alex.wong have on Tuesday?",
-        "relevant": ["timetable:timetable_entry:3:", "timetable:timetable_entry:4:"],
+        "query": "Which papers are about generative adversarial networks?",
+        "relevant": ["learning-resources:learning_resource:2:"],
     },
 ]
 

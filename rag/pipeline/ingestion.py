@@ -1,56 +1,67 @@
 """Pulls records from each service's database API and indexes them in Chroma.
 
 Services are only ever read through their HTTP API, never their SQLite file:
-the files live in Docker volumes and design.md forbids direct querying.
+the files live in Docker volumes and design.md forbids direct querying. What to
+read from each service is defined by its connector in pipeline/connectors/.
 """
 
+import time
 from datetime import datetime, timezone
-from itertools import product
 from typing import Any
 
 import requests
 
-from config import Service, Source, services, settings
-from embedding import embed_texts
-from store import get_collection
-
-REQUEST_TIMEOUT_SECONDS = 10
+from .common import Connector, Record, append_audit, connectors, embed_texts, get_collection, settings
 
 
-def ingest(service_name: str | None = None) -> dict[str, Any]:
-    """Re-index one service, or every configured service when no name is given."""
-    configured = services()
-    if service_name is not None and service_name not in configured:
+def ingest_services(service_name: str | None = None) -> dict[str, Any]:
+    """Re-index one service, or every service when no name is given."""
+    start = time.time()
+    available = connectors()
+    if service_name is not None and service_name not in available:
         return {
             "status": "error",
             "error": f"unknown service {service_name!r}",
-            "available": sorted(configured),
+            "available": sorted(available),
         }
 
-    targets = [configured[service_name]] if service_name else list(configured.values())
-    results = [ingest_service(service) for service in targets]
-    failed = sum(1 for r in results if r["status"] != "success")
+    targets = [available[service_name]] if service_name else list(available.values())
+    results = [ingest_service(connector) for connector in targets]
+    failed = sum(1 for r in results if r["status"] == "error")
     if failed == 0:
         status = "success"
     elif failed == len(results):
         status = "error"
     else:
         status = "partial"
-    return {"status": status, "services": results}
+
+    output = {"status": status, "services": results}
+    append_audit("ingest", {"service": service_name}, output, status, start)
+    return output
 
 
-def ingest_service(service: Service) -> dict[str, Any]:
+def ingest_service(connector: Connector) -> dict[str, Any]:
+    # A connector with no entity functions is unimplemented, not empty; treating
+    # it as zero records would delete everything previously indexed for it.
+    if not connector.entities:
+        return {"service": connector.name, "status": "skipped", "reason": "connector has no entity functions"}
+
     # Everything is fetched before the collection is touched, so an unreachable
     # service keeps its previous chunks instead of being emptied.
+    indexed_at = datetime.now(timezone.utc).isoformat()
     try:
-        chunks = [chunk for source in service.sources for chunk in load_source(service, source)]
+        chunks = [
+            chunk for record in connector.records() for chunk in record_chunks(connector.name, record, indexed_at)
+        ]
     except requests.RequestException as exc:
-        return {"service": service.name, "status": "error", "error": f"fetch failed: {exc}"}
-    except (KeyError, ValueError) as exc:
-        return {"service": service.name, "status": "error", "error": f"bad response or config: {exc}"}
+        return {"service": connector.name, "status": "error", "error": f"fetch failed: {exc}"}
+    except Exception as exc:
+        # Connectors are arbitrary code over someone else's API, so a renamed
+        # column surfaces here as a KeyError; report it rather than crash.
+        return {"service": connector.name, "status": "error", "error": f"connector failed: {exc!r}"}
 
     collection = get_collection()
-    existing = set(collection.get(where={"service": service.name}, include=[])["ids"])
+    existing = set(collection.get(where={"service": connector.name}, include=[])["ids"])
     new_ids = [c["id"] for c in chunks]
 
     if chunks:
@@ -65,70 +76,28 @@ def ingest_service(service: Service) -> dict[str, Any]:
         collection.delete(ids=stale)
 
     return {
-        "service": service.name,
+        "service": connector.name,
         "status": "success",
         "chunk_count": len(chunks),
         "removed_count": len(stale),
     }
 
 
-def load_source(service: Service, source: Source) -> list[dict[str, Any]]:
-    records = []
-    for params in expand_params(source.params):
-        rows = fetch_json(service.base_url + source.path, params)
-        if not isinstance(rows, list):
-            raise ValueError(f"{source.path} did not return a JSON list")
-        records.extend(rows)
-
-    indexed_at = datetime.now(timezone.utc).isoformat()
-    chunks = []
-    for record in records:
-        if source.columns:
-            record = name_columns(record, source.columns)
-        if source.detail:
-            record = fetch_json(service.base_url + source.detail.format_map(record))
-        chunks.extend(record_chunks(service, source, record, indexed_at))
-    return chunks
-
-
-def expand_params(params: dict[str, Any]) -> list[dict[str, Any]]:
-    """One query string per combination of the list-valued params."""
-    fanned = {key: value for key, value in params.items() if isinstance(value, list)}
-    return [{**params, **dict(zip(fanned, combo))} for combo in product(*fanned.values())]
-
-
-def name_columns(row: Any, columns: list[str]) -> dict[str, Any]:
-    if not isinstance(row, list) or len(row) != len(columns):
-        raise ValueError(f"expected rows of {len(columns)} values, got {row!r}")
-    return dict(zip(columns, row))
-
-
-def fetch_json(url: str, params: dict[str, Any] | None = None) -> Any:
-    response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    return response.json()
-
-
-def record_chunks(
-    service: Service, source: Source, record: dict[str, Any], indexed_at: str
-) -> list[dict[str, Any]]:
-    record_id = str(record[source.id_field])
-    title = source.title.format_map(record)
-    header = f"{source.label}: {title}"
-
-    blocks = render(record, source.fields)
+def record_chunks(service: str, record: Record, indexed_at: str) -> list[dict[str, Any]]:
+    header = f"{record.label}: {record.title}"
+    blocks = render(record.fields)
 
     chunks = []
     for index, body in enumerate(group_blocks(blocks, settings()["chunking"]["max_words"])):
         chunks.append(
             {
-                "id": f"{service.name}:{source.entity}:{record_id}:{index}",
+                "id": f"{service}:{record.entity}:{record.id}:{index}",
                 "text": header + "\n" + "\n".join(body),
                 "metadata": {
-                    "service": service.name,
-                    "entity": source.entity,
-                    "record_id": record_id,
-                    "title": title,
+                    "service": service,
+                    "entity": record.entity,
+                    "record_id": str(record.id),
+                    "title": record.title,
                     "indexed_at": indexed_at,
                 },
             }
@@ -136,37 +105,25 @@ def record_chunks(
     return chunks
 
 
-def select(record: dict[str, Any], fields: list[str] | None) -> dict[str, Any]:
-    """Keep only the listed keys, in the listed order. None keeps everything."""
-    if fields is None:
-        return record
-    return {key: record[key] for key in fields if key in record}
-
-
-def render(record: dict[str, Any], fields: list[str] | None, depth: int = 0) -> list[list[str]]:
-    """Turn a JSON record into blocks of `key: value` lines.
+def render(fields: dict[str, Any], depth: int = 0) -> list[list[str]]:
+    """Turn a record's fields into blocks of `key: value` lines.
 
     Each top-level field is one block, and so is each item of a list of
     objects, so chunking can split between quiz questions but never inside one.
     """
     pad = "  " * depth
     blocks: list[list[str]] = []
-    for key, value in select(record, fields).items():
+    for key, value in fields.items():
         if value is None or value == "" or value == []:
             continue
         label = key.replace("_", " ")
 
         if isinstance(value, dict):
-            blocks.append([f"{pad}{label}:", *flatten(render(value, fields, depth + 1))])
+            blocks.append([f"{pad}{label}:", *flatten(render(value, depth + 1))])
         elif isinstance(value, list) and all(isinstance(v, dict) for v in value):
-            items = [select(item, fields) for item in value]
-            # Objects reduced to a single field, like tags, read better inline.
-            if all(len(item) == 1 for item in items):
-                blocks.append([f"{pad}{label}: " + ", ".join(str(*item.values()) for item in items)])
-                continue
             item_blocks = []
-            for item in items:
-                lines = flatten(render(item, fields, depth + 1))
+            for item in value:
+                lines = flatten(render(item, depth + 1))
                 if lines:
                     lines[0] = f"{pad}- " + lines[0].lstrip()
                     item_blocks.append(lines)
@@ -174,7 +131,8 @@ def render(record: dict[str, Any], fields: list[str] | None, depth: int = 0) -> 
                 item_blocks[0].insert(0, f"{pad}{label}:")
             blocks.extend(item_blocks)
         elif isinstance(value, list):
-            blocks.append([f"{pad}{label}: " + ", ".join(str(v) for v in value)])
+            # Semicolons, because the values themselves often contain commas.
+            blocks.append([f"{pad}{label}: " + "; ".join(str(v) for v in value)])
         else:
             blocks.append([f"{pad}{label}: {value}"])
     return blocks
