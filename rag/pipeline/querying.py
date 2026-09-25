@@ -1,45 +1,13 @@
-import json
+"""Answers questions from the indexed chunks: embed, top-k search, then Ollama."""
+
 import time
-import uuid
-from datetime import datetime, timezone
 from typing import Any
 
 import requests
 
-from config import BASE_DIR, settings
-from embedding import embed_texts, tokenise
-from ingest import ingest
-from store import get_collection
+from .common import append_audit, embed_texts, get_collection, settings, tokenise
 
-AUDIT_PATH = BASE_DIR / "rag-audit.jsonl"
 INSUFFICIENT_EVIDENCE = "Insufficient evidence."
-
-
-def append_audit(
-    tool_name: str,
-    tool_input: dict[str, Any],
-    tool_output: dict[str, Any],
-    outcome: str,
-    start_time: float,
-) -> None:
-    record = {
-        "request_id": str(uuid.uuid4()),
-        "tool_name": tool_name,
-        "tool_input": tool_input,
-        "tool_output": tool_output,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "duration_ms": int((time.time() - start_time) * 1000),
-        "outcome": outcome,
-    }
-    with AUDIT_PATH.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
-
-
-def ingest_services(service: str | None = None) -> dict[str, Any]:
-    start = time.time()
-    output = ingest(service)
-    append_audit("ingest", {"service": service}, output, output["status"], start)
-    return output
 
 
 def retrieve_context(query: str, k: int | None = None, service: str | None = None) -> dict[str, Any]:
@@ -187,8 +155,3 @@ def answer_question(query: str, k: int | None = None, service: str | None = None
         start,
     )
     return output
-
-
-if __name__ == "__main__":
-    print(json.dumps(ingest_services(), indent=2))
-    print(json.dumps(answer_question("When is the Release 0 Technical Report due?"), indent=2))

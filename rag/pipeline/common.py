@@ -1,58 +1,36 @@
-"""What ingestion and querying share: configuration, the embedding, the Chroma
-collection and the audit log.
+"""What ingestion and querying share: settings, the connector framework, the
+embedding, the Chroma collection and the audit log.
 
 Ingestion and querying must embed with exactly the same function, which is why
 it lives here rather than in either of them.
 """
 
 import hashlib
+import importlib
 import json
 import math
+import pkgutil
 import re
 import threading
 import time
 import tomllib
 import uuid
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import cache
 from pathlib import Path
 from typing import Any
 
 import chromadb
+import requests
 
-# rag/, not rag/pipeline/: config, service files and data all live at the top.
+# rag/, not rag/pipeline/: config and data live at the top.
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config.toml"
-SERVICES_DIR = BASE_DIR / "services"
 AUDIT_PATH = BASE_DIR / "rag-audit.jsonl"
-
-
-# ---------------------------------------------------------------- configuration
-
-
-@dataclass(frozen=True)
-class Source:
-    entity: str
-    label: str
-    path: str
-    id_field: str
-    title: str
-    detail: str | None = None
-    # Query string for the list request. A list value makes one request per
-    # item, for APIs that only return one user's (or one thing's) rows at a time.
-    params: dict[str, Any] = field(default_factory=dict)
-    # Names for the values of an API that returns rows as arrays, not objects.
-    columns: list[str] | None = None
-    # Keys to keep, in display order, applied at every nesting depth.
-    fields: list[str] | None = None
-
-
-@dataclass(frozen=True)
-class Service:
-    name: str
-    base_url: str
-    sources: list[Source]
+CONNECTORS_PACKAGE = f"{__package__}.connectors"
+REQUEST_TIMEOUT_SECONDS = 10
 
 
 @cache
@@ -66,21 +44,73 @@ def resolve_path(value: str) -> Path:
     return path if path.is_absolute() else BASE_DIR / path
 
 
+# ------------------------------------------------------------------- connectors
+
+
+@dataclass(frozen=True)
+class Record:
+    """One thing to index, e.g. one quiz. `fields` is rendered in its own order."""
+
+    entity: str
+    id: str | int
+    title: str
+    fields: dict[str, Any]
+
+    @property
+    def label(self) -> str:
+        return self.entity.replace("_", " ").capitalize()
+
+
+Get = Callable[..., Any]
+EntityFunction = Callable[[Get], Iterable[Record]]
+
+
+class Connector:
+    """One service: where its database API lives and a function per entity.
+
+    Each module in pipeline/connectors/ creates one as `connector` and
+    registers entity functions on it with @connector.entity. An entity function
+    is given `get(path, **params)`, which returns the service's parsed JSON.
+    """
+
+    def __init__(self, name: str, base_url: str):
+        self.name = name
+        self.base_url = base_url.rstrip("/")
+        self.entities: list[EntityFunction] = []
+
+    def entity(self, function: EntityFunction) -> EntityFunction:
+        self.entities.append(function)
+        return function
+
+    def get(self, path: str, **params: Any) -> Any:
+        response = requests.get(self.base_url + path, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        return response.json()
+
+    def records(self) -> Iterable[Record]:
+        for function in self.entities:
+            yield from function(self.get)
+
+
+def pick(row: dict[str, Any], *keys: str) -> dict[str, Any]:
+    """The named keys of a row, in that order. A missing key raises, so a
+    renamed column fails the ingest loudly instead of quietly vanishing."""
+    return {key: row[key] for key in keys}
+
+
 @cache
-def services() -> dict[str, Service]:
-    """Every service in services/*.toml, keyed by name. Read once per process."""
-    loaded: dict[str, Service] = {}
-    for path in sorted(SERVICES_DIR.glob("*.toml")):
-        with path.open("rb") as f:
-            raw = tomllib.load(f)
-        service = Service(
-            name=raw["name"],
-            base_url=raw["base_url"].rstrip("/"),
-            sources=[Source(**source) for source in raw.get("sources", [])],
-        )
-        if service.name in loaded:
-            raise ValueError(f"Duplicate service name {service.name!r} in {path.name}")
-        loaded[service.name] = service
+def connectors() -> dict[str, Connector]:
+    """Every connector in pipeline/connectors/, keyed by service name."""
+    package = importlib.import_module(CONNECTORS_PACKAGE)
+    loaded: dict[str, Connector] = {}
+    for module_info in pkgutil.iter_modules(package.__path__):
+        module = importlib.import_module(f"{CONNECTORS_PACKAGE}.{module_info.name}")
+        connector = getattr(module, "connector", None)
+        if not isinstance(connector, Connector):
+            raise TypeError(f"{module.__name__} must define `connector = Connector(...)`")
+        if connector.name in loaded:
+            raise ValueError(f"Duplicate service name {connector.name!r} in {module.__name__}")
+        loaded[connector.name] = connector
     return loaded
 
 

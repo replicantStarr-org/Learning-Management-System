@@ -22,7 +22,7 @@ BENCHMARKS = [
     },
     {
         "query": "What does CI/CD stand for?",
-        "relevant": ["quizzes:quiz:1:", "assignments:assignment:3:"],
+        "relevant": ["quizzes:quiz_question:2:", "assignments:assignment:3:"],
     },
     {
         "query": "Which assignments are due for AIT505 Applied Artificial Intelligence?",
@@ -34,11 +34,11 @@ BENCHMARKS = [
     },
     {
         "query": "Who wrote Attention Is All You Need?",
-        "relevant": ["learning-resources:resource:1:"],
+        "relevant": ["learning-resources:learning_resource:1:"],
     },
     {
         "query": "What does alex.wong have on Tuesday?",
-        "relevant": ["timetable:entry:3:", "timetable:entry:4:"],
+        "relevant": ["timetable:timetable_entry:3:", "timetable:timetable_entry:4:"],
     },
 ]
 

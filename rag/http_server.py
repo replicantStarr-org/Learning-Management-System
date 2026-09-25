@@ -1,7 +1,7 @@
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from pipeline.common import services, settings
+from pipeline.common import connectors, settings
 from pipeline.ingestion import ingest_services
 from pipeline.querying import answer_question, retrieve_context
 
@@ -29,7 +29,7 @@ class RAGHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"status": "ok", "service": "rag-server"})
             return
         if self.path == "/services":
-            self._send_json(200, {"status": "ok", "services": sorted(services())})
+            self._send_json(200, {"status": "ok", "services": sorted(connectors())})
             return
         self._send_json(404, {"status": "error", "error": "not_found"})
 
@@ -42,10 +42,10 @@ class RAGHandler(BaseHTTPRequestHandler):
 
         try:
             service = (payload.get("service") or "").strip() or None
-            if service and service not in services():
+            if service and service not in connectors():
                 self._send_json(
                     404,
-                    {"status": "error", "error": f"unknown service {service!r}", "available": sorted(services())},
+                    {"status": "error", "error": f"unknown service {service!r}", "available": sorted(connectors())},
                 )
                 return
 

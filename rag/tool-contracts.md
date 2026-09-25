@@ -1,7 +1,7 @@
 # RAG Tool Contracts
 
 Exposed both as MCP tools (`server.py`) and HTTP endpoints (`http_server.py`, port in `config.toml`).
-`service` is always optional and must name a file in `services/` (`subjects`, `assignments`, `quizzes`, `timetable`, `learning-resources`).
+`service` is always optional and must name a connector in `pipeline/connectors/` (`subjects`, `assignments`, `quizzes`, `timetable`, `learning-resources`).
 
 ## ingest — `POST /ingest`
 - Purpose: fetch every record from the service's database API, chunk, embed and upsert into Chroma; chunks for records that no longer exist are removed
