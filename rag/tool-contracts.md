@@ -6,7 +6,8 @@ Exposed both as MCP tools (`server.py`) and HTTP endpoints (`http_server.py`, po
 ## ingest — `POST /ingest`
 - Purpose: fetch every record from the service's database API, chunk, embed and upsert into Chroma; chunks for records that no longer exist are removed
 - Input: `service` (optional, all services when omitted)
-- Output: `status` (`success` | `partial` | `error`), `services[]` with `service`, `status`, `chunk_count`, `removed_count` or `error`
+- Output: `status` (`success` | `partial` | `error` | `skipped`), `services[]` with `service`, `status`, `chunk_count`, `removed_count`, or `error`, or `reason` when skipped
+- A connector with no entity functions is `skipped` and its index is left untouched; the overall status only counts services that were attempted, and is `skipped` when none were
 - A service that cannot be reached keeps its previously indexed chunks
 - Policy class: read + index update
 

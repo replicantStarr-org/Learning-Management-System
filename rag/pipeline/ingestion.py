@@ -27,10 +27,15 @@ def ingest_services(service_name: str | None = None) -> dict[str, Any]:
 
     targets = [available[service_name]] if service_name else list(available.values())
     results = [ingest_service(connector) for connector in targets]
-    failed = sum(1 for r in results if r["status"] == "error")
-    if failed == 0:
+    # Unimplemented connectors are neither successes nor failures, so the
+    # overall status only reflects the services that were actually attempted.
+    attempted = [r for r in results if r["status"] != "skipped"]
+    failed = sum(1 for r in attempted if r["status"] == "error")
+    if not attempted:
+        status = "skipped"
+    elif failed == 0:
         status = "success"
-    elif failed == len(results):
+    elif failed == len(attempted):
         status = "error"
     else:
         status = "partial"

@@ -52,7 +52,7 @@ class RAGHandler(BaseHTTPRequestHandler):
             if self.path == "/ingest":
                 result = ingest_services(service)
                 # 502: the RAG server is fine, the service it read from was not.
-                self._send_json({"success": 200, "partial": 207}.get(result["status"], 502), result)
+                self._send_json({"success": 200, "skipped": 200, "partial": 207}.get(result["status"], 502), result)
                 return
 
             if self.path in ("/retrieve", "/answer"):
