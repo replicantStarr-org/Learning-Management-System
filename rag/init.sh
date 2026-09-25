@@ -32,7 +32,7 @@ echo "Installing dependencies (chromadb can take a few minutes)"
 "$VENV_PYTHON" -m pip install -q --upgrade pip
 "$VENV_PYTHON" -m pip install -q -r requirements.txt
 
-MODEL=$("$VENV_PYTHON" -c 'from config import settings; print(settings()["ollama"]["model"])')
+MODEL=$("$VENV_PYTHON" -c 'from pipeline.common import settings; print(settings()["ollama"]["model"])')
 if ! command -v ollama >/dev/null 2>&1; then
     echo "warning: ollama not found; install it and run 'ollama pull $MODEL' before using /answer" >&2
 elif ollama show "$MODEL" >/dev/null 2>&1; then

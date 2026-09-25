@@ -56,7 +56,7 @@ Write-Host "Installing dependencies (chromadb can take a few minutes)"
 Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "--upgrade", "pip") "Could not upgrade pip"
 Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "-r", "requirements.txt") "Could not install requirements.txt"
 
-$Model = & $VenvPython -c "from config import settings; print(settings()['ollama']['model'])"
+$Model = & $VenvPython -c "from pipeline.common import settings; print(settings()['ollama']['model'])"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Could not read the Ollama model from config.toml"
 }

@@ -6,7 +6,7 @@ relevant when its chunk id starts with one of the benchmark's expected prefixes.
 
 from pathlib import Path
 
-from pipeline import retrieve_context
+from pipeline.querying import retrieve_context
 
 METRICS_PATH = Path(__file__).resolve().parent / "retrieval-metrics.md"
 K = 5

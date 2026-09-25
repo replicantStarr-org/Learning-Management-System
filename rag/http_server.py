@@ -1,8 +1,9 @@
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from config import services, settings
-from pipeline import answer_question, ingest_services, retrieve_context
+from pipeline.common import services, settings
+from pipeline.ingestion import ingest_services
+from pipeline.querying import answer_question, retrieve_context
 
 
 class RAGHandler(BaseHTTPRequestHandler):

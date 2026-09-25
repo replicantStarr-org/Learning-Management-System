@@ -1,8 +1,8 @@
 from mcp.server.fastmcp import FastMCP
 
-from pipeline import answer_question as answer_question_impl
-from pipeline import ingest_services as ingest_services_impl
-from pipeline import retrieve_context as retrieve_context_impl
+from pipeline.ingestion import ingest_services as ingest_services_impl
+from pipeline.querying import answer_question as answer_question_impl
+from pipeline.querying import retrieve_context as retrieve_context_impl
 
 mcp = FastMCP("Learning Hub RAG MCP")
 AVAILABLE_TOOLS = ["ingest", "retrieve_context", "answer_question"]
