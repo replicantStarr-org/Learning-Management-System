@@ -1,6 +1,6 @@
 # Sets up the RAG server on the host, since it does not run in a container:
-# a Python virtual environment with its dependencies, and the Ollama model.
-# Safe to re-run. Override the interpreter with $env:PYTHON = "C:\path\to\python.exe".
+# a Python virtual environment with its dependencies. Ollama and its model are
+# installed by each developer separately. Safe to re-run. Override the interpreter with $env:PYTHON = "C:\path\to\python.exe".
 # Works in Windows PowerShell 5.1 and PowerShell 7. If scripts are blocked, run:
 #   powershell -ExecutionPolicy Bypass -File init.ps1
 $ErrorActionPreference = "Stop"
@@ -36,7 +36,7 @@ if ($env:PYTHON) {
     Write-Error "Python not found; install Python 3.11 or newer from python.org"
 }
 
-# config.py reads TOML with tomllib, which arrived in 3.11.
+# pipeline/common.py reads TOML with tomllib, which arrived in 3.11.
 & $Python @PythonArgs -c "import sys; sys.exit(sys.version_info < (3, 11))"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Python 3.11 or newer is required ('$Python' is older, or is the Microsoft Store stub)"
@@ -55,32 +55,6 @@ if (-not (Test-Path $VenvPython)) {
 Write-Host "Installing dependencies (chromadb can take a few minutes)"
 Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "--upgrade", "pip") "Could not upgrade pip"
 Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "-r", "requirements.txt") "Could not install requirements.txt"
-
-$Model = & $VenvPython -c "from pipeline.common import settings; print(settings()['ollama']['model'])"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Could not read the Ollama model from config.toml"
-}
-
-if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
-    Write-Warning "ollama not found; install it and run 'ollama pull $Model' before using /answer"
-} else {
-    # A missing model is reported on stderr, which Windows PowerShell 5.1
-    # turns into a terminating error under "Stop" once it is redirected.
-    $ErrorActionPreference = "Continue"
-    & ollama show $Model *> $null
-    $ModelPresent = $LASTEXITCODE -eq 0
-    $ErrorActionPreference = "Stop"
-
-    if ($ModelPresent) {
-        Write-Host "Ollama model $Model already present"
-    } else {
-        Write-Host "Pulling Ollama model $Model"
-        & ollama pull $Model
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Could not pull $Model; is Ollama running?"
-        }
-    }
-}
 
 Write-Host ""
 Write-Host "Setup complete. Start the server with:"
