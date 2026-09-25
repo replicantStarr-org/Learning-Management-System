@@ -37,6 +37,9 @@ class RAGHandler(BaseHTTPRequestHandler):
             return
 
         try:
+            if self.path == "/ingest":
+                return
+
             if self.path == "/refresh":
                 caller = (payload.get("caller") or "student").strip() or "student"
                 result = refresh_corpus(caller=caller)
