@@ -1,4 +1,4 @@
-from ..common import Connector, Record, pick
+from ..connector import Connector, Record, pick
 
 # The backend, not the database: the database port is deliberately unpublished
 # and only accepts raw SQL.

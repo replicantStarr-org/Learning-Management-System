@@ -1,7 +1,8 @@
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from pipeline.common import connectors, settings
+from pipeline.common import settings
+from pipeline.connector import connectors
 from pipeline.ingestion import ingest_services
 from pipeline.querying import answer_question, retrieve_context
 

@@ -5,7 +5,9 @@ from typing import Any
 
 import requests
 
-from .common import append_audit, embed_texts, get_collection, settings, tokenise
+from .audit import append_audit
+from .common import settings
+from .vectors import embed_texts, get_collection, tokenise
 
 INSUFFICIENT_EVIDENCE = "Insufficient evidence."
 

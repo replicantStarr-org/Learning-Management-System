@@ -30,7 +30,7 @@ database API on `localhost` using the port scheme in the root `design.md`
 ## The contract
 
 ```python
-from ..common import Connector, Record, pick
+from ..connector import Connector, Record, pick
 
 connector = Connector("quizzes", "http://localhost:6004")  # already in your stub
 
@@ -122,9 +122,10 @@ These are not negotiable:
 6. **Do not index AI-generated content** (summaries, advice, generated plans).
    The model would cite its own earlier output as evidence. Index the source
    data those were generated from.
-7. **Only edit your own connector module.** `common.py`, `ingestion.py` and
-   `querying.py` are shared by every service. If you need a framework change,
-   raise it instead of making it in a connector PR.
+7. **Only edit your own connector module.** Everything in `pipeline/` outside
+   this folder (`connector.py`, `ingestion.py`, `vectors.py` and the rest) is
+   shared by every service. If you need a framework change, raise it instead of
+   making it in a connector PR.
 
 ## Guidance
 
@@ -199,7 +200,7 @@ your service's folder).
 
    ```bash
    .venv_rag/bin/python -c "
-   from pipeline.common import connectors
+   from pipeline.connector import connectors
    from pipeline.ingestion import record_chunks
    for record in connectors()['YOUR_SERVICE'].records():
        for chunk in record_chunks('YOUR_SERVICE', record, ''):

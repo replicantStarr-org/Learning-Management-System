@@ -5,6 +5,6 @@ working example. Until an entity function is registered, ingestion skips this
 service.
 """
 
-from ..common import Connector
+from ..connector import Connector
 
 connector = Connector("timetable", "http://localhost:6005")

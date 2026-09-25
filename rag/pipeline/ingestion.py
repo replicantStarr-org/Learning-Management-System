@@ -11,7 +11,10 @@ from typing import Any
 
 import requests
 
-from .common import Connector, Record, append_audit, connectors, embed_texts, get_collection, settings
+from .audit import append_audit
+from .common import settings
+from .connector import Connector, Record, connectors
+from .vectors import embed_texts, get_collection
 
 
 def ingest_services(service_name: str | None = None) -> dict[str, Any]:
