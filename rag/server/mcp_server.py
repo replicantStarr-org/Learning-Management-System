@@ -1,3 +1,10 @@
+"""The MCP server: the same pipeline as the HTTP server, as MCP tools over stdio.
+
+Run from rag/ with: .venv_rag/bin/python -m server.mcp_server
+"""
+
+import sys
+
 from mcp.server.fastmcp import FastMCP
 
 from pipeline.ingestion import ingest_services as ingest_services_impl
@@ -27,8 +34,8 @@ def answer_question(query: str, k: int | None = None, service: str | None = None
 
 
 if __name__ == "__main__":
-    print("Starting Learning Hub RAG MCP Server...")
-    print("Available tools:")
-    for tool in AVAILABLE_TOOLS:
-        print(f"- {tool}")
+    # stdout is the MCP protocol channel over stdio, so anything else printed
+    # there corrupts it; human-facing messages go to stderr.
+    print("Starting Learning Hub RAG MCP Server...", file=sys.stderr)
+    print("Available tools: " + ", ".join(AVAILABLE_TOOLS), file=sys.stderr)
     mcp.run()
