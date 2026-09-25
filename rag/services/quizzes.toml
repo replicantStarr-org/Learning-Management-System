@@ -1,0 +1,16 @@
+name = "quizzes"
+base_url = "http://localhost:6004"
+
+[[sources]]
+entity = "quiz"
+label = "Quiz"
+path = "/quizzes"
+id_field = "quiz_id"
+# The list omits questions; the detail includes them with their answers.
+detail = "/quizzes/{quiz_id}"
+title = "{title}"
+# Applies to nested objects too, which puts each question before its answers.
+fields = [
+    "subject_name", "title", "difficulty", "description",
+    "questions", "question_text", "answers", "answer_text", "is_correct", "explanation",
+]

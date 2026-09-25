@@ -1,0 +1,3 @@
+.venv_rag/
+chroma/
+rag-audit.jsonl

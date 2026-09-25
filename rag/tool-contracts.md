@@ -1,19 +1,28 @@
 # RAG Tool Contracts
 
-## refresh_corpus
-- Purpose: rebuild corpus and vector index
-- Input: `caller` (optional)
-- Output: `status`, `chunk_count`, `collection`, `corpus_path` or `error`
+Exposed both as MCP tools (`server.py`) and HTTP endpoints (`http_server.py`, port in `config.toml`).
+`service` is always optional and must name a file in `services/` (`subjects`, `assignments`, `quizzes`).
+
+## ingest — `POST /ingest`
+- Purpose: fetch every record from the service's database API, chunk, embed and upsert into Chroma; chunks for records that no longer exist are removed
+- Input: `service` (optional, all services when omitted)
+- Output: `status` (`success` | `partial` | `error`), `services[]` with `service`, `status`, `chunk_count`, `removed_count` or `error`
+- A service that cannot be reached keeps its previously indexed chunks
 - Policy class: read + index update
 
-## retrieve_context
-- Purpose: retrieve relevant chunks
-- Input: `query` (required), `k` (optional), `caller` (optional)
-- Output: `status`, `results[]` with `chunk_id`, `source_id`, `authority_tier`, `distance`, `text`
+## retrieve_context — `POST /retrieve`
+- Purpose: retrieve the top `k` chunks within `retrieval.max_distance`
+- Input: `query` (required), `k` (optional), `service` (optional)
+- Output: `status`, `results[]` with `rank`, `chunk_id`, `service`, `entity`, `record_id`, `title`, `distance`, `text`
 - Policy class: read
 
-## answer_question
-- Purpose: answer from retrieved context only
-- Input: `query` (required), `k` (optional), `caller` (optional)
-- Output: `answer`, `citations[]`, `confidence_category`, `retrieval_summary` or `error`
+## answer_question — `POST /answer`
+- Purpose: answer from retrieved context only, using the Ollama model in `config.toml`
+- Input: `query` (required), `k` (optional), `service` (optional)
+- Output: `answer`, `citations[]`, `confidence_category` (`High` | `Medium` | `Low` | `None`), `retrieval_summary` or `error`
+- Returns `Insufficient evidence.` without calling the model when nothing is retrieved
 - Policy class: read + grounded response
+
+## Other endpoints
+- `GET /health`
+- `GET /services` — configured service names

@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "student-enrolment-rag": {
-      "command": "python",
-      "args": ["rag_server.py"]
+    "learning-hub-rag": {
+      "command": ".venv_rag/bin/python",
+      "args": ["server.py"]
     }
   }
 }

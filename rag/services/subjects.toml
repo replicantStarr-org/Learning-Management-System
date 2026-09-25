@@ -1,0 +1,13 @@
+name = "subjects"
+base_url = "http://localhost:6001"
+
+[[sources]]
+entity = "subject"
+label = "Subject"
+path = "/subjects"
+id_field = "subject_id"
+# The list only returns code and name; the description lives on the detail.
+detail = "/subjects/{subject_id}"
+title = "{code} {name}"
+# Applies to nested objects too: "name" is what keeps each tag's name.
+fields = ["code", "name", "semester", "coordinator", "status", "tags", "description"]

@@ -1,8 +1,8 @@
 import json
-import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from rag_pipeline import answer_question, refresh_corpus, retrieve_context
+from config import services, settings
+from pipeline import answer_question, ingest_services, retrieve_context
 
 
 class RAGHandler(BaseHTTPRequestHandler):
@@ -27,6 +27,9 @@ class RAGHandler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send_json(200, {"status": "ok", "service": "rag-server"})
             return
+        if self.path == "/services":
+            self._send_json(200, {"status": "ok", "services": sorted(services())})
+            return
         self._send_json(404, {"status": "error", "error": "not_found"})
 
     def do_POST(self):
@@ -37,35 +40,29 @@ class RAGHandler(BaseHTTPRequestHandler):
             return
 
         try:
+            service = (payload.get("service") or "").strip() or None
+            if service and service not in services():
+                self._send_json(
+                    404,
+                    {"status": "error", "error": f"unknown service {service!r}", "available": sorted(services())},
+                )
+                return
+
             if self.path == "/ingest":
+                result = ingest_services(service)
+                # 502: the RAG server is fine, the service it read from was not.
+                self._send_json({"success": 200, "partial": 207}.get(result["status"], 502), result)
                 return
 
-            if self.path == "/refresh":
-                caller = (payload.get("caller") or "student").strip() or "student"
-                result = refresh_corpus(caller=caller)
-                self._send_json(200 if result.get("status") == "success" else 500, result)
-                return
-
-            if self.path == "/retrieve":
+            if self.path in ("/retrieve", "/answer"):
                 query = (payload.get("query") or "").strip()
                 if not query:
                     self._send_json(400, {"status": "error", "error": "query is required"})
                     return
-                k = int(payload.get("k", 5))
-                caller = (payload.get("caller") or "student").strip() or "student"
-                result = retrieve_context(query=query, k=k, caller=caller)
-                self._send_json(200 if result.get("status") == "success" else 500, result)
-                return
-
-            if self.path == "/answer":
-                query = (payload.get("query") or "").strip()
-                if not query:
-                    self._send_json(400, {"status": "error", "error": "query is required"})
-                    return
-                k = int(payload.get("k", 5))
-                caller = (payload.get("caller") or "student").strip() or "student"
-                result = answer_question(query=query, k=k, caller=caller)
-                self._send_json(200 if result.get("status") == "success" else 500, result)
+                k = int(payload["k"]) if payload.get("k") else None
+                handler = retrieve_context if self.path == "/retrieve" else answer_question
+                result = handler(query=query, k=k, service=service)
+                self._send_json(200 if result["status"] == "success" else 500, result)
                 return
 
             self._send_json(404, {"status": "error", "error": "not_found"})
@@ -74,8 +71,8 @@ class RAGHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    host = "0.0.0.0"
-    port = int(os.getenv("PORT", "5003"))
+    server_settings = settings()["server"]
+    host, port = server_settings["host"], server_settings["port"]
     server = ThreadingHTTPServer((host, port), RAGHandler)
     print(f"RAG HTTP server running on {host}:{port}")
     server.serve_forever()

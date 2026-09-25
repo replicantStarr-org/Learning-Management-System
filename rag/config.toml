@@ -1,2 +1,28 @@
 [server]
-port=5010
+host = "0.0.0.0"
+port = 5010
+
+[chroma]
+# Relative paths resolve against the rag/ directory.
+path = "chroma"
+collection = "learning_hub"
+
+[embedding]
+# Changing either value invalidates stored vectors; the collection is rebuilt
+# empty on next start and every service must be ingested again.
+dimensions = 1024
+version = "hash-v2"
+
+[chunking]
+max_words = 150
+
+[retrieval]
+k = 5
+# Cosine distance, 0 = identical, 1 = unrelated. Chunks further than this are
+# discarded so the model is never handed context that does not match.
+max_distance = 0.9
+
+[ollama]
+url = "http://localhost:11434"
+model = "qwen2.5:0.5b"
+timeout_seconds = 120
