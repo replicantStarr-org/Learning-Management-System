@@ -115,27 +115,29 @@ def confidence_from_results(results: list[dict[str, Any]]) -> str:
 
 def generate_with_ollama(query: str, context: str) -> str:
     ollama = settings()["ollama"]
-    prompt = f"""You are an assistant for a university Learning Management System.
-Answer the question using only the context below. Each context block is one
-record from the system. If the context does not contain the answer, reply
-exactly: {INSUFFICIENT_EVIDENCE}
-
-QUESTION:
-{query}
-
-CONTEXT:
-{context}
-
-ANSWER:
-"""
+    # The chat endpoint with the rules in a system message: given the same text
+    # as a single /api/generate prompt, qwen2.5:0.5b refused answerable questions.
+    system = (
+        "You answer questions about a university Learning Management System using only "
+        "the records the user provides. Answer briefly. If the records do not contain "
+        f"the answer, say exactly: {INSUFFICIENT_EVIDENCE}"
+    )
     response = requests.post(
-        ollama["url"].rstrip("/") + "/api/generate",
-        # Temperature 0 keeps answers repeatable and stops the small model wandering.
-        json={"model": ollama["model"], "prompt": prompt, "stream": False, "options": {"temperature": 0}},
+        ollama["url"].rstrip("/") + "/api/chat",
+        json={
+            "model": ollama["model"],
+            "stream": False,
+            # Temperature 0 keeps answers repeatable and stops the small model wandering.
+            "options": {"temperature": 0},
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": f"Records:\n{context}\n\nQuestion: {query}"},
+            ],
+        },
         timeout=ollama["timeout_seconds"],
     )
     response.raise_for_status()
-    return response.json().get("response", "").strip() or INSUFFICIENT_EVIDENCE
+    return response.json().get("message", {}).get("content", "").strip() or INSUFFICIENT_EVIDENCE
 
 
 def answer_question(query: str, k: int | None = None, service: str | None = None) -> dict[str, Any]:

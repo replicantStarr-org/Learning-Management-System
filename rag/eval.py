@@ -32,6 +32,14 @@ BENCHMARKS = [
         "query": "Which subjects run in the Winter semester?",
         "relevant": ["subjects:subject:6:", "subjects:subject:7:", "subjects:subject:11:", "subjects:subject:13:"],
     },
+    {
+        "query": "Who wrote Attention Is All You Need?",
+        "relevant": ["learning-resources:resource:1:"],
+    },
+    {
+        "query": "What does alex.wong have on Tuesday?",
+        "relevant": ["timetable:entry:3:", "timetable:entry:4:"],
+    },
 ]
 
 

@@ -17,7 +17,11 @@ class Source:
     id_field: str
     title: str
     detail: str | None = None
+    # Query string for the list request. A list value makes one request per
+    # item, for APIs that only return one user's (or one thing's) rows at a time.
     params: dict[str, Any] = field(default_factory=dict)
+    # Names for the values of an API that returns rows as arrays, not objects.
+    columns: list[str] | None = None
     # Keys to keep, in display order, applied at every nesting depth.
     fields: list[str] | None = None
 

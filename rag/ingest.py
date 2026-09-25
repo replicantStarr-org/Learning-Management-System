@@ -5,6 +5,7 @@ the files live in Docker volumes and design.md forbids direct querying.
 """
 
 from datetime import datetime, timezone
+from itertools import product
 from typing import Any
 
 import requests
@@ -72,17 +73,34 @@ def ingest_service(service: Service) -> dict[str, Any]:
 
 
 def load_source(service: Service, source: Source) -> list[dict[str, Any]]:
-    records = fetch_json(service.base_url + source.path, source.params)
-    if not isinstance(records, list):
-        raise ValueError(f"{source.path} did not return a JSON list")
+    records = []
+    for params in expand_params(source.params):
+        rows = fetch_json(service.base_url + source.path, params)
+        if not isinstance(rows, list):
+            raise ValueError(f"{source.path} did not return a JSON list")
+        records.extend(rows)
 
     indexed_at = datetime.now(timezone.utc).isoformat()
     chunks = []
     for record in records:
+        if source.columns:
+            record = name_columns(record, source.columns)
         if source.detail:
             record = fetch_json(service.base_url + source.detail.format_map(record))
         chunks.extend(record_chunks(service, source, record, indexed_at))
     return chunks
+
+
+def expand_params(params: dict[str, Any]) -> list[dict[str, Any]]:
+    """One query string per combination of the list-valued params."""
+    fanned = {key: value for key, value in params.items() if isinstance(value, list)}
+    return [{**params, **dict(zip(fanned, combo))} for combo in product(*fanned.values())]
+
+
+def name_columns(row: Any, columns: list[str]) -> dict[str, Any]:
+    if not isinstance(row, list) or len(row) != len(columns):
+        raise ValueError(f"expected rows of {len(columns)} values, got {row!r}")
+    return dict(zip(columns, row))
 
 
 def fetch_json(url: str, params: dict[str, Any] | None = None) -> Any:
