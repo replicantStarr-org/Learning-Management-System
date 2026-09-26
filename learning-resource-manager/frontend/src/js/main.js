@@ -1173,6 +1173,21 @@ ragIngestForm.addEventListener("submit", (event) => {
 	);
 });
 
+// Also sends no body, so only this service's records can be cleared.
+const ragClearForm = document.getElementById("rag-clear-form");
+ragClearForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	if (!window.confirm("Clear the learning resources from the RAG index? Re-index to restore them.")) {
+		return;
+	}
+	callEndpoint(
+		ragClearForm.querySelector("button"),
+		document.getElementById("rag-clear-output"),
+		"/api/rag/clear",
+		{ method: "POST" },
+	);
+});
+
 // The RAG server's fixed reply when the records it found do not hold the answer
 // (INSUFFICIENT_EVIDENCE in rag-server/pipeline/querying.py).
 const INSUFFICIENT_EVIDENCE = "Insufficient evidence.";
