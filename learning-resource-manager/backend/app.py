@@ -2,6 +2,7 @@ from flask import Flask
 
 from controllers.chat_controller import chat_bp
 from controllers.highlights_controller import highlights_bp
+from controllers.mcp_controller import mcp_bp
 from controllers.rag_controller import rag_bp
 from controllers.resources_controller import resources_bp
 
@@ -18,6 +19,7 @@ def register_blueprints(app):
     app.register_blueprint(highlights_bp, url_prefix='/api/highlights')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
     app.register_blueprint(rag_bp, url_prefix='/api/rag')
+    app.register_blueprint(mcp_bp, url_prefix='/api/mcp')
 
 app = create_app()
 

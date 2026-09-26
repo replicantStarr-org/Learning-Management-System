@@ -22,6 +22,9 @@ services:
       # The RAG server (rag-server/) also runs on the host, on server.port in
       # its config.toml.
       - RAG_SERVER_URL=http://host.docker.internal:5010
+      # The shared MCP server (mcp/) runs on the host too; see MCP_HOST in
+      # mcp/server.py for why it can be reached from here.
+      - MCP_SERVER_URL=http://host.docker.internal:8000/mcp
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # Nothing the backend serves works until the database service answers, so

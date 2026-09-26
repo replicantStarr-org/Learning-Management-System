@@ -190,27 +190,53 @@
 					</div>
 				</section>
 
-				<!-- Tools on the shared LMS MCP server, the same ones an AI assistant calls. -->
+				<!-- Tools on the shared LMS MCP server, the same ones an AI assistant calls.
+				     Each card is one backend endpoint calling one tool; the page never names
+				     a tool itself, since the server also holds other services' tools. -->
 				<section id="mcp-view" aria-label="MCP Mode" hidden>
+					<div class="card mcp-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Available tools</h3>
+										<code class="rag-route">GET /api/mcp/tools</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Every tool the MCP server offers, with the description and inputs a model
+										would see. Also shows whether the server can be reached from this service.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="mcp-tools-list">List tools</button>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="mcp-tools-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					<div class="card mcp-card">
 						<div class="card-body">
-							<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-								<h2 class="h5 mb-0">Call a tool</h2>
-								<code class="rag-route">POST /mcp</code>
-							</div>
-							<p class="text-secondary small mb-3">
-								Runs a tool on the LMS MCP server and shows what it returned.
-							</p>
-
-							<form id="mcp-form">
-								<div class="rag-query">
-									<input type="text" class="form-control" id="mcp-input" autocomplete="off"
-									       placeholder="Tool name, such as echo" aria-label="Tool name" required>
-									<button type="submit" class="btn btn-primary" id="mcp-send">Call</button>
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">List resources</h3>
+										<code class="rag-route">learning_resources_list</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Every learning resource in the library with its tags, fetched by the MCP
+										server from this service's API.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="mcp-resources-list">List resources</button>
 								</div>
-							</form>
-
-							<div class="rag-result" id="mcp-result" aria-live="polite"></div>
+								<div class="col-md-7">
+									<div class="rag-output" id="mcp-resources-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</section>

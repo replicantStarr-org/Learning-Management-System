@@ -992,15 +992,12 @@ document.getElementById("chat-modal").addEventListener("shown.bs.modal", () => c
 const ragForm = document.getElementById("rag-form");
 const ragInput = document.getElementById("rag-input");
 const ragResult = document.getElementById("rag-result");
-const mcpForm = document.getElementById("mcp-form");
-const mcpInput = document.getElementById("mcp-input");
-const mcpResult = document.getElementById("mcp-result");
 
-// Each mode's view, and the field focused on entering it.
+// Each mode's view, and the control focused on entering it.
 const MODES = {
 	library: { view: document.getElementById("library-view") },
 	rag: { view: document.getElementById("rag-view"), focus: ragInput },
-	mcp: { view: document.getElementById("mcp-view"), focus: mcpInput },
+	mcp: { view: document.getElementById("mcp-view"), focus: document.getElementById("mcp-tools-list") },
 };
 
 // Only meaningful while browsing the library, so they step aside in the other modes.
@@ -1112,7 +1109,8 @@ async function callEndpoint(button, output, url, request = {}, show = showEndpoi
 	output.replaceChildren(
 		Object.assign(document.createElement("p"), {
 			className: "text-secondary small mb-0",
-			textContent: "Waiting for the RAG server...",
+			// Shared by the Rag Mode and MCP Mode cards, so it names neither server.
+			textContent: "Waiting for a response...",
 		}),
 	);
 
@@ -1275,16 +1273,14 @@ ragForm.addEventListener("submit", (event) => {
 
 /* ---------- mcp mode ---------- */
 
-// Not wired to the MCP server yet; the backend proxy comes next.
-mcpForm.addEventListener("submit", (event) => {
-	event.preventDefault();
-	mcpResult.replaceChildren(
-		Object.assign(document.createElement("p"), {
-			className: "text-secondary small mb-0",
-			textContent: "MCP Mode is not connected to the MCP server yet.",
-		}),
-	);
-});
+// Laid out like Rag Mode's endpoint cards, so they are called and shown the same way.
+const mcpToolsList = document.getElementById("mcp-tools-list");
+mcpToolsList.addEventListener("click", () =>
+	callEndpoint(mcpToolsList, document.getElementById("mcp-tools-output"), "/api/mcp/tools"));
+
+const mcpResourcesList = document.getElementById("mcp-resources-list");
+mcpResourcesList.addEventListener("click", () =>
+	callEndpoint(mcpResourcesList, document.getElementById("mcp-resources-output"), "/api/mcp/resources"));
 
 setMode(location.hash.slice(1));
 
