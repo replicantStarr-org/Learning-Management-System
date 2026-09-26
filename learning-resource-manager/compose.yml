@@ -1,5 +1,9 @@
+# Containers are named LRM-* so they are easy to pick out of the whole hub's
+# stack. The service names stay short, since nginx and the backend reach each
+# other by them.
 services:
   backend:
+    container_name: LRM-backend
     build:
       context: backend
       dockerfile: Dockerfile
@@ -33,6 +37,7 @@ services:
   # Owns the database file and runs the statements the backend sends it. The
   # port is deliberately not published: only the backend has any business here.
   database:
+    container_name: LRM-database
     build:
       context: database
       dockerfile: Dockerfile
@@ -52,6 +57,7 @@ services:
       start_period: 5s
 
   frontend:
+    container_name: LRM-frontend
     build:
       context: ..
       dockerfile: learning-resource-manager/frontend/Dockerfile
