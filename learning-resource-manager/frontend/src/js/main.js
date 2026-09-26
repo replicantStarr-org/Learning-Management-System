@@ -1023,6 +1023,54 @@ for (const radio of document.querySelectorAll('input[name="page-mode"]')) {
 	radio.addEventListener("change", () => setMode(radio.value));
 }
 
+// Shows the response exactly as the RAG server sent it, since these cards are
+// for seeing what each endpoint does, with the status code and round trip time.
+function showEndpointResult(output, { ok, summary, body }) {
+	const status = document.createElement("p");
+	status.className = `rag-output-status ${ok ? "is-ok" : "is-error"}`;
+	status.textContent = summary;
+
+	const json = document.createElement("pre");
+	json.className = "rag-output-body";
+	json.textContent = JSON.stringify(body, null, 2);
+
+	output.replaceChildren(status, json);
+}
+
+async function callEndpoint(button, output, url, request = {}) {
+	button.disabled = true;
+	output.replaceChildren(
+		Object.assign(document.createElement("p"), {
+			className: "text-secondary small mb-0",
+			textContent: "Waiting for the RAG server...",
+		}),
+	);
+
+	const started = performance.now();
+	try {
+		const response = await fetch(url, request);
+		const body = await response.json().catch(() => ({}));
+		const elapsed = Math.round(performance.now() - started);
+		showEndpointResult(output, {
+			ok: response.ok,
+			summary: `${response.status} ${response.ok ? "OK" : "Error"} · ${elapsed} ms`,
+			body,
+		});
+	} catch {
+		showEndpointResult(output, {
+			ok: false,
+			summary: "No response",
+			body: { error: "The learning resource backend could not be reached." },
+		});
+	} finally {
+		button.disabled = false;
+	}
+}
+
+const ragHealthCheck = document.getElementById("rag-health-check");
+ragHealthCheck.addEventListener("click", () =>
+	callEndpoint(ragHealthCheck, document.getElementById("rag-health-output"), "/api/rag/health"));
+
 // Not wired to the RAG server yet; the backend proxy comes next.
 ragForm.addEventListener("submit", (event) => {
 	event.preventDefault();

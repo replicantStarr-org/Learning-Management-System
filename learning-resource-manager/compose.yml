@@ -13,6 +13,9 @@ services:
       # Ollama runs on the host, so "localhost" from inside this container would
       # be the container itself.
       - OLLAMA_URL=host.docker.internal
+      # The RAG server (rag-server/) also runs on the host, on server.port in
+      # its config.toml.
+      - RAG_SERVER_URL=http://host.docker.internal:5010
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # Nothing the backend serves works until the database service answers, so

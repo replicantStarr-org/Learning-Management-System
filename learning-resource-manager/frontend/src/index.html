@@ -69,6 +69,30 @@
 
 				<!-- Questions answered by the RAG server from the indexed library. -->
 				<section id="rag-view" aria-labelledby="rag-heading" hidden>
+					<!-- One card per RAG server endpoint: what it does on the left, and the
+					     response from the last call alongside it. -->
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Health check</h3>
+										<code class="rag-route">GET /health</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Whether the RAG server is up and can be reached from this service.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="rag-health-check">Check health</button>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-health-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not checked yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					<div class="card rag-card">
 						<div class="card-body">
 							<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
