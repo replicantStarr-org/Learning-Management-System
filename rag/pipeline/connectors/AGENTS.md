@@ -210,7 +210,7 @@ your service's folder).
 
    Read the output as the model will. Could it answer your users' questions
    from this text alone?
-3. **Ingest** with the server running (`.venv_rag/bin/python -m server.http_server`,
+3. **Ingest** with the server running (`./run.sh`, or `./run.ps1` on Windows,
    on port 5010):
 
    ```bash

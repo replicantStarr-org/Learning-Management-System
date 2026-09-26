@@ -4,58 +4,61 @@
 # Works in Windows PowerShell 5.1 and PowerShell 7. If scripts are blocked, run:
 #   powershell -ExecutionPolicy Bypass -File init.ps1
 $ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
+# Push/Pop rather than Set-Location, which would leave the caller's shell in rag/.
+Push-Location $PSScriptRoot
+try {
+    $Venv = ".venv_rag"
+    # $IsWindows only exists in PowerShell 6+, where it is false on Linux and macOS.
+    if ($IsWindows -eq $false) {
+        $VenvPython = Join-Path $Venv "bin/python"
+    } else {
+        $VenvPython = Join-Path $Venv "Scripts\python.exe"
+    }
 
-$Venv = ".venv_rag"
-# $IsWindows only exists in PowerShell 6+, where it is false on Linux and macOS.
-if ($IsWindows -eq $false) {
-    $VenvPython = Join-Path $Venv "bin/python"
-} else {
-    $VenvPython = Join-Path $Venv "Scripts\python.exe"
-}
+    # Native commands do not throw on failure, so every call is checked by hand.
+    function Invoke-Checked {
+        param([string]$Command, [string[]]$Arguments, [string]$Failure)
+        & $Command @Arguments
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error $Failure
+        }
+    }
 
-# Native commands do not throw on failure, so every call is checked by hand.
-function Invoke-Checked {
-    param([string]$Command, [string[]]$Arguments, [string]$Failure)
-    & $Command @Arguments
+    # Prefer the py launcher: on Windows "python" is often the Microsoft Store stub.
+    if ($env:PYTHON) {
+        $Python = $env:PYTHON; $PythonArgs = @()
+    } elseif (Get-Command py -ErrorAction SilentlyContinue) {
+        $Python = "py"; $PythonArgs = @("-3")
+    } elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
+        $Python = "python3"; $PythonArgs = @()
+    } elseif (Get-Command python -ErrorAction SilentlyContinue) {
+        $Python = "python"; $PythonArgs = @()
+    } else {
+        Write-Error "Python not found; install Python 3.11 or newer from python.org"
+    }
+
+    # pipeline/common.py reads TOML with tomllib, which arrived in 3.11.
+    & $Python @PythonArgs -c "import sys; sys.exit(sys.version_info < (3, 11))"
     if ($LASTEXITCODE -ne 0) {
-        Write-Error $Failure
+        Write-Error "Python 3.11 or newer is required ('$Python' is older, or is the Microsoft Store stub)"
     }
-}
 
-# Prefer the py launcher: on Windows "python" is often the Microsoft Store stub.
-if ($env:PYTHON) {
-    $Python = $env:PYTHON; $PythonArgs = @()
-} elseif (Get-Command py -ErrorAction SilentlyContinue) {
-    $Python = "py"; $PythonArgs = @("-3")
-} elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
-    $Python = "python3"; $PythonArgs = @()
-} elseif (Get-Command python -ErrorAction SilentlyContinue) {
-    $Python = "python"; $PythonArgs = @()
-} else {
-    Write-Error "Python not found; install Python 3.11 or newer from python.org"
-}
-
-# pipeline/common.py reads TOML with tomllib, which arrived in 3.11.
-& $Python @PythonArgs -c "import sys; sys.exit(sys.version_info < (3, 11))"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Python 3.11 or newer is required ('$Python' is older, or is the Microsoft Store stub)"
-}
-
-# Checking for the interpreter rather than the directory also repairs a venv
-# left half-created by an interrupted run.
-if (-not (Test-Path $VenvPython)) {
-    Write-Host "Creating $Venv"
-    if (Test-Path $Venv) {
-        Remove-Item -Recurse -Force $Venv
+    # Checking for the interpreter rather than the directory also repairs a venv
+    # left half-created by an interrupted run.
+    if (-not (Test-Path $VenvPython)) {
+        Write-Host "Creating $Venv"
+        if (Test-Path $Venv) {
+            Remove-Item -Recurse -Force $Venv
+        }
+        Invoke-Checked $Python ($PythonArgs + @("-m", "venv", $Venv)) "Could not create $Venv"
     }
-    Invoke-Checked $Python ($PythonArgs + @("-m", "venv", $Venv)) "Could not create $Venv"
+
+    Write-Host "Installing dependencies (chromadb can take a few minutes)"
+    Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "--upgrade", "pip") "Could not upgrade pip"
+    Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "-r", "requirements.txt") "Could not install requirements.txt"
+
+    Write-Host ""
+    Write-Host "Setup complete. Start the server with: .\run.ps1"
+} finally {
+    Pop-Location
 }
-
-Write-Host "Installing dependencies (chromadb can take a few minutes)"
-Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "--upgrade", "pip") "Could not upgrade pip"
-Invoke-Checked $VenvPython @("-m", "pip", "install", "-q", "-r", "requirements.txt") "Could not install requirements.txt"
-
-Write-Host ""
-Write-Host "Setup complete. Start the server with:"
-Write-Host "  $VenvPython -m server.http_server"

@@ -1,3 +1,4 @@
 .venv_rag/
 chroma/
 rag-audit.jsonl
+rag-server.pid

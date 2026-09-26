@@ -1,15 +1,20 @@
 """The HTTP server: routes each request to its function in server/endpoints.py.
 
-Run from rag/ with: .venv_rag/bin/python -m server.http_server
+Start and stop it with ./run.sh and ./run.sh stop (run.ps1 on Windows).
 """
 
 import json
+import os
+import signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from pipeline.common import settings
+from pipeline.common import BASE_DIR, settings
 
 from . import endpoints
 from .endpoints import ApiError
+
+# How run.sh / run.ps1 find the server to stop it. Removed on a clean exit.
+PID_FILE = BASE_DIR / "rag-server.pid"
 
 # (method, path) -> endpoint(payload) returning (status code, JSON body).
 ROUTES = {
@@ -65,12 +70,41 @@ class RAGHandler(BaseHTTPRequestHandler):
         self.wfile.write(response)
 
 
+class RAGServer(ThreadingHTTPServer):
+    # Request threads are waited for on shutdown instead of killed, so stopping
+    # during an ingest lets it finish rather than leaving the index half-updated.
+    daemon_threads = False
+
+
+def stop_on_sigterm(signum, frame):
+    # `kill` and `./run.sh stop` send SIGTERM; treat it exactly like Ctrl+C.
+    raise KeyboardInterrupt
+
+
 def main():
     server_settings = settings()["server"]
     host, port = server_settings["host"], server_settings["port"]
-    server = ThreadingHTTPServer((host, port), RAGHandler)
-    print(f"RAG HTTP server running on {host}:{port}")
-    server.serve_forever()
+    server = RAGServer((host, port), RAGHandler)
+    PID_FILE.write_text(str(os.getpid()))
+    signal.signal(signal.SIGTERM, stop_on_sigterm)
+    print(f"RAG HTTP server running on {host}:{port}", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        # The normal way to stop it, so no traceback.
+        print("RAG HTTP server stopping; finishing requests in progress (Ctrl+C again to force)", flush=True)
+    finally:
+        try:
+            server.server_close()  # waits for the request threads
+        except KeyboardInterrupt:
+            # A second Ctrl+C (or stop). os._exit, because a normal exit would
+            # wait for the request threads all over again.
+            PID_FILE.unlink(missing_ok=True)
+            print("RAG HTTP server forced to stop; requests in progress were cut off", flush=True)
+            os._exit(1)
+        finally:
+            PID_FILE.unlink(missing_ok=True)
+    print("RAG HTTP server stopped", flush=True)
 
 
 if __name__ == "__main__":
