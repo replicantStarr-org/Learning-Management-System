@@ -2,12 +2,14 @@
 
 The RAG server indexes each service through a connector module in
 rag-server/pipeline/connectors/, written to the rules in the AGENTS.md there.
-This collects three kinds of evidence for the selected service's connector:
+This collects four kinds of evidence for the selected service's connector:
 
 1. The RAG server's own structure (required files and routes), as a precondition.
 2. A static analysis of the connector module against those rules.
 3. When the service is running, the chunks the connector actually produces,
    generated twice with the RAG server's own environment to check determinism.
+4. Retrieval metrics, P@5 then R@5, for the service's benchmarks, as scored by
+   rag-server/eval.py against the index as it currently stands.
 """
 
 import ast
@@ -283,31 +285,43 @@ def _venv_python(rag_server_dir: Path) -> Path:
     return rag_server_dir / ".venv_rag" / "bin" / "python"
 
 
-def _live_preview(rag_server_dir: Path, connector_name: str) -> list[str]:
+def _run_in_rag_server(rag_server_dir: Path, arguments: list[str]) -> tuple[dict | None, str | None]:
+    """Run Python with the RAG server's own venv; the last line it prints is JSON.
+
+    Returns the parsed result, or None and a reason it could not be had.
+    Timing out is left to raise: whether that is a defect depends on the caller.
+    """
     python = _venv_python(rag_server_dir)
     if not python.exists():
-        return [f"- unavailable: {RAG_SERVER_DIR} is not initialised (run {RAG_SERVER_DIR}/init.sh); chunk quality is unverified"]
+        return None, f"{RAG_SERVER_DIR} is not initialised (run {RAG_SERVER_DIR}/init.sh)"
 
+    completed = subprocess.run(
+        [str(python), *arguments],
+        cwd=rag_server_dir, capture_output=True, text=True, timeout=PREVIEW_TIMEOUT_SECONDS,
+    )
     try:
-        completed = subprocess.run(
-            [str(python), "-c", PREVIEW_SCRIPT, connector_name],
-            cwd=rag_server_dir, capture_output=True, text=True, timeout=PREVIEW_TIMEOUT_SECONDS,
-        )
-        result = json.loads(completed.stdout.strip().splitlines()[-1])
-    except subprocess.TimeoutExpired:
-        return [f"- FAIL connector did not finish within {PREVIEW_TIMEOUT_SECONDS}s"]
+        return json.loads(completed.stdout.strip().splitlines()[-1]), None
     except (json.JSONDecodeError, IndexError):
-        detail = (completed.stderr.strip().splitlines() or ["no output"])[-1]
-        return [f"- unavailable: preview could not run ({detail}); chunk quality is unverified"]
+        return None, (completed.stderr.strip().splitlines() or ["no output"])[-1]
+
+
+def _live_preview(rag_server_dir: Path, connector_name: str) -> tuple[list[str], int | None]:
+    """Evidence lines, and how many chunks the connector produces when it could run."""
+    try:
+        result, problem = _run_in_rag_server(rag_server_dir, ["-c", PREVIEW_SCRIPT, connector_name])
+    except subprocess.TimeoutExpired:
+        return [f"- FAIL connector did not finish within {PREVIEW_TIMEOUT_SECONDS}s"], None
+    if problem:
+        return [f"- unavailable: preview could not run ({problem}); chunk quality is unverified"], None
 
     if "unreachable" in result:
-        return [f"- unavailable: the service is not reachable ({result['unreachable'][:160]}); start it to include chunk quality"]
+        return [f"- unavailable: the service is not reachable ({result['unreachable'][:160]}); start it to include chunk quality"], None
     if "error" in result:
-        return [f"- FAIL the connector raised {result['error'][:200]}"]
+        return [f"- FAIL the connector raised {result['error'][:200]}"], None
 
     chunks, limit = result["chunks"], result["max_words"]
     if not chunks:
-        return ["- WARN the connector ran but produced no records"]
+        return ["- WARN the connector ran but produced no records"], 0
 
     per_entity: dict[str, int] = {}
     samples: dict[str, str] = {}
@@ -331,6 +345,57 @@ def _live_preview(rag_server_dir: Path, connector_name: str) -> list[str]:
     for entity, text in samples.items():
         sample = text if len(text) <= SAMPLE_CHARACTERS else text[:SAMPLE_CHARACTERS] + " ..."
         lines.append(f"Sample chunk ({entity}):\n  " + sample.replace("\n", "\n  "))
+    return lines, len(chunks)
+
+
+# ------------------------------------------------------------ retrieval metrics
+
+
+def _retrieval_metrics(rag_server_dir: Path, connector_name: str, produced: int | None) -> list[str]:
+    """The service's benchmarks as scored by rag-server/eval.py, P@k first.
+
+    eval.py owns the benchmarks, the scoring and what counts as a pass (including
+    judging P@k against its ceiling); this only reports what it returns.
+    """
+    try:
+        result, problem = _run_in_rag_server(rag_server_dir, ["eval.py", "--service", connector_name, "--json"])
+    except subprocess.TimeoutExpired:
+        return [f"- unavailable: eval.py did not finish within {PREVIEW_TIMEOUT_SECONDS}s; retrieval quality is unverified"]
+    if problem:
+        return [f"- unavailable: eval.py could not run ({problem}); retrieval quality is unverified"]
+    if "unavailable" in result:
+        return [f"- unavailable: {result['unavailable']}; retrieval quality is unverified"]
+
+    k, indexed, results = result["k"], result["indexed"], result["results"]
+    lines = []
+    # Metrics measure the index, not the code: an index built from older records
+    # would score a connector on what it used to produce.
+    if produced is not None and produced != indexed:
+        lines.append(
+            f"- WARN index is stale: {indexed} chunks indexed, the connector now produces {produced}; "
+            f"re-ingest before trusting these metrics"
+        )
+    if not results:
+        lines.append(
+            f"- WARN {RAG_SERVER_DIR}/eval.py has no benchmarks for {connector_name}; "
+            f"AGENTS.md asks each connector for two or three"
+        )
+        return lines
+
+    for benchmark in results:
+        lines.append(
+            f"- {'PASS' if benchmark['passed'] else 'FAIL'} "
+            f"P@{k} {benchmark['p_at_k']:.2f} of {benchmark['p_ceiling']:.2f} possible, "
+            f"R@{k} {benchmark['r_at_k']:.2f}: \"{benchmark['query']}\""
+        )
+        if not benchmark["passed"]:
+            lines.append(f"  retrieved: {', '.join(benchmark['retrieved_chunk_ids']) or '(nothing within max_distance)'}")
+
+    passed = sum(benchmark["passed"] for benchmark in results)
+    lines.insert(0, (
+        f"- {passed}/{len(results)} benchmarks pass (P@{k} at its ceiling and R@{k} 1.0); "
+        f"{indexed} chunks indexed"
+    ))
     return lines
 
 
@@ -382,6 +447,7 @@ def collect(repo_root: Path, service: ServiceConfig | None) -> tuple[bool, str]:
         entity_lines.append(line)
         field_keys.extend(keys)
 
+    preview_lines, produced = _live_preview(rag_server_dir, connector_name)
     evidence = [
         f"RAG server: {RAG_SERVER_DIR}/ has all {len(REQUIRED_PYTHON_FILES)} required files and "
         f"{len(REQUIRED_RAG_ROUTES)} routes bound to endpoint functions.",
@@ -391,6 +457,8 @@ def collect(repo_root: Path, service: ServiceConfig | None) -> tuple[bool, str]:
         "Static rule checks (AGENTS.md):",
         *_rule_checks(tree, list(dict.fromkeys(field_keys))),
         "Live preview (connector run twice against the running service):",
-        *_live_preview(rag_server_dir, connector_name),
+        *preview_lines,
+        f"Retrieval metrics ({RAG_SERVER_DIR}/eval.py benchmarks, measured against the current index):",
+        *_retrieval_metrics(rag_server_dir, connector_name, produced),
     ]
     return True, "\n".join(evidence)

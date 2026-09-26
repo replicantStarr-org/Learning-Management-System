@@ -2,3 +2,4 @@
 chroma/
 rag-audit.jsonl
 rag-server.pid
+retrieval-metrics.md
