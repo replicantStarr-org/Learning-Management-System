@@ -989,34 +989,44 @@ document.getElementById("chat-modal").addEventListener("shown.bs.modal", () => c
 
 /* ---------- rag mode ---------- */
 
-const libraryView = document.getElementById("library-view");
-const ragView = document.getElementById("rag-view");
 const ragForm = document.getElementById("rag-form");
 const ragInput = document.getElementById("rag-input");
 const ragResult = document.getElementById("rag-result");
-// Only meaningful while browsing the library, so they step aside in Rag Mode.
+const mcpForm = document.getElementById("mcp-form");
+const mcpInput = document.getElementById("mcp-input");
+const mcpResult = document.getElementById("mcp-result");
+
+// Each mode's view, and the field focused on entering it.
+const MODES = {
+	library: { view: document.getElementById("library-view") },
+	rag: { view: document.getElementById("rag-view"), focus: ragInput },
+	mcp: { view: document.getElementById("mcp-view"), focus: mcpInput },
+};
+
+// Only meaningful while browsing the library, so they step aside in the other modes.
 const libraryOnlyControls = [
 	document.getElementById("upload-open"),
 	document.getElementById("chat-launcher"),
 ];
 
-// Both views live on this page; switching only swaps which one is shown. The
+// Every view lives on this page; switching only swaps which one is shown. The
 // mode is kept in the hash so a reload or a shared link lands in the same one.
 function setMode(mode) {
-	const isRag = mode === "rag";
+	if (!(mode in MODES)) {
+		mode = "library";
+	}
 
-	libraryView.hidden = isRag;
-	ragView.hidden = !isRag;
+	for (const [name, { view }] of Object.entries(MODES)) {
+		view.hidden = name !== mode;
+	}
 	for (const control of libraryOnlyControls) {
-		control.hidden = isRag;
+		control.hidden = mode !== "library";
 	}
 
-	document.getElementById(isRag ? "mode-rag" : "mode-library").checked = true;
-	history.replaceState(null, "", isRag ? "#rag" : location.pathname + location.search);
+	document.getElementById(`mode-${mode}`).checked = true;
+	history.replaceState(null, "", mode === "library" ? location.pathname + location.search : `#${mode}`);
 
-	if (isRag) {
-		ragInput.focus();
-	}
+	MODES[mode].focus?.focus();
 }
 
 for (const radio of document.querySelectorAll('input[name="page-mode"]')) {
@@ -1263,7 +1273,20 @@ ragForm.addEventListener("submit", (event) => {
 	);
 });
 
-setMode(location.hash === "#rag" ? "rag" : "library");
+/* ---------- mcp mode ---------- */
+
+// Not wired to the MCP server yet; the backend proxy comes next.
+mcpForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	mcpResult.replaceChildren(
+		Object.assign(document.createElement("p"), {
+			className: "text-secondary small mb-0",
+			textContent: "MCP Mode is not connected to the MCP server yet.",
+		}),
+	);
+});
+
+setMode(location.hash.slice(1));
 
 /* ---------- wiring ---------- */
 

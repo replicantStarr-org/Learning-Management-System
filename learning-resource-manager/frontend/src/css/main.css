@@ -181,7 +181,9 @@
     }
 }
 
-.rag-card {
+/* MCP Mode is laid out the same as Rag Mode, so it shares these styles. */
+.rag-card,
+.mcp-card {
     border: 0;
     border-radius: var(--radius-card);
     box-shadow: 0 0.125rem 0.5rem rgb(31 41 55 / 0.08);

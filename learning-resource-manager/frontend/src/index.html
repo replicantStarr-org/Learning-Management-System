@@ -43,12 +43,14 @@
 						<p class="lead text-secondary mb-0">Textbooks and papers in the library.</p>
 					</div>
 					<div class="d-flex flex-wrap justify-content-end align-items-center gap-2 flex-shrink-0">
-						<!-- Switches between the library and Rag Mode without leaving the page. -->
+						<!-- Switches between the library, Rag Mode and MCP Mode without leaving the page. -->
 						<div class="btn-group" role="group" aria-label="Page mode">
 							<input type="radio" class="btn-check" name="page-mode" id="mode-library" value="library" autocomplete="off" checked>
 							<label class="btn btn-outline-primary" for="mode-library">Library</label>
 							<input type="radio" class="btn-check" name="page-mode" id="mode-rag" value="rag" autocomplete="off">
 							<label class="btn btn-outline-primary" for="mode-rag">Rag Mode</label>
+							<input type="radio" class="btn-check" name="page-mode" id="mode-mcp" value="mcp" autocomplete="off">
+							<label class="btn btn-outline-primary" for="mode-mcp">MCP Mode</label>
 						</div>
 						<button type="button" class="btn btn-primary" id="upload-open" data-bs-toggle="modal" data-bs-target="#upload-modal">
 							Upload PDF
@@ -184,6 +186,31 @@
 									</div>
 								</div>
 							</div>
+						</div>
+					</div>
+				</section>
+
+				<!-- Tools on the shared LMS MCP server, the same ones an AI assistant calls. -->
+				<section id="mcp-view" aria-label="MCP Mode" hidden>
+					<div class="card mcp-card">
+						<div class="card-body">
+							<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+								<h2 class="h5 mb-0">Call a tool</h2>
+								<code class="rag-route">POST /mcp</code>
+							</div>
+							<p class="text-secondary small mb-3">
+								Runs a tool on the LMS MCP server and shows what it returned.
+							</p>
+
+							<form id="mcp-form">
+								<div class="rag-query">
+									<input type="text" class="form-control" id="mcp-input" autocomplete="off"
+									       placeholder="Tool name, such as echo" aria-label="Tool name" required>
+									<button type="submit" class="btn btn-primary" id="mcp-send">Call</button>
+								</div>
+							</form>
+
+							<div class="rag-result" id="mcp-result" aria-live="polite"></div>
 						</div>
 					</div>
 				</section>
