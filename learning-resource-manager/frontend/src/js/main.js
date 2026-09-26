@@ -1023,21 +1023,81 @@ for (const radio of document.querySelectorAll('input[name="page-mode"]')) {
 	radio.addEventListener("change", () => setMode(radio.value));
 }
 
-// Shows the response exactly as the RAG server sent it, since these cards are
-// for seeing what each endpoint does, with the status code and round trip time.
-function showEndpointResult(output, { ok, summary, body }) {
+function endpointStatus(ok, summary) {
 	const status = document.createElement("p");
 	status.className = `rag-output-status ${ok ? "is-ok" : "is-error"}`;
 	status.textContent = summary;
+	return status;
+}
 
+// Shows the response exactly as the RAG server sent it, since these cards are
+// for seeing what each endpoint does, with the status code and round trip time.
+function showEndpointResult(output, { ok, summary, body }) {
 	const json = document.createElement("pre");
 	json.className = "rag-output-body";
 	json.textContent = JSON.stringify(body, null, 2);
 
-	output.replaceChildren(status, json);
+	output.replaceChildren(endpointStatus(ok, summary), json);
 }
 
-async function callEndpoint(button, output, url, request = {}) {
+// The top k chunks as a ranked list rather than raw JSON: their text is exactly
+// what an answer would be drawn from, so it is the part worth reading. Anything
+// else, such as a 400 for a missing query, falls back to the plain response.
+function showRetrieveResults(output, result) {
+	const { results, k } = result.body;
+	if (!result.ok || !Array.isArray(results)) {
+		showEndpointResult(output, result);
+		return;
+	}
+
+	// Fewer than k comes back when the rest are too far from the query to count.
+	const status = endpointStatus(true, `${result.summary} · ${results.length} of ${k} results`);
+
+	if (!results.length) {
+		output.replaceChildren(
+			status,
+			Object.assign(document.createElement("p"), {
+				className: "text-secondary small mb-0",
+				textContent: "Nothing indexed is close enough to that query.",
+			}),
+		);
+		return;
+	}
+
+	const list = document.createElement("ol");
+	list.className = "rag-results";
+
+	for (const item of results) {
+		const rank = document.createElement("span");
+		rank.className = "rag-results-rank";
+		rank.textContent = `#${item.rank}`;
+
+		const title = document.createElement("span");
+		title.className = "rag-results-title";
+		title.textContent = item.title;
+
+		const distance = document.createElement("span");
+		distance.className = "rag-results-distance";
+		distance.textContent = `distance ${item.distance}`;
+		distance.title = "Lower is closer to the query";
+
+		const heading = document.createElement("div");
+		heading.className = "rag-results-heading";
+		heading.append(rank, title, distance);
+
+		const text = document.createElement("p");
+		text.className = "rag-results-text preserve-lines";
+		text.textContent = item.text;
+
+		const entry = document.createElement("li");
+		entry.append(heading, text);
+		list.append(entry);
+	}
+
+	output.replaceChildren(status, list);
+}
+
+async function callEndpoint(button, output, url, request = {}, show = showEndpointResult) {
 	button.disabled = true;
 	output.replaceChildren(
 		Object.assign(document.createElement("p"), {
@@ -1051,7 +1111,7 @@ async function callEndpoint(button, output, url, request = {}) {
 		const response = await fetch(url, request);
 		const body = await response.json().catch(() => ({}));
 		const elapsed = Math.round(performance.now() - started);
-		showEndpointResult(output, {
+		show(output, {
 			ok: response.ok,
 			summary: `${response.status} ${response.ok ? "OK" : "Error"} · ${elapsed} ms`,
 			body,
@@ -1070,6 +1130,27 @@ async function callEndpoint(button, output, url, request = {}) {
 const ragHealthCheck = document.getElementById("rag-health-check");
 ragHealthCheck.addEventListener("click", () =>
 	callEndpoint(ragHealthCheck, document.getElementById("rag-health-output"), "/api/rag/health"));
+
+const ragRetrieveForm = document.getElementById("rag-retrieve-form");
+ragRetrieveForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	const k = document.getElementById("rag-retrieve-k").value;
+	callEndpoint(
+		ragRetrieveForm.querySelector('button[type="submit"]'),
+		document.getElementById("rag-retrieve-output"),
+		"/api/rag/retrieve",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				query: document.getElementById("rag-retrieve-input").value,
+				// Blank is sent as null, so the RAG server uses its configured default.
+				k: k ? Number(k) : null,
+			}),
+		},
+		showRetrieveResults,
+	);
+});
 
 // Sends no body: the backend decides which service is re-indexed.
 const ragIngestForm = document.getElementById("rag-ingest-form");
@@ -1092,18 +1173,11 @@ function showNotConnected(output) {
 	);
 }
 
-// Not wired to the RAG server yet; each gets its backend route in turn.
+// Not wired to the RAG server yet; the last endpoint to get its backend route.
 ragForm.addEventListener("submit", (event) => {
 	event.preventDefault();
 	showNotConnected(ragResult);
 });
-
-for (const form of document.querySelectorAll(".rag-endpoint-form")) {
-	form.addEventListener("submit", (event) => {
-		event.preventDefault();
-		showNotConnected(document.getElementById(form.dataset.output));
-	});
-}
 
 setMode(location.hash === "#rag" ? "rag" : "library");
 

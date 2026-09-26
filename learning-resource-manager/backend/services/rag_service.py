@@ -42,6 +42,14 @@ def _request(method, path, payload=None, timeout=TIMEOUT_SECONDS):
 def health():
     return _request("GET", "/health")
 
+def retrieve(query, k=None):
+    """The k indexed chunks closest to the query, closest first.
+
+    A missing k is sent as null, which the RAG server reads as its configured
+    default. Both values are checked there rather than here.
+    """
+    return _request("POST", "/retrieve", {"query": query, "k": k, "service": SERVICE})
+
 def ingest():
     """Re-index this service's records from the library as it is now.
 
