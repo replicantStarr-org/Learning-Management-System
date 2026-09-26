@@ -1071,20 +1071,6 @@ const ragHealthCheck = document.getElementById("rag-health-check");
 ragHealthCheck.addEventListener("click", () =>
 	callEndpoint(ragHealthCheck, document.getElementById("rag-health-output"), "/api/rag/health"));
 
-// The connector names in rag-server/pipeline/connectors. Stands in for GET
-// /services until that card is wired up and can fill these itself.
-const RAG_SERVICES = ["assignments", "learning-resources", "quizzes", "subjects", "timetable"];
-const DEFAULT_RAG_SERVICE = "learning-resources";
-
-// An empty service means every service, for searching and for ingesting alike.
-for (const select of document.querySelectorAll(".rag-service-select")) {
-	select.append(
-		new Option("All services", ""),
-		...RAG_SERVICES.map((service) =>
-			new Option(service, service, false, service === DEFAULT_RAG_SERVICE)),
-	);
-}
-
 function showNotConnected(output) {
 	output.replaceChildren(
 		Object.assign(document.createElement("p"), {
