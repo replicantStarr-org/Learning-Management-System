@@ -1,32 +1,31 @@
 # Containers are named learning-hub-LRM-* so they are easy to pick out of the
 # whole hub's stack. Set here rather than by renaming the services: Compose
-# names built images after the service, and image names must be lowercase. The
-# service names also stay short, since nginx and the backend reach each other
-# by them.
+# names built images after the service, and image names must be lowercase.
+#
+# Every container shares the host's network, like the hub's other services, on
+# this service's ports from design.md: frontend 3002, backend 5002, database
+# 6002. So "localhost" inside a container is the host, which is also how the
+# backend reaches Ollama, the RAG server and the MCP server running there.
 services:
   backend:
     container_name: learning-hub-LRM-backend
     build:
       context: backend
       dockerfile: Dockerfile
+    network_mode: host
     env_file:
       - ".env"
     environment:
       - CONTENT_PATH=/content
       # Every statement goes to the database service over this address; the
       # backend never opens the database file itself.
-      - DATABASE_SERVICE_URL=http://database:5000
-      # Ollama runs on the host, so "localhost" from inside this container would
-      # be the container itself.
-      - OLLAMA_URL=host.docker.internal
-      # The RAG server (rag-server/) also runs on the host, on server.port in
-      # its config.toml.
-      - RAG_SERVER_URL=http://host.docker.internal:5010
-      # The shared MCP server (mcp/) runs on the host too; see MCP_HOST in
-      # mcp/server.py for why it can be reached from here.
-      - MCP_SERVER_URL=http://host.docker.internal:8000/mcp
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - DATABASE_SERVICE_URL=http://localhost:6002
+      - OLLAMA_URL=localhost
+      # The RAG server (rag-server/), on server.port in its config.toml.
+      - RAG_SERVER_URL=http://localhost:5010
+      # The shared MCP server (mcp/). 127.0.0.1 rather than localhost, because
+      # it listens on IPv4 loopback only.
+      - MCP_SERVER_URL=http://127.0.0.1:8000/mcp
     # Nothing the backend serves works until the database service answers, so
     # wait for its health check rather than just for the container to start.
     depends_on:
@@ -36,16 +35,14 @@ services:
       # Writable here because uploads land in it; the frontend mounts it read
       # only because it just serves the files.
       - ./content:/content
-    ports:
-      - "7050:5000"
 
-  # Owns the database file and runs the statements the backend sends it. The
-  # port is deliberately not published: only the backend has any business here.
+  # Owns the database file and runs the statements the backend sends it.
   database:
     container_name: learning-hub-LRM-database
     build:
       context: database
       dockerfile: Dockerfile
+    network_mode: host
     env_file:
       - ".env"
     environment:
@@ -55,7 +52,7 @@ services:
     healthcheck:
       # python rather than curl, because the slim image ships no HTTP client.
       test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+             "import urllib.request; urllib.request.urlopen('http://localhost:6002/health')"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -66,13 +63,12 @@ services:
     build:
       context: ..
       dockerfile: learning-resource-manager/frontend/Dockerfile
+    network_mode: host
     depends_on:
       backend:
         condition: service_started
     volumes:
       - ./content:/content:ro
-    ports:
-      - "3002:80"
     develop:
       watch:
         - action: sync

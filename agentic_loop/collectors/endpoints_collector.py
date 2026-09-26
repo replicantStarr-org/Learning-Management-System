@@ -60,7 +60,7 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
         "access": 5000,
         "subjects": 5001,
         "assignments": 5003,
-        "resources": 7050,
+        "resources": 5002,
         "quizzes": 5004,
         "timetable": 5005,
     }

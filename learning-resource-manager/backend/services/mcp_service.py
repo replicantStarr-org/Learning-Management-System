@@ -6,10 +6,10 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from mcp.types import CallToolResult, TextContent
 
-# The shared MCP server (mcp/server.py) runs on the host rather than in Docker,
-# so from inside this container it is reached through host.docker.internal (see
-# compose.yml).
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
+# The shared MCP server (mcp/server.py) runs on the host, and this container
+# shares the host's network (see compose.yml). 127.0.0.1 rather than localhost,
+# because the server listens on IPv4 loopback only.
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8000/mcp")
 
 TIMEOUT_SECONDS = 10
 

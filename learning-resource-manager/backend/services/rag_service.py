@@ -2,8 +2,8 @@ import os
 
 import requests
 
-# The RAG server runs on the host rather than in Docker, so from inside this
-# container it is reached through host.docker.internal (see compose.yml).
+# The RAG server runs on the host rather than in Docker, and this container
+# shares the host's network (see compose.yml).
 RAG_SERVER_URL = os.getenv("RAG_SERVER_URL", "http://localhost:5010")
 
 # Rag Mode is only ever about this service's own records, indexed by the

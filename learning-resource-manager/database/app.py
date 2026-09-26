@@ -115,7 +115,7 @@ def substitute(params: list[Any], new_row_id: int | None) -> list[Any]:
     return [new_row_id if param == NEW_ROW_ID else param for param in params]
 
 def main() -> None:
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=6002)
 
 if __name__ == "__main__":
     main()
