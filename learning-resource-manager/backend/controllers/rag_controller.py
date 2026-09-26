@@ -46,3 +46,8 @@ def answer():
 @rag_bp.route('/ingest', methods=['POST'])
 def ingest():
     return _relay(rag_service.ingest)
+
+# Takes no body, like ingest, so the page can only ever clear this service.
+@rag_bp.route('/clear', methods=['POST'])
+def clear():
+    return _relay(rag_service.clear)

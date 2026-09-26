@@ -108,6 +108,28 @@ def write_chunks(service: str, chunks: list[dict[str, Any]]) -> int:
     return len(stale)
 
 
+def clear_services(service_name: str | None = None) -> dict[str, Any]:
+    """Delete one service's chunks, or every chunk when no name is given.
+
+    Nothing is fetched from the services; a later ingest rebuilds the index.
+    Clearing everything also removes chunks left under a renamed connector.
+    """
+    start = time.time()
+    collection = get_collection()
+    where = {"service": service_name} if service_name else None
+    ids = collection.get(where=where, include=[])["ids"]
+
+    # Deleted by ID in batches, like write_chunks, rather than by dropping the
+    # collection, which other request threads may be holding.
+    batch = max_batch_size()
+    for start_index in range(0, len(ids), batch):
+        collection.delete(ids=ids[start_index:start_index + batch])
+
+    output = {"status": "success", "service": service_name, "removed_count": len(ids)}
+    append_audit("clear", {"service": service_name}, output, "success", start)
+    return output
+
+
 def record_chunks(service: str, record: Record, indexed_at: str) -> list[dict[str, Any]]:
     header = f"{record.label}: {record.title}"
     blocks = render(record.fields)

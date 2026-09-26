@@ -76,3 +76,11 @@ def ingest():
     return _request(
         "POST", "/ingest", {"service": SERVICE}, timeout=INGEST_TIMEOUT_SECONDS
     )
+
+def clear():
+    """Delete this service's records from the index; ingest() puts them back.
+
+    The service is always named: the RAG server clears every service's records
+    when none is.
+    """
+    return _request("POST", "/clear", {"service": SERVICE})

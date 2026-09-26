@@ -52,6 +52,7 @@ REQUIRED_RAG_ROUTES = [
     ("GET", "/health"),
     ("GET", "/services"),
     ("POST", "/ingest"),
+    ("POST", "/clear"),
     ("POST", "/retrieve"),
     ("POST", "/answer"),
 ]

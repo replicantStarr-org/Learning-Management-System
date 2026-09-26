@@ -18,6 +18,10 @@ BLUEPRINT = re.compile(
 )
 BLUEPRINT_NAME = re.compile(r"(\w+)\s*=\s*Blueprint\(")
 PARAMETER = re.compile(r"<(?:(?:int|string|float|path|uuid):)?[^>]+>")
+# Only these are called live. Anything else can change data: a DELETE of
+# /api/resources/1 removes a real resource, and POST /api/rag/clear empties the
+# RAG index, since neither needs a body to succeed.
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
 def _runnable_path(path: str) -> str:
@@ -70,6 +74,9 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
     failures: list[str] = []
     session = requests.Session()
     for method, declared_path in routes:
+        if method not in SAFE_METHODS:
+            evidence.append(f"{method} {declared_path} -> not called (could change data)")
+            continue
         path = _runnable_path(declared_path)
         try:
             response = session.request(method, base_url + path, timeout=2)

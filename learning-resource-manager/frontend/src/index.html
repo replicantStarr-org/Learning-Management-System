@@ -168,6 +168,31 @@
 						</div>
 					</div>
 
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Clear</h3>
+										<code class="rag-route">POST /clear</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Removes the learning resources from the index, leaving the library itself
+										untouched. Questions have nothing to answer from until the next re-index.
+									</p>
+									<form id="rag-clear-form">
+										<button type="submit" class="btn btn-outline-danger btn-sm">Clear index</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-clear-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					<div class="card rag-card">
 						<div class="card-body">
 							<div class="row g-4">

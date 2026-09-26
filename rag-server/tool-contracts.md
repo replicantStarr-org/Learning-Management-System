@@ -11,6 +11,13 @@ Exposed both as MCP tools (`server/mcp_server.py`) and HTTP endpoints (`server/h
 - A service that cannot be reached keeps its previously indexed chunks
 - Policy class: read + index update
 
+## clear — `POST /clear` (HTTP only)
+- Purpose: delete indexed chunks without contacting any service; `POST /ingest` rebuilds them
+- Input: `service` (optional, **the whole index** when omitted, including chunks left under a renamed connector)
+- Output: `status` (`success`), `service`, `removed_count`
+- Not exposed as an MCP tool, so an agent cannot empty the index
+- Policy class: index delete
+
 ## retrieve_context — `POST /retrieve`
 - Purpose: retrieve the top `k` chunks within `retrieval.max_distance`
 - Input: `query` (required), `k` (optional), `service` (optional)
