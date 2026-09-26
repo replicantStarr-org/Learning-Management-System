@@ -4,7 +4,7 @@ import requests
 
 # The backend never opens the database file. Statements are sent to the database
 # service, which owns the file, runs them and sends the rows back.
-DATABASE_SERVICE_URL = os.getenv("DATABASE_SERVICE_URL", "http://localhost:5000")
+DATABASE_SERVICE_URL = os.getenv("DATABASE_SERVICE_URL", "http://localhost:6002")
 TIMEOUT_SECONDS = 15
 
 # Stands in, inside a transaction, for the id of the row the first statement

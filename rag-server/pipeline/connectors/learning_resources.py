@@ -1,8 +1,7 @@
 from ..connector import Connector, Record, pick
 
-# The backend, not the database: the database port is deliberately unpublished
-# and only accepts raw SQL.
-connector = Connector("learning-resources", "http://localhost:7050")
+# The backend, not the database: the database only accepts raw SQL.
+connector = Connector("learning-resources", "http://localhost:5002")
 
 
 @connector.entity

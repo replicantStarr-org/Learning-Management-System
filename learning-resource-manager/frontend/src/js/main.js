@@ -989,34 +989,41 @@ document.getElementById("chat-modal").addEventListener("shown.bs.modal", () => c
 
 /* ---------- rag mode ---------- */
 
-const libraryView = document.getElementById("library-view");
-const ragView = document.getElementById("rag-view");
 const ragForm = document.getElementById("rag-form");
 const ragInput = document.getElementById("rag-input");
 const ragResult = document.getElementById("rag-result");
-// Only meaningful while browsing the library, so they step aside in Rag Mode.
+
+// Each mode's view, and the control focused on entering it.
+const MODES = {
+	library: { view: document.getElementById("library-view") },
+	rag: { view: document.getElementById("rag-view"), focus: ragInput },
+	mcp: { view: document.getElementById("mcp-view"), focus: document.getElementById("mcp-tools-list") },
+};
+
+// Only meaningful while browsing the library, so they step aside in the other modes.
 const libraryOnlyControls = [
 	document.getElementById("upload-open"),
 	document.getElementById("chat-launcher"),
 ];
 
-// Both views live on this page; switching only swaps which one is shown. The
+// Every view lives on this page; switching only swaps which one is shown. The
 // mode is kept in the hash so a reload or a shared link lands in the same one.
 function setMode(mode) {
-	const isRag = mode === "rag";
+	if (!(mode in MODES)) {
+		mode = "library";
+	}
 
-	libraryView.hidden = isRag;
-	ragView.hidden = !isRag;
+	for (const [name, { view }] of Object.entries(MODES)) {
+		view.hidden = name !== mode;
+	}
 	for (const control of libraryOnlyControls) {
-		control.hidden = isRag;
+		control.hidden = mode !== "library";
 	}
 
-	document.getElementById(isRag ? "mode-rag" : "mode-library").checked = true;
-	history.replaceState(null, "", isRag ? "#rag" : location.pathname + location.search);
+	document.getElementById(`mode-${mode}`).checked = true;
+	history.replaceState(null, "", mode === "library" ? location.pathname + location.search : `#${mode}`);
 
-	if (isRag) {
-		ragInput.focus();
-	}
+	MODES[mode].focus?.focus();
 }
 
 for (const radio of document.querySelectorAll('input[name="page-mode"]')) {
@@ -1102,7 +1109,8 @@ async function callEndpoint(button, output, url, request = {}, show = showEndpoi
 	output.replaceChildren(
 		Object.assign(document.createElement("p"), {
 			className: "text-secondary small mb-0",
-			textContent: "Waiting for the RAG server...",
+			// Shared by the Rag Mode and MCP Mode cards, so it names neither server.
+			textContent: "Waiting for a response...",
 		}),
 	);
 
@@ -1263,7 +1271,64 @@ ragForm.addEventListener("submit", (event) => {
 	);
 });
 
-setMode(location.hash === "#rag" ? "rag" : "library");
+/* ---------- mcp mode ---------- */
+
+// Laid out like Rag Mode's endpoint cards, so they are called and shown the same way.
+const mcpToolsList = document.getElementById("mcp-tools-list");
+mcpToolsList.addEventListener("click", () =>
+	callEndpoint(mcpToolsList, document.getElementById("mcp-tools-output"), "/api/mcp/tools"));
+
+const mcpResourcesList = document.getElementById("mcp-resources-list");
+mcpResourcesList.addEventListener("click", () =>
+	callEndpoint(mcpResourcesList, document.getElementById("mcp-resources-output"), "/api/mcp/resources"));
+
+const mcpTagsList = document.getElementById("mcp-tags-list");
+mcpTagsList.addEventListener("click", () =>
+	callEndpoint(mcpTagsList, document.getElementById("mcp-tags-output"), "/api/mcp/tags"));
+
+const mcpByTagForm = document.getElementById("mcp-by-tag-form");
+mcpByTagForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	callEndpoint(
+		mcpByTagForm.querySelector('button[type="submit"]'),
+		document.getElementById("mcp-by-tag-output"),
+		"/api/mcp/resources/by_tag",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ tag: document.getElementById("mcp-by-tag-input").value }),
+		},
+	);
+});
+
+// Like the subjects service's MCP page: when the backend has MCP turned off,
+// say so once and disable the cards, rather than each failing with a 403.
+async function loadMcpStatus() {
+	let message = null;
+	try {
+		const response = await fetch("/api/mcp/status");
+		const status = await response.json();
+		if (!status.enabled) {
+			message = "MCP integration is disabled by the application configuration.";
+		}
+	} catch {
+		message = "MCP status could not be checked. The backend may be unavailable.";
+	}
+
+	if (!message) {
+		return;
+	}
+	const notice = document.getElementById("mcp-status");
+	notice.textContent = message;
+	notice.hidden = false;
+	for (const button of document.querySelectorAll("#mcp-view button")) {
+		button.disabled = true;
+	}
+}
+
+loadMcpStatus();
+
+setMode(location.hash.slice(1));
 
 /* ---------- wiring ---------- */
 

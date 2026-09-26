@@ -29,6 +29,11 @@ SUBJECT_TOOL_NAMES = {
     "subjects_subject_tags_set",
     "subjects_subject_tag_remove",
 }
+RESOURCE_TOOL_NAMES = {
+    "learning_resources_list",
+    "learning_resources_tags_list",
+    "learning_resources_by_tag",
+}
 
 
 async def _call(session: ClientSession, name: str, arguments: dict[str, Any] | None = None) -> Any:
@@ -192,8 +197,73 @@ async def _review_subjects(session: ClientSession, tool_names: set[str]) -> list
     return evidence
 
 
+async def _review_resources(session: ClientSession, tool_names: set[str]) -> list[str]:
+    """Cross-check the read-only learning resource tools against each other.
+
+    The tools only read, so there is no fixture to create or clean up: the
+    library's own resources and tags are the test data.
+    """
+    missing = sorted(RESOURCE_TOOL_NAMES - tool_names)
+    if missing:
+        raise RuntimeError("learning resource tools missing from MCP server: " + ", ".join(missing))
+
+    evidence: list[str] = [
+        f"learning resource tools advertised: {len(RESOURCE_TOOL_NAMES)}; all read-only, "
+        "so no CRUD fixture is created"
+    ]
+
+    resources = await _call(session, "learning_resources_list")
+    if not isinstance(resources, list) or not resources:
+        raise RuntimeError("learning_resources_list did not return a non-empty JSON list")
+    evidence.append(f"learning_resources_list returned {len(resources)} resource(s)")
+
+    tags = await _call(session, "learning_resources_tags_list")
+    tag_names = {tag["name"] for tag in tags}
+    carried = {name for resource in resources for name in resource["tags"]}
+    if carried - tag_names:
+        raise RuntimeError(
+            "tags on resources missing from learning_resources_tags_list: "
+            + ", ".join(sorted(carried - tag_names))
+        )
+    evidence.append(f"learning_resources_tags_list returned {len(tags)} tag(s), including every tag a resource carries")
+
+    # The most used tag, so the check covers as many resources as it can.
+    tag = max(sorted(carried), key=lambda name: sum(name in r["tags"] for r in resources))
+    expected = {r["l_resource_id"] for r in resources if tag in r["tags"]}
+    for query in (tag, f"  {tag.upper()} "):
+        found = {r["l_resource_id"] for r in await _call(session, "learning_resources_by_tag", {"tag": query})}
+        if found != expected:
+            raise RuntimeError(f"learning_resources_by_tag({query!r}) did not match learning_resources_list")
+    evidence.append(
+        f"learning_resources_by_tag({tag!r}) returned the same {len(expected)} resource(s) as "
+        "learning_resources_list, ignoring case and surrounding spaces"
+    )
+
+    if await _call(session, "learning_resources_by_tag", {"tag": f"No Such Tag {uuid4().hex[:10]}"}) != []:
+        raise RuntimeError("learning_resources_by_tag did not return [] for an unknown tag")
+    evidence.append("learning_resources_by_tag returns [] for an unknown tag")
+
+    blank = await session.call_tool("learning_resources_by_tag", {"tag": "   "})
+    if not blank.is_error:
+        raise RuntimeError("learning_resources_by_tag accepted a blank tag")
+    evidence.append("learning_resources_by_tag rejects a blank tag with an MCP error")
+
+    # The contracts clients see, so the models have more than passing calls to
+    # review. The shared server lists every service's tools; only these are ours.
+    for tool in sorted((await session.list_tools()).tools, key=lambda tool: tool.name):
+        if tool.name in RESOURCE_TOOL_NAMES:
+            output = list((tool.output_schema or {}).get("properties", {}))
+            evidence.append(
+                f"{tool.name} contract: output schema fields {output or 'none'}, "
+                f"annotations {'none' if tool.annotations is None else tool.annotations}"
+            )
+
+    return evidence
+
+
 SERVICE_REVIEWS: dict[str, Callable[[ClientSession, set[str]], Awaitable[list[str]]]] = {
     "subjects": _review_subjects,
+    "resources": _review_resources,
 }
 
 

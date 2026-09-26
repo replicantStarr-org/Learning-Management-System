@@ -42,13 +42,16 @@
 						<h1 class="display-5 fw-bold">Learning resources</h1>
 						<p class="lead text-secondary mb-0">Textbooks and papers in the library.</p>
 					</div>
-					<div class="d-flex flex-wrap justify-content-end align-items-center gap-2 flex-shrink-0">
-						<!-- Switches between the library and Rag Mode without leaving the page. -->
+					<!-- Stacked, so Upload PDF sits below the mode switch, aligned to its right edge. -->
+					<div class="d-flex flex-column align-items-end gap-2 flex-shrink-0">
+						<!-- Switches between the library, Rag Mode and MCP Mode without leaving the page. -->
 						<div class="btn-group" role="group" aria-label="Page mode">
 							<input type="radio" class="btn-check" name="page-mode" id="mode-library" value="library" autocomplete="off" checked>
 							<label class="btn btn-outline-primary" for="mode-library">Library</label>
 							<input type="radio" class="btn-check" name="page-mode" id="mode-rag" value="rag" autocomplete="off">
 							<label class="btn btn-outline-primary" for="mode-rag">Rag Mode</label>
+							<input type="radio" class="btn-check" name="page-mode" id="mode-mcp" value="mcp" autocomplete="off">
+							<label class="btn btn-outline-primary" for="mode-mcp">MCP Mode</label>
 						</div>
 						<button type="button" class="btn btn-primary" id="upload-open" data-bs-toggle="modal" data-bs-target="#upload-modal">
 							Upload PDF
@@ -181,6 +184,109 @@
 								<div class="col-md-7">
 									<div class="rag-output" id="rag-health-output" aria-live="polite">
 										<p class="text-secondary small mb-0">Not checked yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<!-- Tools on the shared LMS MCP server, the same ones an AI assistant calls.
+				     Each card is one backend endpoint calling one tool; the page never names
+				     a tool itself, since the server also holds other services' tools. -->
+				<section id="mcp-view" aria-label="MCP Mode" hidden>
+					<div class="alert alert-warning" id="mcp-status" role="status" hidden></div>
+
+					<div class="card mcp-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Available tools</h3>
+										<code class="rag-route">GET /api/mcp/tools</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Every tool the MCP server offers, with the description and inputs a model
+										would see. Also shows whether the server can be reached from this service.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="mcp-tools-list">List tools</button>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="mcp-tools-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card mcp-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">List resources</h3>
+										<code class="rag-route">learning_resources_list</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Every learning resource in the library with its tags, fetched by the MCP
+										server from this service's API.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="mcp-resources-list">List resources</button>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="mcp-resources-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card mcp-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">List tags</h3>
+										<code class="rag-route">learning_resources_tags_list</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Every tag in the library, including any no resource carries yet. These are
+										the names Resources by tag matches.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="mcp-tags-list">List tags</button>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="mcp-tags-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card mcp-card">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Resources by tag</h3>
+										<code class="rag-route">learning_resources_by_tag</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										The learning resources carrying a tag. The whole tag name is matched,
+										ignoring case.
+									</p>
+									<form id="mcp-by-tag-form">
+										<input type="text" class="form-control form-control-sm mb-3" id="mcp-by-tag-input"
+										       autocomplete="off" placeholder="Tag, such as Deep Learning" aria-label="Tag" required>
+										<button type="submit" class="btn btn-primary btn-sm">Find resources</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="mcp-by-tag-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
 									</div>
 								</div>
 							</div>

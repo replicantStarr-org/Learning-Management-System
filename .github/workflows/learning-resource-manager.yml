@@ -74,14 +74,15 @@ jobs:
           DATABASE_NAME=l_r_db.db
           DATABASE_PATH=/app/data
           LANGUAGE_MODEL=qwen2.5:0.5b
-          OLLAMA_URL=host.docker.internal
+          OLLAMA_URL=localhost
           OLLAMA_PORT=11434
           EOF
 
-      - name: Build and start the services
+      - name: Build and start the services with MCP disabled
         # The database service runs for as long as the application does, and the
-        # backend waits for its health check before starting.
-        run: docker compose up --detach --build
+        # backend waits for its health check before starting. MCP is off, like
+        # the subjects workflow, because no MCP server runs on the runner.
+        run: MCP_ENABLED=false docker compose up --detach --build
 
       - name: Check the database service is serving
         run: |
@@ -125,10 +126,11 @@ jobs:
             return 1
           }
 
-          # Asked of compose rather than written out here, so that changing a
-          # published port in compose.yml cannot leave these probes behind.
-          backend="http://localhost:$(docker compose port backend 5000 | awk -F: '{print $NF}')"
-          frontend="http://localhost:$(docker compose port frontend 80 | awk -F: '{print $NF}')"
+          # The containers share the runner's network, so nothing is published
+          # for compose to report; these are the ports from design.md that
+          # compose.yml and the nginx config bind directly.
+          backend="http://localhost:5002"
+          frontend="http://localhost:3002"
           echo "Backend on $backend, frontend on $frontend."
 
           # Reads the seeded resources back through the database service, so a
@@ -139,13 +141,31 @@ jobs:
           probe "Highlight summary" "$backend/api/highlights/resource/1/summary"
           # Serves the single page app.
           probe "Frontend index" "$frontend/"
-          # Proves the nginx proxy reaches the backend container.
+          # Proves the nginx proxy reaches the backend.
           probe "Frontend to backend proxy" "$frontend/api/highlights/colours"
           # Proves the content volume is mounted where PDF.js expects it.
           probe "Learning resource PDF" "$frontend/content/pdf/1706.03762.pdf"
 
           # The chat endpoint is deliberately not probed: it calls a language
           # model running on the developer's host, which no runner provides.
+
+      - name: Verify MCP integration is disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response="$(curl --silent --show-error --fail http://localhost:5002/api/mcp/status)"
+          echo "$response"
+          jq -e '.enabled == false and .mcp_enabled == false' <<< "$response"
+
+          # A tool route must refuse rather than try to reach an MCP server.
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            http://localhost:5002/api/mcp/resources)"
+          if [[ "$status" != "403" ]]; then
+            echo "::error::/api/mcp/resources returned HTTP $status with MCP disabled, expected 403."
+            exit 1
+          fi
+          echo "/api/mcp/resources is refused with HTTP 403."
 
       - name: Dump service logs
         if: failure()
