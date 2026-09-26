@@ -210,8 +210,9 @@ your service's folder).
 
    Read the output as the model will. Could it answer your users' questions
    from this text alone?
-3. **Ingest** with the server running (`./run.sh`, or `./run.ps1` on Windows,
-   on port 5010):
+3. **Ingest** with the server running (`./run.sh`, or `./run.ps1` on Windows).
+   It is reached at `server.url` in `rag-server/config.toml`,
+   `http://localhost:5010` by default:
 
    ```bash
    curl -X POST localhost:5010/ingest -d '{"service": "YOUR_SERVICE"}'

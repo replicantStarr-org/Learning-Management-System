@@ -32,12 +32,18 @@ jobs:
       - name: Initialise the RAG server
         run: bash init.sh
 
+      - name: Read the RAG server URL
+        run: |
+          url="$(.venv_rag/bin/python -c 'from pipeline.common import settings; print(settings()["server"]["url"])')"
+          echo "RAG server URL: $url"
+          echo "RAG_URL=$url" >> "$GITHUB_ENV"
+
       - name: Start the RAG server
         run: |
           nohup ./run.sh > server.log 2>&1 &
 
           for attempt in {1..8}; do
-            if curl --silent --fail --max-time 5 --output /dev/null http://localhost:5010/health; then
+            if curl --silent --fail --max-time 5 --output /dev/null "${RAG_URL}/health"; then
               echo "RAG server is up."
               exit 0
             fi
@@ -63,7 +69,7 @@ jobs:
             fi
 
             local status
-            status="$(curl "${args[@]}" "http://localhost:5010$path" || true)"
+            status="$(curl "${args[@]}" "${RAG_URL}$path" || true)"
             if [[ "$status" == "$expected" ]] && jq --exit-status "$assertion" response.json > /dev/null 2>&1; then
               echo "PASS $method $path -> HTTP $status (expected $expected)"
             else
@@ -92,7 +98,7 @@ jobs:
         if: always()
         run: |
           ./run.sh stop
-          if curl --silent --max-time 2 --output /dev/null http://localhost:5010/health; then
+          if curl --silent --max-time 2 --output /dev/null "${RAG_URL}/health"; then
             echo "::error::RAG server is still responding after ./run.sh stop."
             exit 1
           fi

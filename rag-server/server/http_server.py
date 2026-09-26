@@ -7,6 +7,7 @@ import json
 import os
 import signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
 
 from pipeline.common import BASE_DIR, settings
 
@@ -84,10 +85,15 @@ def stop_on_sigterm(signum, frame):
 def main():
     server_settings = settings()["server"]
     host, port = server_settings["host"], server_settings["port"]
+    url = server_settings["url"]
     server = RAGServer((host, port), RAGHandler)
     PID_FILE.write_text(str(os.getpid()))
     signal.signal(signal.SIGTERM, stop_on_sigterm)
-    print(f"RAG HTTP server running on {host}:{port}", flush=True)
+    print(f"RAG HTTP server running on {host}:{port}, reachable at {url}", flush=True)
+    # `url` is what clients use, `port` is what the server binds; they are
+    # set separately in config.toml, so catch them drifting apart.
+    if urlparse(url).port != port:
+        print(f"warning: server.url {url} does not use server.port {port}; clients will not reach this server", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
