@@ -42,19 +42,58 @@
 						<h1 class="display-5 fw-bold">Learning resources</h1>
 						<p class="lead text-secondary mb-0">Textbooks and papers in the library.</p>
 					</div>
-					<button type="button" class="btn btn-primary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#upload-modal">
-						Upload PDF
-					</button>
+					<div class="d-flex flex-wrap justify-content-end align-items-center gap-2 flex-shrink-0">
+						<!-- Switches between the library and Rag Mode without leaving the page. -->
+						<div class="btn-group" role="group" aria-label="Page mode">
+							<input type="radio" class="btn-check" name="page-mode" id="mode-library" value="library" autocomplete="off" checked>
+							<label class="btn btn-outline-primary" for="mode-library">Library</label>
+							<input type="radio" class="btn-check" name="page-mode" id="mode-rag" value="rag" autocomplete="off">
+							<label class="btn btn-outline-primary" for="mode-rag">Rag Mode</label>
+						</div>
+						<button type="button" class="btn btn-primary" id="upload-open" data-bs-toggle="modal" data-bs-target="#upload-modal">
+							Upload PDF
+						</button>
+					</div>
 				</header>
 
-				<div id="spinner" class="htmx-indicator text-center mb-3">
-					<div class="spinner-border text-primary" role="status">
-						<span class="visually-hidden">LOADING...</span>
+				<section id="library-view" aria-label="Library">
+					<div id="spinner" class="htmx-indicator text-center mb-3">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">LOADING...</span>
+						</div>
 					</div>
-				</div>
 
-				<div id="book-grid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4" hx-get="/api/resources/all_html" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#spinner">
-				</div>
+					<div id="book-grid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4" hx-get="/api/resources/all_html" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#spinner">
+					</div>
+				</section>
+
+				<!-- Questions answered by the RAG server from the indexed library. -->
+				<section id="rag-view" aria-labelledby="rag-heading" hidden>
+					<div class="card rag-card">
+						<div class="card-body">
+							<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+								<div>
+									<h2 class="h5 mb-1" id="rag-heading">Rag Mode</h2>
+									<p class="text-secondary small mb-0">
+										Answers come only from what has been indexed from the library, with the
+										records they were drawn from.
+									</p>
+								</div>
+								<button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" id="rag-ingest">
+									Re-index library
+								</button>
+							</div>
+
+							<form class="rag-form" id="rag-form">
+								<input type="text" class="form-control" id="rag-input" autocomplete="off"
+								       placeholder="Ask a question about the library" aria-label="Your question">
+								<button type="submit" class="btn btn-primary" id="rag-send">Ask</button>
+							</form>
+
+							<div class="rag-result" id="rag-result" aria-live="polite"></div>
+						</div>
+					</div>
+				</section>
 			</div>
 		</div>
 
@@ -177,7 +216,7 @@
 		</div>
 
 		<!-- Library assistant, opened by the floating button. -->
-		<button type="button" class="btn btn-primary chat-launcher" data-bs-toggle="modal" data-bs-target="#chat-modal">
+		<button type="button" class="btn btn-primary chat-launcher" id="chat-launcher" data-bs-toggle="modal" data-bs-target="#chat-modal">
 			Ask the library
 		</button>
 

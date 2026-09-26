@@ -181,6 +181,25 @@
     }
 }
 
+.rag-card {
+    border: 0;
+    border-radius: var(--radius-card);
+    box-shadow: 0 0.125rem 0.5rem rgb(31 41 55 / 0.08);
+
+    & .card-body {
+        padding: var(--space-card);
+    }
+
+    & .rag-form {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    & .rag-result:not(:empty) {
+        margin-top: 1.25rem;
+    }
+}
+
 .reader-content {
     height: 90vh;
 

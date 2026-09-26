@@ -987,6 +987,55 @@ chatForm.addEventListener("submit", (event) => {
 
 document.getElementById("chat-modal").addEventListener("shown.bs.modal", () => chatInput.focus());
 
+/* ---------- rag mode ---------- */
+
+const libraryView = document.getElementById("library-view");
+const ragView = document.getElementById("rag-view");
+const ragForm = document.getElementById("rag-form");
+const ragInput = document.getElementById("rag-input");
+const ragResult = document.getElementById("rag-result");
+// Only meaningful while browsing the library, so they step aside in Rag Mode.
+const libraryOnlyControls = [
+	document.getElementById("upload-open"),
+	document.getElementById("chat-launcher"),
+];
+
+// Both views live on this page; switching only swaps which one is shown. The
+// mode is kept in the hash so a reload or a shared link lands in the same one.
+function setMode(mode) {
+	const isRag = mode === "rag";
+
+	libraryView.hidden = isRag;
+	ragView.hidden = !isRag;
+	for (const control of libraryOnlyControls) {
+		control.hidden = isRag;
+	}
+
+	document.getElementById(isRag ? "mode-rag" : "mode-library").checked = true;
+	history.replaceState(null, "", isRag ? "#rag" : location.pathname + location.search);
+
+	if (isRag) {
+		ragInput.focus();
+	}
+}
+
+for (const radio of document.querySelectorAll('input[name="page-mode"]')) {
+	radio.addEventListener("change", () => setMode(radio.value));
+}
+
+// Not wired to the RAG server yet; the backend proxy comes next.
+ragForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	ragResult.replaceChildren(
+		Object.assign(document.createElement("p"), {
+			className: "text-secondary small mb-0",
+			textContent: "Rag Mode is not connected to the RAG server yet.",
+		}),
+	);
+});
+
+setMode(location.hash === "#rag" ? "rag" : "library");
+
 /* ---------- wiring ---------- */
 
 document.body.addEventListener("htmx:afterSwap", (event) => observeThumbnails(event.target));
