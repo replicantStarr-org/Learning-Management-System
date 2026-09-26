@@ -211,6 +211,15 @@
         margin-top: 1.25rem;
     }
 
+    & .rag-answer-label {
+        margin-bottom: 0.375rem;
+        color: var(--color-brand);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
     & .rag-answer {
         margin-bottom: 0.75rem;
         padding: 0.875rem 1rem;
@@ -229,16 +238,19 @@
         font-size: 0.8125rem;
     }
 
+    /* Supporting detail, so it sits back from the answer above it. */
     & .rag-answer-heading {
         margin-bottom: 0.375rem;
-        font-size: 0.875rem;
+        color: var(--color-muted);
+        font-size: 0.8125rem;
         font-weight: 600;
     }
 
     & .rag-sources {
         margin: 0;
         padding-left: 1.25rem;
-        font-size: 0.875rem;
+        color: var(--color-muted);
+        font-size: 0.8125rem;
     }
 
     & .rag-route {

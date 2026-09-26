@@ -1199,6 +1199,12 @@ function showAnswer(output, result) {
 
 	const answered = answer.trim() !== INSUFFICIENT_EVIDENCE;
 
+	// The small model often replies with just a name. Labelled, it still reads as
+	// the answer rather than as one more line above the list of records.
+	const label = document.createElement("h3");
+	label.className = "rag-answer-label";
+	label.textContent = "Answer";
+
 	const text = document.createElement("p");
 	text.className = "rag-answer preserve-lines";
 	text.textContent = answered ? answer : "The indexed learning resources do not answer this.";
@@ -1217,7 +1223,7 @@ function showAnswer(output, result) {
 		`${retrieval.retrieved_count} of ${retrieval.k} records used · ${result.summary}`,
 	);
 
-	output.replaceChildren(text, meta);
+	output.replaceChildren(label, text, meta);
 
 	if (!citations.length) {
 		return;
@@ -1227,7 +1233,7 @@ function showAnswer(output, result) {
 	// them they are only the closest it found, not sources of anything.
 	const heading = document.createElement("h3");
 	heading.className = "rag-answer-heading";
-	heading.textContent = answered ? "Sources" : "Closest records";
+	heading.textContent = answered ? "Drawn from these records" : "Closest records found";
 
 	const sources = document.createElement("ol");
 	sources.className = "rag-sources";
