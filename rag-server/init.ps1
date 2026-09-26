@@ -4,7 +4,7 @@
 # Works in Windows PowerShell 5.1 and PowerShell 7. If scripts are blocked, run:
 #   powershell -ExecutionPolicy Bypass -File init.ps1
 $ErrorActionPreference = "Stop"
-# Push/Pop rather than Set-Location, which would leave the caller's shell in rag/.
+# Push/Pop rather than Set-Location, which would leave the caller's shell in rag-server/.
 Push-Location $PSScriptRoot
 try {
     $Venv = ".venv_rag"

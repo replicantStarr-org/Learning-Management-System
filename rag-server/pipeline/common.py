@@ -5,7 +5,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-# rag/, not rag/pipeline/: config and data live at the top.
+# rag-server/, not rag-server/pipeline/: config and data live at the top.
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config.toml"
 

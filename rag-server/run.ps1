@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 $PidFile = "rag-server.pid"
 $StopTimeoutSeconds = 30
 
-# Push/Pop rather than Set-Location, which would leave the caller's shell in rag/.
+# Push/Pop rather than Set-Location, which would leave the caller's shell in rag-server/.
 Push-Location $PSScriptRoot
 try {
     # $IsWindows only exists in PowerShell 6+, where it is false on Linux and macOS.

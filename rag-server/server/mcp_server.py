@@ -1,6 +1,6 @@
 """The MCP server: the same pipeline as the HTTP server, as MCP tools over stdio.
 
-Run from rag/ with: .venv_rag/bin/python -m server.mcp_server
+Run from rag-server/ with: .venv_rag/bin/python -m server.mcp_server
 """
 
 import sys

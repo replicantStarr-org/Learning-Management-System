@@ -1,8 +1,8 @@
 # Writing a RAG connector
 
-A connector tells the RAG server (`rag/`) what to index from one Learning Hub
-service. Each service team owns its connector, one module in this folder.
-Read this file in full before writing one.
+A connector tells the RAG server (`rag-server/`) what to index from one
+Learning Hub service. Each service team owns its connector, one module in this
+folder. Read this file in full before writing one.
 
 `learning_resources.py` is a complete working example. The other modules are
 stubs that only declare the service's name and URL.
@@ -98,8 +98,8 @@ questions:
 - A list of plain values is joined with `; ` (values often contain commas).
 - A dict is indented under its key.
 - In a list of dicts, each item is one block. A record longer than
-  `chunking.max_words` (150, in `rag/config.toml`) is split into several chunks,
-  but only **between** top-level fields or list items, never inside one.
+  `chunking.max_words` (150, in `rag-server/config.toml`) is split into several
+  chunks, but only **between** top-level fields or list items, never inside one.
 - Values are printed with `str()`. Convert anything that reads badly first:
   `1`/`0` flags to `"yes"`/`"no"`, cents to dollars, ISO timestamps you only need
   the date of.
@@ -190,7 +190,7 @@ For an API that returns rows as arrays instead of objects, see
 
 ## Testing your connector
 
-Run these from `rag/`, with your service running (`docker compose up -d` in
+Run these from `rag-server/`, with your service running (`docker compose up -d` in
 your service's folder).
 
 1. **Set up once:** `./init.sh` (Linux/macOS) or `./init.ps1` (Windows). On
@@ -227,7 +227,7 @@ your service's folder).
    ```
 
    The right chunk should be in the top three, and the answer should be correct.
-5. **Add benchmarks** to `BENCHMARKS` in `rag/eval.py`: two or three questions,
+5. **Add benchmarks** to `BENCHMARKS` in `rag-server/eval.py`: two or three questions,
    each with the chunk ID prefix of the record that answers it, e.g.
    `"quizzes:quiz_question:2:"`. Run `.venv_rag/bin/python eval.py` and check
    that R@5 is 1.0 for yours.
@@ -237,6 +237,6 @@ your service's folder).
 - [ ] Every entity a user could ask about has an entity function.
 - [ ] The preview reads clearly with no IDs, secrets, AI output or raw flags.
 - [ ] `POST /ingest` for your service returns `success`.
-- [ ] Your benchmarks in `rag/eval.py` reach R@5 = 1.0.
-- [ ] Only your connector module and `rag/eval.py` changed, plus any `GET`
+- [ ] Your benchmarks in `rag-server/eval.py` reach R@5 = 1.0.
+- [ ] Only your connector module and `rag-server/eval.py` changed, plus any `GET`
       endpoints you added to your own service.
