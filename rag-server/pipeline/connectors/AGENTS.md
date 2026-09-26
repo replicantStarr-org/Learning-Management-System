@@ -185,8 +185,9 @@ def parents(get):
                          {"parent": parent["title"], **pick(child, "text", "detail")})
 ```
 
-For an API that returns rows as arrays instead of objects, see
-`learning_resources.py`.
+For an endpoint added to a service just so its connector can read what it
+needs (there, each resource with its tags), see `learning_resources.py` and
+`GET /api/resources/catalogue` in the learning resource manager.
 
 ## Testing your connector
 

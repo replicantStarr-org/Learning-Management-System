@@ -7,6 +7,7 @@ from services.resource_service import (
     delete_resource,
     list_resource_cards,
     list_resources,
+    list_resources_with_tags,
     list_tags,
 )
 
@@ -17,6 +18,19 @@ def get_all():
     # Rows arrive from the database service as dictionaries, so the values are
     # taken by hand to keep this endpoint's column order shape.
     return [tuple(row.values()) for row in list_resources()]
+
+@resources_bp.route('/catalogue')
+def get_catalogue():
+    # Each resource with its tags, as objects rather than /all's arrays. Read by
+    # the RAG server's learning_resources connector: the tags are the only place
+    # a resource's subject is recorded, so without them a question such as "what
+    # is there on mathematics?" matches nothing. Sorted because GROUP_CONCAT's
+    # order is not guaranteed, and the index must not change between identical
+    # ingests.
+    return jsonify([
+        {**row, "tags": sorted(row["tags"].split(", ")) if row["tags"] else []}
+        for row in list_resources_with_tags()
+    ])
 
 @resources_bp.route('/all_html')
 def get_all_html():

@@ -9,7 +9,7 @@ collection = "learning_hub"
 
 [embedding]
 dimensions = 1024
-version = "hash-v2"
+version = "hash-v3"
 
 [chunking]
 max_words = 150

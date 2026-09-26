@@ -987,6 +987,284 @@ chatForm.addEventListener("submit", (event) => {
 
 document.getElementById("chat-modal").addEventListener("shown.bs.modal", () => chatInput.focus());
 
+/* ---------- rag mode ---------- */
+
+const libraryView = document.getElementById("library-view");
+const ragView = document.getElementById("rag-view");
+const ragForm = document.getElementById("rag-form");
+const ragInput = document.getElementById("rag-input");
+const ragResult = document.getElementById("rag-result");
+// Only meaningful while browsing the library, so they step aside in Rag Mode.
+const libraryOnlyControls = [
+	document.getElementById("upload-open"),
+	document.getElementById("chat-launcher"),
+];
+
+// Both views live on this page; switching only swaps which one is shown. The
+// mode is kept in the hash so a reload or a shared link lands in the same one.
+function setMode(mode) {
+	const isRag = mode === "rag";
+
+	libraryView.hidden = isRag;
+	ragView.hidden = !isRag;
+	for (const control of libraryOnlyControls) {
+		control.hidden = isRag;
+	}
+
+	document.getElementById(isRag ? "mode-rag" : "mode-library").checked = true;
+	history.replaceState(null, "", isRag ? "#rag" : location.pathname + location.search);
+
+	if (isRag) {
+		ragInput.focus();
+	}
+}
+
+for (const radio of document.querySelectorAll('input[name="page-mode"]')) {
+	radio.addEventListener("change", () => setMode(radio.value));
+}
+
+function endpointStatus(ok, summary) {
+	const status = document.createElement("p");
+	status.className = `rag-output-status ${ok ? "is-ok" : "is-error"}`;
+	status.textContent = summary;
+	return status;
+}
+
+// Shows the response exactly as the RAG server sent it, since these cards are
+// for seeing what each endpoint does, with the status code and round trip time.
+function showEndpointResult(output, { ok, summary, body }) {
+	const json = document.createElement("pre");
+	json.className = "rag-output-body";
+	json.textContent = JSON.stringify(body, null, 2);
+
+	output.replaceChildren(endpointStatus(ok, summary), json);
+}
+
+// The top k chunks as a ranked list rather than raw JSON: their text is exactly
+// what an answer would be drawn from, so it is the part worth reading. Anything
+// else, such as a 400 for a missing query, falls back to the plain response.
+function showRetrieveResults(output, result) {
+	const { results, k } = result.body;
+	if (!result.ok || !Array.isArray(results)) {
+		showEndpointResult(output, result);
+		return;
+	}
+
+	// Fewer than k comes back when the rest are too far from the query to count.
+	const status = endpointStatus(true, `${result.summary} · ${results.length} of ${k} results`);
+
+	if (!results.length) {
+		output.replaceChildren(
+			status,
+			Object.assign(document.createElement("p"), {
+				className: "text-secondary small mb-0",
+				textContent: "Nothing indexed is close enough to that query.",
+			}),
+		);
+		return;
+	}
+
+	const list = document.createElement("ol");
+	list.className = "rag-results";
+
+	for (const item of results) {
+		const rank = document.createElement("span");
+		rank.className = "rag-results-rank";
+		rank.textContent = `#${item.rank}`;
+
+		const title = document.createElement("span");
+		title.className = "rag-results-title";
+		title.textContent = item.title;
+
+		const distance = document.createElement("span");
+		distance.className = "rag-results-distance";
+		distance.textContent = `distance ${item.distance}`;
+		distance.title = "Lower is closer to the query";
+
+		const heading = document.createElement("div");
+		heading.className = "rag-results-heading";
+		heading.append(rank, title, distance);
+
+		const text = document.createElement("p");
+		text.className = "rag-results-text preserve-lines";
+		text.textContent = item.text;
+
+		const entry = document.createElement("li");
+		entry.append(heading, text);
+		list.append(entry);
+	}
+
+	output.replaceChildren(status, list);
+}
+
+async function callEndpoint(button, output, url, request = {}, show = showEndpointResult) {
+	button.disabled = true;
+	output.replaceChildren(
+		Object.assign(document.createElement("p"), {
+			className: "text-secondary small mb-0",
+			textContent: "Waiting for the RAG server...",
+		}),
+	);
+
+	const started = performance.now();
+	try {
+		const response = await fetch(url, request);
+		const body = await response.json().catch(() => ({}));
+		const elapsed = Math.round(performance.now() - started);
+		show(output, {
+			ok: response.ok,
+			summary: `${response.status} ${response.ok ? "OK" : "Error"} · ${elapsed} ms`,
+			body,
+		});
+	} catch {
+		// Every renderer handles a failed call, so each card shows it in its own way.
+		show(output, {
+			ok: false,
+			summary: "No response",
+			body: { error: "The learning resource backend could not be reached." },
+		});
+	} finally {
+		button.disabled = false;
+	}
+}
+
+const ragHealthCheck = document.getElementById("rag-health-check");
+ragHealthCheck.addEventListener("click", () =>
+	callEndpoint(ragHealthCheck, document.getElementById("rag-health-output"), "/api/rag/health"));
+
+const ragRetrieveForm = document.getElementById("rag-retrieve-form");
+ragRetrieveForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	const k = document.getElementById("rag-retrieve-k").value;
+	callEndpoint(
+		ragRetrieveForm.querySelector('button[type="submit"]'),
+		document.getElementById("rag-retrieve-output"),
+		"/api/rag/retrieve",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				query: document.getElementById("rag-retrieve-input").value,
+				// Blank is sent as null, so the RAG server uses its configured default.
+				k: k ? Number(k) : null,
+			}),
+		},
+		showRetrieveResults,
+	);
+});
+
+// Sends no body: the backend decides which service is re-indexed.
+const ragIngestForm = document.getElementById("rag-ingest-form");
+ragIngestForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	callEndpoint(
+		ragIngestForm.querySelector("button"),
+		document.getElementById("rag-ingest-output"),
+		"/api/rag/ingest",
+		{ method: "POST" },
+	);
+});
+
+// The RAG server's fixed reply when the records it found do not hold the answer
+// (INSUFFICIENT_EVIDENCE in rag-server/pipeline/querying.py).
+const INSUFFICIENT_EVIDENCE = "Insufficient evidence.";
+
+const CONFIDENCE_BADGES = {
+	High: "text-bg-success",
+	Medium: "text-bg-warning",
+	Low: "text-bg-secondary",
+	None: "text-bg-secondary",
+};
+
+function showAnswer(output, result) {
+	const {
+		answer,
+		citations = [],
+		confidence_category: confidence,
+		retrieval_summary: retrieval,
+	} = result.body;
+
+	// Unlike the endpoint cards, this one is for reading the answer, so a failure
+	// is shown as the message rather than the raw response.
+	if (!result.ok || typeof answer !== "string") {
+		output.replaceChildren(
+			endpointStatus(false, result.summary),
+			Object.assign(document.createElement("p"), {
+				className: "small mb-0",
+				textContent: result.body.error || "The question could not be answered.",
+			}),
+		);
+		return;
+	}
+
+	const answered = answer.trim() !== INSUFFICIENT_EVIDENCE;
+
+	// The small model often replies with just a name. Labelled, it still reads as
+	// the answer rather than as one more line above the list of records.
+	const label = document.createElement("h3");
+	label.className = "rag-answer-label";
+	label.textContent = "Answer";
+
+	const text = document.createElement("p");
+	text.className = "rag-answer preserve-lines";
+	text.textContent = answered ? answer : "The indexed learning resources do not answer this.";
+
+	// The confidence only measures how close the best record was to the question,
+	// not whether the answer is right, so it is labelled as a match.
+	const badge = document.createElement("span");
+	badge.className = `badge ${CONFIDENCE_BADGES[confidence] ?? "text-bg-secondary"}`;
+	badge.textContent = `${confidence} match`;
+	badge.title = "How close the closest record was to the question";
+
+	const meta = document.createElement("p");
+	meta.className = "rag-answer-meta";
+	meta.append(
+		badge,
+		`${retrieval.retrieved_count} of ${retrieval.k} records used · ${result.summary}`,
+	);
+
+	output.replaceChildren(label, text, meta);
+
+	if (!citations.length) {
+		return;
+	}
+
+	// Every record the model was given is cited. When it could not answer from
+	// them they are only the closest it found, not sources of anything.
+	const heading = document.createElement("h3");
+	heading.className = "rag-answer-heading";
+	heading.textContent = answered ? "Drawn from these records" : "Closest records found";
+
+	const sources = document.createElement("ol");
+	sources.className = "rag-sources";
+	sources.append(...citations.map((citation) =>
+		Object.assign(document.createElement("li"), { textContent: citation.title })));
+
+	output.append(heading, sources);
+}
+
+ragForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	const k = document.getElementById("rag-k").value;
+	callEndpoint(
+		document.getElementById("rag-send"),
+		ragResult,
+		"/api/rag/answer",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				query: ragInput.value,
+				// Blank is sent as null, so the RAG server uses its configured default.
+				k: k ? Number(k) : null,
+			}),
+		},
+		showAnswer,
+	);
+});
+
+setMode(location.hash === "#rag" ? "rag" : "library");
+
 /* ---------- wiring ---------- */
 
 document.body.addEventListener("htmx:afterSwap", (event) => observeThumbnails(event.target));

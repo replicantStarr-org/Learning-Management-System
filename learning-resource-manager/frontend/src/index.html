@@ -42,19 +42,151 @@
 						<h1 class="display-5 fw-bold">Learning resources</h1>
 						<p class="lead text-secondary mb-0">Textbooks and papers in the library.</p>
 					</div>
-					<button type="button" class="btn btn-primary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#upload-modal">
-						Upload PDF
-					</button>
+					<div class="d-flex flex-wrap justify-content-end align-items-center gap-2 flex-shrink-0">
+						<!-- Switches between the library and Rag Mode without leaving the page. -->
+						<div class="btn-group" role="group" aria-label="Page mode">
+							<input type="radio" class="btn-check" name="page-mode" id="mode-library" value="library" autocomplete="off" checked>
+							<label class="btn btn-outline-primary" for="mode-library">Library</label>
+							<input type="radio" class="btn-check" name="page-mode" id="mode-rag" value="rag" autocomplete="off">
+							<label class="btn btn-outline-primary" for="mode-rag">Rag Mode</label>
+						</div>
+						<button type="button" class="btn btn-primary" id="upload-open" data-bs-toggle="modal" data-bs-target="#upload-modal">
+							Upload PDF
+						</button>
+					</div>
 				</header>
 
-				<div id="spinner" class="htmx-indicator text-center mb-3">
-					<div class="spinner-border text-primary" role="status">
-						<span class="visually-hidden">LOADING...</span>
+				<section id="library-view" aria-label="Library">
+					<div id="spinner" class="htmx-indicator text-center mb-3">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">LOADING...</span>
+						</div>
 					</div>
-				</div>
 
-				<div id="book-grid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4" hx-get="/api/resources/all_html" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#spinner">
-				</div>
+					<div id="book-grid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4" hx-get="/api/resources/all_html" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#spinner">
+					</div>
+				</section>
+
+				<!-- The RAG server's endpoints, answering questions from the indexed library.
+				     Everything here is about this service's own records (the learning-resources
+				     connector), so there is no choosing between services. -->
+				<section id="rag-view" aria-label="Rag Mode" hidden>
+					<!-- The reason for Rag Mode, so it leads and gets the full width. -->
+					<div class="card rag-card mb-5">
+						<div class="card-body">
+							<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+								<h2 class="h5 mb-0">Ask a question</h2>
+								<code class="rag-route">POST /answer</code>
+							</div>
+							<p class="text-secondary small mb-3">
+								Answers come only from the indexed learning resources, with the records they
+								were drawn from.
+							</p>
+
+							<form id="rag-form">
+								<div class="rag-query">
+									<input type="text" class="form-control" id="rag-input" autocomplete="off"
+									       placeholder="Ask a question about the library" aria-label="Your question" required>
+									<button type="submit" class="btn btn-primary" id="rag-send">Ask</button>
+								</div>
+								<div class="rag-options">
+									<div>
+										<label class="form-label small mb-1" for="rag-k">Records to use</label>
+										<input type="number" class="form-control form-control-sm rag-k" id="rag-k"
+										       min="1" step="1" placeholder="Default">
+									</div>
+								</div>
+							</form>
+
+							<div class="rag-result" id="rag-result" aria-live="polite"></div>
+						</div>
+					</div>
+
+					<h2 class="h6 text-secondary mb-3">Endpoints</h2>
+
+					<!-- One card per remaining endpoint: what it does on the left, and the
+					     response from the last call alongside it. -->
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Retrieve</h3>
+										<code class="rag-route">POST /retrieve</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										The indexed records closest to a query, without asking the model. Shows what
+										an answer would be drawn from.
+									</p>
+									<form id="rag-retrieve-form">
+										<input type="text" class="form-control form-control-sm mb-2" id="rag-retrieve-input"
+										       autocomplete="off" placeholder="Search query" aria-label="Search query" required>
+										<div class="rag-options mt-0 mb-3">
+											<div>
+												<label class="form-label small mb-1" for="rag-retrieve-k">Results</label>
+												<input type="number" class="form-control form-control-sm rag-k" id="rag-retrieve-k"
+												       min="1" step="1" placeholder="Default">
+											</div>
+										</div>
+										<button type="submit" class="btn btn-primary btn-sm">Retrieve</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-retrieve-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Ingest</h3>
+										<code class="rag-route">POST /ingest</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Re-indexes the learning resources from the library as it is now, so answers
+										reflect what has been added or removed since the last run.
+									</p>
+									<form id="rag-ingest-form">
+										<button type="submit" class="btn btn-primary btn-sm">Re-index</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-ingest-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card rag-card">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Health check</h3>
+										<code class="rag-route">GET /health</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Whether the RAG server is up and can be reached from this service.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="rag-health-check">Check health</button>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-health-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not checked yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</section>
 			</div>
 		</div>
 
@@ -177,7 +309,7 @@
 		</div>
 
 		<!-- Library assistant, opened by the floating button. -->
-		<button type="button" class="btn btn-primary chat-launcher" data-bs-toggle="modal" data-bs-target="#chat-modal">
+		<button type="button" class="btn btn-primary chat-launcher" id="chat-launcher" data-bs-toggle="modal" data-bs-target="#chat-modal">
 			Ask the library
 		</button>
 

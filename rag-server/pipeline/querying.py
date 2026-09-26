@@ -87,10 +87,16 @@ def generate_with_ollama(query: str, context: str) -> str:
     ollama = settings()["ollama"]
     # The chat endpoint with the rules in a system message: given the same text
     # as a single /api/generate prompt, qwen2.5:0.5b refused answerable questions.
+    # Asking for sentences that name the record reads more naturally than "answer
+    # briefly", and made it pick the right record more often. It is kept to these
+    # two rules: asking the 0.5b model for anything more (restating the question,
+    # a worked example) cost it the exact refusal below, or had it quote the
+    # example as an answer.
     system = (
         "You answer questions about a university Learning Management System using only "
-        "the records the user provides. Answer briefly. If the records do not contain "
-        f"the answer, say exactly: {INSUFFICIENT_EVIDENCE}"
+        "the records the user provides. Reply in one or two complete sentences that answer "
+        "the question and mention the title of the record the answer comes from. If the "
+        f"records do not contain the answer, reply with only: {INSUFFICIENT_EVIDENCE}"
     )
     response = requests.post(
         ollama["url"].rstrip("/") + "/api/chat",

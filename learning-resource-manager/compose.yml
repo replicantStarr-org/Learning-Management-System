@@ -1,5 +1,11 @@
+# Containers are named learning-hub-LRM-* so they are easy to pick out of the
+# whole hub's stack. Set here rather than by renaming the services: Compose
+# names built images after the service, and image names must be lowercase. The
+# service names also stay short, since nginx and the backend reach each other
+# by them.
 services:
   backend:
+    container_name: learning-hub-LRM-backend
     build:
       context: backend
       dockerfile: Dockerfile
@@ -13,6 +19,9 @@ services:
       # Ollama runs on the host, so "localhost" from inside this container would
       # be the container itself.
       - OLLAMA_URL=host.docker.internal
+      # The RAG server (rag-server/) also runs on the host, on server.port in
+      # its config.toml.
+      - RAG_SERVER_URL=http://host.docker.internal:5010
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # Nothing the backend serves works until the database service answers, so
@@ -30,6 +39,7 @@ services:
   # Owns the database file and runs the statements the backend sends it. The
   # port is deliberately not published: only the backend has any business here.
   database:
+    container_name: learning-hub-LRM-database
     build:
       context: database
       dockerfile: Dockerfile
@@ -49,6 +59,7 @@ services:
       start_period: 5s
 
   frontend:
+    container_name: learning-hub-LRM-frontend
     build:
       context: ..
       dockerfile: learning-resource-manager/frontend/Dockerfile

@@ -6,7 +6,10 @@ it lives here rather than in either of them.
 The embedding is feature hashing: each token is hashed to one signed
 dimension. Deterministic and dependency free, so ingestion and querying always
 agree as long as `dimensions` and the tokeniser are unchanged. It matches on
-shared words rather than meaning, so "exam" will not find "assessment".
+shared words rather than meaning, so "exam" will not find "assessment". Any
+change to the tokeniser changes every vector, so it must come with a new
+`embedding.version` in config.toml, which rebuilds the collection empty for a
+fresh ingest.
 """
 
 import hashlib
@@ -30,13 +33,35 @@ STOPWORDS = frozenset(
     """.split()
 )
 
+# Words from how questions are phrased that no record contains. Each one only
+# dilutes the query: "what authors have written about mathematics?" shares just
+# one word with a maths paper, and these pushed it past retrieval.max_distance.
+QUESTION_WORDS = frozenset("about any please tell write wrote written".split())
+
+
+def singular(token: str) -> str:
+    """A plural's singular, so "authors" finds a record's "author" field.
+
+    Deliberately crude: it only has to give a question and a record the same
+    token, not the right English word, and both pass through it.
+    """
+    if len(token) > 4 and token.endswith("ies"):
+        return token[:-3] + "y"
+    if len(token) > 3 and token.endswith("s") and not token.endswith(("ss", "us", "is")):
+        return token[:-1]
+    return token
+
 _lock = threading.Lock()
 _collection = None
 _max_batch_size = 0
 
 
 def tokenise(text: str) -> list[str]:
-    return [t for t in TOKEN_PATTERN.findall((text or "").lower()) if t not in STOPWORDS]
+    return [
+        singular(t)
+        for t in TOKEN_PATTERN.findall((text or "").lower())
+        if t not in STOPWORDS and t not in QUESTION_WORDS
+    ]
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
