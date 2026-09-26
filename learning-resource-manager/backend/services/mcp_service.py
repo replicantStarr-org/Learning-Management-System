@@ -58,8 +58,6 @@ def _run(work):
     """
     try:
         return asyncio.run(_with_session(work))
-    except McpToolError:
-        raise
     except Exception as exc:
         raise McpError("The MCP server is unavailable.") from exc
 
@@ -85,15 +83,22 @@ def call_tool(name, arguments=None):
     from the page, since the MCP server also holds other services' tools.
     """
     async def work(session):
-        result = await session.call_tool(name, arguments or {}, read_timeout_seconds=TIMEOUT_SECONDS)
-        if not isinstance(result, CallToolResult):
-            raise McpError("The MCP server returned an unsupported result.")
-        if result.is_error:
-            raise McpToolError(str(_value(result)))
-        return _value(result)
+        return await session.call_tool(name, arguments or {}, read_timeout_seconds=TIMEOUT_SECONDS)
 
-    return _run(work)
+    # Checked once the session has closed: raised inside it, the error would
+    # come out wrapped in the client's ExceptionGroup and read as the server
+    # being unavailable.
+    result = _run(work)
+    if not isinstance(result, CallToolResult):
+        raise McpError("The MCP server returned an unsupported result.")
+    if result.is_error:
+        raise McpToolError(str(_value(result)))
+    return _value(result)
 
 def list_resources():
     """Every learning resource, with its tags, fetched through the MCP server."""
     return call_tool("learning_resources_list")
+
+def resources_by_tag(tag):
+    """The learning resources carrying the tag, fetched through the MCP server."""
+    return call_tool("learning_resources_by_tag", {"tag": tag})

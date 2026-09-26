@@ -217,7 +217,7 @@
 						</div>
 					</div>
 
-					<div class="card mcp-card">
+					<div class="card mcp-card mb-4">
 						<div class="card-body">
 							<div class="row g-4">
 								<div class="col-md-5">
@@ -233,6 +233,33 @@
 								</div>
 								<div class="col-md-7">
 									<div class="rag-output" id="mcp-resources-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card mcp-card">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Resources by tag</h3>
+										<code class="rag-route">learning_resources_by_tag</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										The learning resources carrying a tag. The whole tag name is matched,
+										ignoring case.
+									</p>
+									<form id="mcp-by-tag-form">
+										<input type="text" class="form-control form-control-sm mb-3" id="mcp-by-tag-input"
+										       autocomplete="off" placeholder="Tag, such as Deep Learning" aria-label="Tag" required>
+										<button type="submit" class="btn btn-primary btn-sm">Find resources</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="mcp-by-tag-output" aria-live="polite">
 										<p class="text-secondary small mb-0">Not called yet.</p>
 									</div>
 								</div>

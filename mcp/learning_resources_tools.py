@@ -10,10 +10,15 @@ import os
 from typing import Any
 
 import requests
+from mcp.server.mcpserver.exceptions import ToolError
 
 
-class LearningResourcesApiError(RuntimeError):
-    """An error returned by, or while reaching, the learning resources API."""
+class LearningResourcesApiError(ToolError):
+    """An error returned by, or while reaching, the learning resources API.
+
+    A ToolError, so the MCP SDK passes this message on to the caller rather
+    than replacing it with a generic one.
+    """
 
 
 class LearningResourcesApiClient:
@@ -59,3 +64,24 @@ def register_learning_resource_tools(mcp):
         # /catalogue rather than /all: it returns objects with their tags,
         # where /all returns bare arrays without them.
         return json.dumps(client.request("GET", "/catalogue"), ensure_ascii=False)
+
+    @mcp.tool(name="learning_resources_by_tag")
+    def learning_resources_by_tag(tag: str) -> str:
+        """Find the learning resources carrying a tag, such as "Deep Learning".
+
+        The tag must match a tag name in full, ignoring case. Tags record a
+        resource's subject area, so this is how to find what the library holds
+        on a topic. An empty list means no resource has that tag.
+        """
+        wanted = tag.strip().casefold()
+        if not wanted:
+            raise ToolError("A tag is required.")
+
+        # The backend has no tag filter, and the library is small enough to
+        # filter here rather than add one.
+        matches = [
+            resource
+            for resource in client.request("GET", "/catalogue")
+            if wanted in (name.casefold() for name in resource["tags"])
+        ]
+        return json.dumps(matches, ensure_ascii=False)

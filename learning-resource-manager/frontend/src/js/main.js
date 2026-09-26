@@ -1282,6 +1282,21 @@ const mcpResourcesList = document.getElementById("mcp-resources-list");
 mcpResourcesList.addEventListener("click", () =>
 	callEndpoint(mcpResourcesList, document.getElementById("mcp-resources-output"), "/api/mcp/resources"));
 
+const mcpByTagForm = document.getElementById("mcp-by-tag-form");
+mcpByTagForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	callEndpoint(
+		mcpByTagForm.querySelector('button[type="submit"]'),
+		document.getElementById("mcp-by-tag-output"),
+		"/api/mcp/resources/by_tag",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ tag: document.getElementById("mcp-by-tag-input").value }),
+		},
+	);
+});
+
 setMode(location.hash.slice(1));
 
 /* ---------- wiring ---------- */
