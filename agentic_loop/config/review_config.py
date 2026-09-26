@@ -24,6 +24,7 @@ MODES = {
     "architecture": ModeConfig("architecture", "Application Architecture", "architecture_prompt.txt"),
     "devops": ModeConfig("devops", "DevOps Pipeline", "devops_prompt.txt"),
     "mcp": ModeConfig("mcp", "MCP Server", "mcp_prompt.txt"),
+    "rag": ModeConfig("rag", "RAG Connector", "rag_prompt.txt"),
 }
 
 SERVICES = {

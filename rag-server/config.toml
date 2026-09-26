@@ -1,0 +1,24 @@
+[server]
+host = "0.0.0.0"
+port = 5010
+url = "http://localhost:5010"
+
+[chroma]
+path = "chroma"
+collection = "learning_hub"
+
+[embedding]
+dimensions = 1024
+version = "hash-v2"
+
+[chunking]
+max_words = 150
+
+[retrieval]
+k = 5
+max_distance = 0.9
+
+[ollama]
+url = "http://localhost:11434"
+model = "qwen2.5:0.5b"
+timeout_seconds = 120

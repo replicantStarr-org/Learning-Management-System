@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Callable
 
-from collectors import architecture_collector, db_collector, devops_collector, endpoints_collector, mcp_collector
+from collectors import architecture_collector, db_collector, devops_collector, endpoints_collector, mcp_collector, rag_collector
 from config.review_config import ModeConfig, ServiceConfig
 from core.ai_runner import AIRunner
 from core.prompt_registry import PromptRegistry
@@ -14,6 +14,7 @@ COLLECTORS: dict[str, Collector] = {
     "architecture": architecture_collector.collect,
     "devops": devops_collector.collect,
     "mcp": mcp_collector.collect,
+    "rag": rag_collector.collect,
 }
 
 
