@@ -52,8 +52,11 @@ jobs:
         run: |
           failures=0
 
+          # The status code alone is not enough: a missing route also returns
+          # JSON (404 not_found), so each check also asserts the body that only
+          # the real endpoint sends.
           check() {
-            local method="$1" path="$2" expected="$3" body="${4:-}"
+            local method="$1" path="$2" expected="$3" assertion="$4" body="${5:-}"
             local args=(--silent --show-error --max-time 30 --output response.json --write-out '%{http_code}' --request "$method")
             if [[ -n "$body" ]]; then
               args+=(--header 'Content-Type: application/json' --data "$body")
@@ -61,23 +64,24 @@ jobs:
 
             local status
             status="$(curl "${args[@]}" "http://localhost:5010$path" || true)"
-            if [[ "$status" == "$expected" ]] && jq --exit-status . response.json > /dev/null 2>&1; then
-              echo "PASS $method $path -> HTTP $status"
+            if [[ "$status" == "$expected" ]] && jq --exit-status "$assertion" response.json > /dev/null 2>&1; then
+              echo "PASS $method $path -> HTTP $status (expected $expected)"
             else
-              echo "::error::FAIL $method $path -> HTTP ${status:-000}, expected $expected"
+              echo "::error::FAIL $method $path -> HTTP ${status:-000}, expected $expected with $assertion"
               cat response.json 2>/dev/null || true
               echo
               failures=$((failures + 1))
             fi
           }
 
-          check GET /health 200
-          check GET /services 200
-          # An unknown service reaches /ingest and its validation without fetching or chunking any data.
-          check POST /ingest 404 '{"service": "ci-probe"}'
+          check GET /health 200 '.status == "ok"'
+          check GET /services 200 '.services | type == "array"'
+          # An unknown service is rejected by /ingest's own validation, so the
+          # endpoint is exercised without fetching or chunking any data.
+          check POST /ingest 404 '.error | startswith("unknown service")' '{"service": "ci-probe"}'
           # The index is empty, so neither returns results, and /answer replies without calling Ollama.
-          check POST /retrieve 200 '{"query": "ci probe"}'
-          check POST /answer 200 '{"query": "ci probe"}'
+          check POST /retrieve 200 '.status == "success" and (.results | type == "array")' '{"query": "ci probe"}'
+          check POST /answer 200 '.status == "success" and .answer == "Insufficient evidence."' '{"query": "ci probe"}'
 
           echo "$((5 - failures))/5 endpoints passed."
           if [[ "$failures" -gt 0 ]]; then
