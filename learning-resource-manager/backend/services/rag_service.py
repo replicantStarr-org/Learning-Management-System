@@ -16,6 +16,11 @@ TIMEOUT_SECONDS = 10
 # Ingesting reads the whole library back and then chunks and indexes it, so it
 # grows with the library; a health check has no such work to wait on.
 INGEST_TIMEOUT_SECONDS = 60
+# Answers wait on a local language model. The RAG server gives Ollama 120
+# seconds (ollama.timeout_seconds in rag-server/config.toml), so this is longer:
+# if the model is too slow, the page gets the RAG server's error saying so
+# rather than a bare timeout from here.
+ANSWER_TIMEOUT_SECONDS = 150
 
 class RagError(RuntimeError):
     pass
@@ -49,6 +54,17 @@ def retrieve(query, k=None):
     default. Both values are checked there rather than here.
     """
     return _request("POST", "/retrieve", {"query": query, "k": k, "service": SERVICE})
+
+def answer(query, k=None):
+    """The model's answer to the query, drawn only from the k closest chunks,
+    with those chunks as citations and a confidence from how close they were.
+    """
+    return _request(
+        "POST",
+        "/answer",
+        {"query": query, "k": k, "service": SERVICE},
+        timeout=ANSWER_TIMEOUT_SECONDS,
+    )
 
 def ingest():
     """Re-index this service's records from the library as it is now.

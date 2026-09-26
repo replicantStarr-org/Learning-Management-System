@@ -1117,7 +1117,8 @@ async function callEndpoint(button, output, url, request = {}, show = showEndpoi
 			body,
 		});
 	} catch {
-		showEndpointResult(output, {
+		// Every renderer handles a failed call, so each card shows it in its own way.
+		show(output, {
 			ok: false,
 			summary: "No response",
 			body: { error: "The learning resource backend could not be reached." },
@@ -1164,19 +1165,96 @@ ragIngestForm.addEventListener("submit", (event) => {
 	);
 });
 
-function showNotConnected(output) {
-	output.replaceChildren(
-		Object.assign(document.createElement("p"), {
-			className: "text-secondary small mb-0",
-			textContent: "Not connected to the RAG server yet.",
-		}),
+// The RAG server's fixed reply when the records it found do not hold the answer
+// (INSUFFICIENT_EVIDENCE in rag-server/pipeline/querying.py).
+const INSUFFICIENT_EVIDENCE = "Insufficient evidence.";
+
+const CONFIDENCE_BADGES = {
+	High: "text-bg-success",
+	Medium: "text-bg-warning",
+	Low: "text-bg-secondary",
+	None: "text-bg-secondary",
+};
+
+function showAnswer(output, result) {
+	const {
+		answer,
+		citations = [],
+		confidence_category: confidence,
+		retrieval_summary: retrieval,
+	} = result.body;
+
+	// Unlike the endpoint cards, this one is for reading the answer, so a failure
+	// is shown as the message rather than the raw response.
+	if (!result.ok || typeof answer !== "string") {
+		output.replaceChildren(
+			endpointStatus(false, result.summary),
+			Object.assign(document.createElement("p"), {
+				className: "small mb-0",
+				textContent: result.body.error || "The question could not be answered.",
+			}),
+		);
+		return;
+	}
+
+	const answered = answer.trim() !== INSUFFICIENT_EVIDENCE;
+
+	const text = document.createElement("p");
+	text.className = "rag-answer preserve-lines";
+	text.textContent = answered ? answer : "The indexed learning resources do not answer this.";
+
+	// The confidence only measures how close the best record was to the question,
+	// not whether the answer is right, so it is labelled as a match.
+	const badge = document.createElement("span");
+	badge.className = `badge ${CONFIDENCE_BADGES[confidence] ?? "text-bg-secondary"}`;
+	badge.textContent = `${confidence} match`;
+	badge.title = "How close the closest record was to the question";
+
+	const meta = document.createElement("p");
+	meta.className = "rag-answer-meta";
+	meta.append(
+		badge,
+		`${retrieval.retrieved_count} of ${retrieval.k} records used · ${result.summary}`,
 	);
+
+	output.replaceChildren(text, meta);
+
+	if (!citations.length) {
+		return;
+	}
+
+	// Every record the model was given is cited. When it could not answer from
+	// them they are only the closest it found, not sources of anything.
+	const heading = document.createElement("h3");
+	heading.className = "rag-answer-heading";
+	heading.textContent = answered ? "Sources" : "Closest records";
+
+	const sources = document.createElement("ol");
+	sources.className = "rag-sources";
+	sources.append(...citations.map((citation) =>
+		Object.assign(document.createElement("li"), { textContent: citation.title })));
+
+	output.append(heading, sources);
 }
 
-// Not wired to the RAG server yet; the last endpoint to get its backend route.
 ragForm.addEventListener("submit", (event) => {
 	event.preventDefault();
-	showNotConnected(ragResult);
+	const k = document.getElementById("rag-k").value;
+	callEndpoint(
+		document.getElementById("rag-send"),
+		ragResult,
+		"/api/rag/answer",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				query: ragInput.value,
+				// Blank is sent as null, so the RAG server uses its configured default.
+				k: k ? Number(k) : null,
+			}),
+		},
+		showAnswer,
+	);
 });
 
 setMode(location.hash === "#rag" ? "rag" : "library");

@@ -19,15 +19,27 @@ def _relay(call):
 def health():
     return _relay(rag_service.health)
 
-# Only the query and k are passed on; which service is searched is fixed in
-# rag_service. The RAG server checks both and answers a 400 saying what is wrong.
-@rag_bp.route('/retrieve', methods=['POST'])
-def retrieve():
+def _query_and_k():
+    """The only two values the page may send when searching.
+
+    Which service is searched is fixed in rag_service. Neither value is checked
+    here: the RAG server does that and answers a 400 saying what is wrong.
+    """
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         payload = {}
 
-    return _relay(lambda: rag_service.retrieve(payload.get("query"), payload.get("k")))
+    return payload.get("query"), payload.get("k")
+
+@rag_bp.route('/retrieve', methods=['POST'])
+def retrieve():
+    query, k = _query_and_k()
+    return _relay(lambda: rag_service.retrieve(query, k))
+
+@rag_bp.route('/answer', methods=['POST'])
+def answer():
+    query, k = _query_and_k()
+    return _relay(lambda: rag_service.answer(query, k))
 
 # Takes no body: which service is indexed is fixed in rag_service, not chosen
 # by the page.
