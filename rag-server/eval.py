@@ -21,6 +21,16 @@ BENCHMARKS = [
         "query": "Which papers are about generative adversarial networks?",
         "relevant": ["learning-resources:learning_resource:2:"],
     },
+    {
+        # Matched only through the tags: no title or description says mathematics.
+        "query": "What authors have written about mathematics?",
+        "relevant": [
+            "learning-resources:learning_resource:14:",
+            "learning-resources:learning_resource:15:",
+            "learning-resources:learning_resource:16:",
+            "learning-resources:learning_resource:17:",
+        ],
+    },
 ]
 
 

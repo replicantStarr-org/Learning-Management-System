@@ -70,7 +70,7 @@ def ingest():
     """Re-index this service's records from the library as it is now.
 
     While this waits, the RAG server calls back into this backend for
-    /api/resources/all, which is answered by another gunicorn worker. With a
+    /api/resources/catalogue, which is answered by another gunicorn worker. With a
     single worker the two would wait on each other until the timeout.
     """
     return _request(

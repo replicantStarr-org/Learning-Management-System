@@ -4,20 +4,22 @@ from ..connector import Connector, Record, pick
 # and only accepts raw SQL.
 connector = Connector("learning-resources", "http://localhost:7050")
 
-# /api/resources/all returns each row as an array in the column order of the
-# l_resource table (learning-resource-manager/database/construct_db.sql).
-COLUMNS = ("l_resource_id", "location", "author", "medium", "title", "description")
-
 
 @connector.entity
 def resources(get):
-    for row in get("/api/resources/all"):
-        if len(row) != len(COLUMNS):
-            raise ValueError(f"expected {len(COLUMNS)} columns per resource, got {len(row)}; has l_resource changed?")
-        resource = dict(zip(COLUMNS, row))
+    # /api/resources/catalogue rather than /all: it carries each resource's tags,
+    # which are the only place its subject is recorded. No title or description
+    # of the maths papers says "mathematics"; their tag does.
+    for resource in get("/api/resources/catalogue"):
         yield Record(
             entity="learning_resource",
             id=resource["l_resource_id"],
             title=resource["title"],
-            fields=pick(resource, "title", "author", "medium", "description"),
+            fields={
+                **pick(resource, "title", "author", "medium"),
+                # "topics" rather than "tags": keys are indexed too, and people ask
+                # what a paper is about, not how it is tagged.
+                "topics": resource["tags"],
+                "description": resource["description"],
+            },
         )
