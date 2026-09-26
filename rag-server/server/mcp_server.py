@@ -1,9 +1,15 @@
 """The MCP server: the same pipeline as the HTTP server, as MCP tools over stdio.
 
-Run from rag-server/ with: .venv_rag/bin/python -m server.mcp_server
+Run with rag-server/.venv_rag/bin/python rag-server/server/mcp_server.py, from
+any directory; see mcp-config.json for a client configuration.
 """
 
 import sys
+from pathlib import Path
+
+# MCP clients start servers by path from their own working directory, where
+# `pipeline` is not importable, so rag-server/ is put on the import path first.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from mcp.server.fastmcp import FastMCP
 

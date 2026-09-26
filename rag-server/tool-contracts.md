@@ -1,6 +1,6 @@
 # RAG Tool Contracts
 
-Exposed both as MCP tools (`server/mcp_server.py`) and HTTP endpoints (`server/http_server.py`, port in `config.toml`). Each HTTP endpoint is a function in `server/endpoints.py`. Start the HTTP server with `./run.sh` and stop it with Ctrl+C or `./run.sh stop` (`run.ps1` on Windows); requests in progress are finished before it exits, except with `run.ps1 stop` on Windows, which ends it at once. Start the MCP server from `rag-server/` with `.venv_rag/bin/python -m server.mcp_server`.
+Exposed both as MCP tools (`server/mcp_server.py`) and HTTP endpoints (`server/http_server.py`, reached at `server.url` in `config.toml`). Each HTTP endpoint is a function in `server/endpoints.py`. Start the HTTP server with `./run.sh` and stop it with Ctrl+C or `./run.sh stop` (`run.ps1` on Windows); requests in progress are finished before it exits, except with `run.ps1 stop` on Windows, which ends it at once. MCP clients start the MCP server themselves: copy `mcp-config.json` into the client's configuration and replace `/ABSOLUTE/PATH/TO` with where the repository is (on Windows the interpreter is `.venv_rag\Scripts\python.exe`).
 `service` is always optional and must name a connector in `pipeline/connectors/` (`subjects`, `assignments`, `quizzes`, `timetable`, `learning-resources`).
 
 ## ingest — `POST /ingest`

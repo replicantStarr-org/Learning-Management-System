@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "learning-hub-rag": {
-      "command": ".venv_rag/bin/python",
-      "args": ["-m", "server.mcp_server"]
+      "command": "/ABSOLUTE/PATH/TO/Learning-Hub/rag-server/.venv_rag/bin/python",
+      "args": ["/ABSOLUTE/PATH/TO/Learning-Hub/rag-server/server/mcp_server.py"]
     }
   }
 }

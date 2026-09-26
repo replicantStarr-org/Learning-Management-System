@@ -14,7 +14,7 @@ import requests
 from .audit import append_audit
 from .common import settings
 from .connector import Connector, Record, connectors
-from .vectors import embed_texts, get_collection
+from .vectors import embed_texts, get_collection, max_batch_size
 
 
 def ingest_services(service_name: str | None = None) -> dict[str, Any]:
@@ -68,27 +68,44 @@ def ingest_service(connector: Connector) -> dict[str, Any]:
         # column surfaces here as a KeyError; report it rather than crash.
         return {"service": connector.name, "status": "error", "error": f"connector failed: {exc!r}"}
 
-    collection = get_collection()
-    existing = set(collection.get(where={"service": connector.name}, include=[])["ids"])
-    new_ids = [c["id"] for c in chunks]
-
-    if chunks:
-        collection.upsert(
-            ids=new_ids,
-            documents=[c["text"] for c in chunks],
-            metadatas=[c["metadata"] for c in chunks],
-            embeddings=embed_texts([c["text"] for c in chunks]),
-        )
-    stale = sorted(existing - set(new_ids))
-    if stale:
-        collection.delete(ids=stale)
+    try:
+        removed = write_chunks(connector.name, chunks)
+    except Exception as exc:
+        # Reported like a fetch failure so the remaining services still ingest.
+        # Batches written before the failure stay; the next ingest completes them.
+        return {"service": connector.name, "status": "error", "error": f"index update failed: {exc!r}"}
 
     return {
         "service": connector.name,
         "status": "success",
         "chunk_count": len(chunks),
-        "removed_count": len(stale),
+        "removed_count": removed,
     }
+
+
+def write_chunks(service: str, chunks: list[dict[str, Any]]) -> int:
+    """Upsert a service's chunks and delete its stale ones; returns how many were removed.
+
+    Chroma rejects any single upsert or delete larger than its batch size, so
+    both are split into batches of that size.
+    """
+    collection = get_collection()
+    batch = max_batch_size()
+    existing = set(collection.get(where={"service": service}, include=[])["ids"])
+
+    for start in range(0, len(chunks), batch):
+        part = chunks[start:start + batch]
+        collection.upsert(
+            ids=[c["id"] for c in part],
+            documents=[c["text"] for c in part],
+            metadatas=[c["metadata"] for c in part],
+            embeddings=embed_texts([c["text"] for c in part]),
+        )
+
+    stale = sorted(existing - {c["id"] for c in chunks})
+    for start in range(0, len(stale), batch):
+        collection.delete(ids=stale[start:start + batch])
+    return len(stale)
 
 
 def record_chunks(service: str, record: Record, indexed_at: str) -> list[dict[str, Any]]:

@@ -32,6 +32,7 @@ STOPWORDS = frozenset(
 
 _lock = threading.Lock()
 _collection = None
+_max_batch_size = 0
 
 
 def tokenise(text: str) -> list[str]:
@@ -63,9 +64,15 @@ def embedding_signature() -> str:
     return f"{embedding['version']}-{embedding['dimensions']}"
 
 
+def max_batch_size() -> int:
+    """The most ids Chroma accepts in one upsert or delete; larger calls raise."""
+    get_collection()
+    return _max_batch_size
+
+
 def get_collection():
     """The shared collection, recreated empty if it was built with another embedding."""
-    global _collection
+    global _collection, _max_batch_size
     with _lock:
         if _collection is not None:
             return _collection
@@ -81,5 +88,6 @@ def get_collection():
             client.delete_collection(name=chroma["collection"])
             collection = client.create_collection(name=chroma["collection"], metadata=metadata)
 
+        _max_batch_size = client.get_max_batch_size()
         _collection = collection
         return _collection

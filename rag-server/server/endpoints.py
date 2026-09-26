@@ -80,13 +80,13 @@ def required_query(payload: dict[str, Any]) -> str:
 
 
 def requested_k(payload: dict[str, Any]) -> int | None:
-    """The optional `k`; None means the default from config.toml."""
-    if not payload.get("k"):
+    """The optional `k`, a positive whole number; missing or null means the default from config.toml."""
+    k = payload.get("k")
+    if k is None:
         return None
-    try:
-        k = int(payload["k"])
-    except (TypeError, ValueError):
-        k = 0
-    if k < 1:
+    if isinstance(k, str) and k.strip().isdigit():
+        k = int(k)
+    # bool is a subclass of int, so true/false would otherwise pass as 1/0.
+    if isinstance(k, bool) or not isinstance(k, int) or k < 1:
         raise ApiError(400, "k must be a positive integer")
     return k
