@@ -26,6 +26,9 @@ services:
       # The shared MCP server (mcp/). 127.0.0.1 rather than localhost, because
       # it listens on IPv4 loopback only.
       - MCP_SERVER_URL=http://127.0.0.1:8000/mcp
+      # On for local use, like the subjects service. CI passes MCP_ENABLED=false
+      # on the compose command line, so no run depends on the MCP server.
+      - MCP_ENABLED=${MCP_ENABLED:-true}
     # Nothing the backend serves works until the database service answers, so
     # wait for its health check rather than just for the container to start.
     depends_on:

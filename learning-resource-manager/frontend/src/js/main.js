@@ -1301,6 +1301,33 @@ mcpByTagForm.addEventListener("submit", (event) => {
 	);
 });
 
+// Like the subjects service's MCP page: when the backend has MCP turned off,
+// say so once and disable the cards, rather than each failing with a 403.
+async function loadMcpStatus() {
+	let message = null;
+	try {
+		const response = await fetch("/api/mcp/status");
+		const status = await response.json();
+		if (!status.enabled) {
+			message = "MCP integration is disabled by the application configuration.";
+		}
+	} catch {
+		message = "MCP status could not be checked. The backend may be unavailable.";
+	}
+
+	if (!message) {
+		return;
+	}
+	const notice = document.getElementById("mcp-status");
+	notice.textContent = message;
+	notice.hidden = false;
+	for (const button of document.querySelectorAll("#mcp-view button")) {
+		button.disabled = true;
+	}
+}
+
+loadMcpStatus();
+
 setMode(location.hash.slice(1));
 
 /* ---------- wiring ---------- */
