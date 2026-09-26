@@ -1,0 +1,98 @@
+name: RAG Server CI
+
+on:
+  pull_request:
+    paths:
+      - "rag-server/**"
+      - ".github/workflows/rag-server.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-check:
+    name: Smoke Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: rag-server
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: rag-server/requirements.txt
+
+      - name: Initialise the RAG server
+        run: bash init.sh
+
+      - name: Start the RAG server
+        run: |
+          nohup ./run.sh > server.log 2>&1 &
+
+          for attempt in {1..8}; do
+            if curl --silent --fail --max-time 5 --output /dev/null http://localhost:5010/health; then
+              echo "RAG server is up."
+              exit 0
+            fi
+            echo "Waiting for the RAG server ($attempt/8)."
+            sleep 2
+          done
+
+          echo "::error::RAG server did not respond on /health after 8 attempts."
+          exit 1
+
+      - name: Probe the RAG endpoints
+        run: |
+          failures=0
+
+          check() {
+            local method="$1" path="$2" expected="$3" body="${4:-}"
+            local args=(--silent --show-error --max-time 30 --output response.json --write-out '%{http_code}' --request "$method")
+            if [[ -n "$body" ]]; then
+              args+=(--header 'Content-Type: application/json' --data "$body")
+            fi
+
+            local status
+            status="$(curl "${args[@]}" "http://localhost:5010$path" || true)"
+            if [[ "$status" == "$expected" ]] && jq --exit-status . response.json > /dev/null 2>&1; then
+              echo "PASS $method $path -> HTTP $status"
+            else
+              echo "::error::FAIL $method $path -> HTTP ${status:-000}, expected $expected"
+              cat response.json 2>/dev/null || true
+              echo
+              failures=$((failures + 1))
+            fi
+          }
+
+          check GET /health 200
+          check GET /services 200
+          # An unknown service reaches /ingest and its validation without fetching or chunking any data.
+          check POST /ingest 404 '{"service": "ci-probe"}'
+          # The index is empty, so neither returns results, and /answer replies without calling Ollama.
+          check POST /retrieve 200 '{"query": "ci probe"}'
+          check POST /answer 200 '{"query": "ci probe"}'
+
+          echo "$((5 - failures))/5 endpoints passed."
+          if [[ "$failures" -gt 0 ]]; then
+            exit 1
+          fi
+
+      - name: Stop the RAG server
+        if: always()
+        run: |
+          ./run.sh stop
+          if curl --silent --max-time 2 --output /dev/null http://localhost:5010/health; then
+            echo "::error::RAG server is still responding after ./run.sh stop."
+            exit 1
+          fi
+
+      - name: Show the RAG server log
+        if: always()
+        run: cat server.log 2>/dev/null || echo "No server log was written."
