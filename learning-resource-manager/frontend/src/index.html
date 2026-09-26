@@ -67,11 +67,137 @@
 					</div>
 				</section>
 
-				<!-- Questions answered by the RAG server from the indexed library. -->
-				<section id="rag-view" aria-labelledby="rag-heading" hidden>
-					<!-- One card per RAG server endpoint: what it does on the left, and the
+				<!-- The RAG server's endpoints, answering questions from the indexed library. -->
+				<section id="rag-view" aria-label="Rag Mode" hidden>
+					<!-- The reason for Rag Mode, so it leads and gets the full width. -->
+					<div class="card rag-card mb-5">
+						<div class="card-body">
+							<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+								<h2 class="h5 mb-0">Ask a question</h2>
+								<code class="rag-route">POST /answer</code>
+							</div>
+							<p class="text-secondary small mb-3">
+								Answers come only from what has been indexed, with the records they were
+								drawn from.
+							</p>
+
+							<form id="rag-form">
+								<div class="rag-query">
+									<input type="text" class="form-control" id="rag-input" autocomplete="off"
+									       placeholder="Ask a question about the library" aria-label="Your question">
+									<button type="submit" class="btn btn-primary" id="rag-send">Ask</button>
+								</div>
+								<div class="rag-options">
+									<div>
+										<label class="form-label small mb-1" for="rag-service">Search in</label>
+										<select class="form-select form-select-sm rag-service-select" id="rag-service"></select>
+									</div>
+									<div>
+										<label class="form-label small mb-1" for="rag-k">Records to use</label>
+										<input type="number" class="form-control form-control-sm rag-k" id="rag-k"
+										       min="1" step="1" placeholder="Default">
+									</div>
+								</div>
+							</form>
+
+							<div class="rag-result" id="rag-result" aria-live="polite"></div>
+						</div>
+					</div>
+
+					<h2 class="h6 text-secondary mb-3">Endpoints</h2>
+
+					<!-- One card per remaining endpoint: what it does on the left, and the
 					     response from the last call alongside it. -->
 					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Retrieve</h3>
+										<code class="rag-route">POST /retrieve</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										The indexed records closest to a query, without asking the model. Shows what
+										an answer would be drawn from.
+									</p>
+									<form class="rag-endpoint-form" id="rag-retrieve-form" data-output="rag-retrieve-output">
+										<input type="text" class="form-control form-control-sm mb-2" id="rag-retrieve-input"
+										       autocomplete="off" placeholder="Search query" aria-label="Search query">
+										<div class="rag-options mt-0 mb-3">
+											<div>
+												<label class="form-label small mb-1" for="rag-retrieve-service">Search in</label>
+												<select class="form-select form-select-sm rag-service-select" id="rag-retrieve-service"></select>
+											</div>
+											<div>
+												<label class="form-label small mb-1" for="rag-retrieve-k">Results</label>
+												<input type="number" class="form-control form-control-sm rag-k" id="rag-retrieve-k"
+												       min="1" step="1" placeholder="Default">
+											</div>
+										</div>
+										<button type="submit" class="btn btn-primary btn-sm">Retrieve</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-retrieve-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Ingest</h3>
+										<code class="rag-route">POST /ingest</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										Re-indexes a service from its current data, so answers reflect what has
+										changed since the last run.
+									</p>
+									<form class="rag-endpoint-form" id="rag-ingest-form" data-output="rag-ingest-output">
+										<label class="form-label small mb-1" for="rag-ingest-service">Service</label>
+										<select class="form-select form-select-sm rag-service-select mb-3" id="rag-ingest-service"></select>
+										<button type="submit" class="btn btn-primary btn-sm">Re-index</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-ingest-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-5">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Services</h3>
+										<code class="rag-route">GET /services</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										The services the RAG server can index and search.
+									</p>
+									<form class="rag-endpoint-form" id="rag-services-form" data-output="rag-services-output">
+										<button type="submit" class="btn btn-primary btn-sm">List services</button>
+									</form>
+								</div>
+								<div class="col-md-7">
+									<div class="rag-output" id="rag-services-output" aria-live="polite">
+										<p class="text-secondary small mb-0">Not called yet.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card rag-card">
 						<div class="card-body">
 							<div class="row g-4">
 								<div class="col-md-5">
@@ -90,31 +216,6 @@
 									</div>
 								</div>
 							</div>
-						</div>
-					</div>
-
-					<div class="card rag-card">
-						<div class="card-body">
-							<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-								<div>
-									<h2 class="h5 mb-1" id="rag-heading">Rag Mode</h2>
-									<p class="text-secondary small mb-0">
-										Answers come only from what has been indexed from the library, with the
-										records they were drawn from.
-									</p>
-								</div>
-								<button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" id="rag-ingest">
-									Re-index library
-								</button>
-							</div>
-
-							<form class="rag-form" id="rag-form">
-								<input type="text" class="form-control" id="rag-input" autocomplete="off"
-								       placeholder="Ask a question about the library" aria-label="Your question">
-								<button type="submit" class="btn btn-primary" id="rag-send">Ask</button>
-							</form>
-
-							<div class="rag-result" id="rag-result" aria-live="polite"></div>
 						</div>
 					</div>
 				</section>

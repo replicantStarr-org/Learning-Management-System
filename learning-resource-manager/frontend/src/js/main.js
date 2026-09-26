@@ -1071,16 +1071,41 @@ const ragHealthCheck = document.getElementById("rag-health-check");
 ragHealthCheck.addEventListener("click", () =>
 	callEndpoint(ragHealthCheck, document.getElementById("rag-health-output"), "/api/rag/health"));
 
-// Not wired to the RAG server yet; the backend proxy comes next.
-ragForm.addEventListener("submit", (event) => {
-	event.preventDefault();
-	ragResult.replaceChildren(
+// The connector names in rag-server/pipeline/connectors. Stands in for GET
+// /services until that card is wired up and can fill these itself.
+const RAG_SERVICES = ["assignments", "learning-resources", "quizzes", "subjects", "timetable"];
+const DEFAULT_RAG_SERVICE = "learning-resources";
+
+// An empty service means every service, for searching and for ingesting alike.
+for (const select of document.querySelectorAll(".rag-service-select")) {
+	select.append(
+		new Option("All services", ""),
+		...RAG_SERVICES.map((service) =>
+			new Option(service, service, false, service === DEFAULT_RAG_SERVICE)),
+	);
+}
+
+function showNotConnected(output) {
+	output.replaceChildren(
 		Object.assign(document.createElement("p"), {
 			className: "text-secondary small mb-0",
-			textContent: "Rag Mode is not connected to the RAG server yet.",
+			textContent: "Not connected to the RAG server yet.",
 		}),
 	);
+}
+
+// Not wired to the RAG server yet; each gets its backend route in turn.
+ragForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	showNotConnected(ragResult);
 });
+
+for (const form of document.querySelectorAll(".rag-endpoint-form")) {
+	form.addEventListener("submit", (event) => {
+		event.preventDefault();
+		showNotConnected(document.getElementById(form.dataset.output));
+	});
+}
 
 setMode(location.hash === "#rag" ? "rag" : "library");
 
