@@ -99,6 +99,10 @@ def list_resources():
     """Every learning resource, with its tags, fetched through the MCP server."""
     return call_tool("learning_resources_list")
 
+def list_tags():
+    """Every tag in the library, by name, fetched through the MCP server."""
+    return call_tool("learning_resources_tags_list")
+
 def resources_by_tag(tag):
     """The learning resources carrying the tag, fetched through the MCP server."""
     return call_tool("learning_resources_by_tag", {"tag": tag})

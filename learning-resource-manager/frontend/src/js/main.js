@@ -1282,6 +1282,10 @@ const mcpResourcesList = document.getElementById("mcp-resources-list");
 mcpResourcesList.addEventListener("click", () =>
 	callEndpoint(mcpResourcesList, document.getElementById("mcp-resources-output"), "/api/mcp/resources"));
 
+const mcpTagsList = document.getElementById("mcp-tags-list");
+mcpTagsList.addEventListener("click", () =>
+	callEndpoint(mcpTagsList, document.getElementById("mcp-tags-output"), "/api/mcp/tags"));
+
 const mcpByTagForm = document.getElementById("mcp-by-tag-form");
 mcpByTagForm.addEventListener("submit", (event) => {
 	event.preventDefault();

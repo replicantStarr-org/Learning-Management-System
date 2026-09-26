@@ -26,6 +26,10 @@ def tools():
 def resources():
     return _relay(lambda: {"resources": mcp_service.list_resources()})
 
+@mcp_bp.route('/tags', methods=['GET'])
+def tags():
+    return _relay(lambda: {"tags": mcp_service.list_tags()})
+
 @mcp_bp.route('/resources/by_tag', methods=['POST'])
 def resources_by_tag():
     payload = request.get_json(silent=True)

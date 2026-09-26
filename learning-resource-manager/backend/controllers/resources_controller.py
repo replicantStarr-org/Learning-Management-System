@@ -40,6 +40,12 @@ def get_all_html():
 
     return "".join(render_card(row) for row in rows)
 
+@resources_bp.route('/tags')
+def get_tags():
+    # Every tag, including any no resource carries yet. Read by the MCP
+    # server's learning_resources_tags_list tool.
+    return jsonify(list_tags())
+
 @resources_bp.route('/tags_html')
 def get_tags_html():
     return "".join(render_tag_choice(row) for row in list_tags())

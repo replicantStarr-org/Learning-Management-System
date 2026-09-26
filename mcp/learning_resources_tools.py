@@ -65,6 +65,16 @@ def register_learning_resource_tools(mcp):
         # where /all returns bare arrays without them.
         return json.dumps(client.request("GET", "/catalogue"), ensure_ascii=False)
 
+    @mcp.tool(name="learning_resources_tags_list")
+    def learning_resources_tags_list() -> str:
+        """List every tag in the library, such as "Deep Learning" or "Physics".
+
+        Tags record a resource's subject area. Use these names with
+        learning_resources_by_tag, which only matches a tag name in full.
+        """
+        tags = client.request("GET", "/tags")
+        return json.dumps(sorted(tags, key=lambda tag: tag["name"].casefold()), ensure_ascii=False)
+
     @mcp.tool(name="learning_resources_by_tag")
     def learning_resources_by_tag(tag: str) -> str:
         """Find the learning resources carrying a tag, such as "Deep Learning".
