@@ -227,10 +227,21 @@ your service's folder).
    ```
 
    The right chunk should be in the top three, and the answer should be correct.
-5. **Add benchmarks** to `BENCHMARKS` in `rag-server/eval.py`: two or three questions,
-   each with the chunk ID prefix of the record that answers it, e.g.
+5. **Add benchmarks** to `BENCHMARKS` in `rag-server/eval.py`: two or three
+   questions, each with the chunk ID prefix of the record that answers it, e.g.
    `"quizzes:quiz_question:2:"`. Run `.venv_rag/bin/python eval.py` and check
    that R@5 is 1.0 for yours.
+6. **Run the automated review** of your connector, with your service still
+   running. From `agentic_loop/`:
+
+   ```bash
+   ./run.sh --skip-report-download --area rag --service YOUR_SERVICE_KEY
+   ```
+
+   Service keys are `subjects`, `assignments`, `resources`, `quizzes` and
+   `timetable`. It checks the rules above statically, runs your connector
+   twice to check the output is identical, and has two local models review the
+   result. Fix every `FAIL` line it reports.
 
 ## Done when
 
@@ -238,5 +249,6 @@ your service's folder).
 - [ ] The preview reads clearly with no IDs, secrets, AI output or raw flags.
 - [ ] `POST /ingest` for your service returns `success`.
 - [ ] Your benchmarks in `rag-server/eval.py` reach R@5 = 1.0.
+- [ ] The agentic loop's RAG review of your connector reports no `FAIL` lines.
 - [ ] Only your connector module and `rag-server/eval.py` changed, plus any `GET`
       endpoints you added to your own service.
