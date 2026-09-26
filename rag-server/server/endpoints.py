@@ -8,7 +8,7 @@ turns into the response, so no endpoint builds its own error bodies.
 from typing import Any
 
 from pipeline.connector import connectors
-from pipeline.ingestion import ingest_services
+from pipeline.ingestion import clear_services, ingest_services
 from pipeline.querying import answer_question, retrieve_context
 
 # 502 for errors: the RAG server is fine, the service it read from was not.
@@ -39,6 +39,11 @@ def ingest(payload):
     """POST /ingest: re-index one service, or every service when none is named."""
     result = ingest_services(requested_service(payload))
     return INGEST_STATUS_CODES[result["status"]], result
+
+
+def clear(payload):
+    """POST /clear: delete one service's chunks, or the whole index when none is named."""
+    return 200, clear_services(requested_service(payload))
 
 
 def retrieve(payload):

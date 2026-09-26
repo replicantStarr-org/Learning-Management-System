@@ -22,6 +22,7 @@ ROUTES = {
     ("GET", "/health"): endpoints.health,
     ("GET", "/services"): endpoints.services,
     ("POST", "/ingest"): endpoints.ingest,
+    ("POST", "/clear"): endpoints.clear,
     ("POST", "/retrieve"): endpoints.retrieve,
     ("POST", "/answer"): endpoints.answer,
 }
