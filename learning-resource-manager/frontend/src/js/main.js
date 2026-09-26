@@ -1071,6 +1071,18 @@ const ragHealthCheck = document.getElementById("rag-health-check");
 ragHealthCheck.addEventListener("click", () =>
 	callEndpoint(ragHealthCheck, document.getElementById("rag-health-output"), "/api/rag/health"));
 
+// Sends no body: the backend decides which service is re-indexed.
+const ragIngestForm = document.getElementById("rag-ingest-form");
+ragIngestForm.addEventListener("submit", (event) => {
+	event.preventDefault();
+	callEndpoint(
+		ragIngestForm.querySelector("button"),
+		document.getElementById("rag-ingest-output"),
+		"/api/rag/ingest",
+		{ method: "POST" },
+	);
+});
+
 function showNotConnected(output) {
 	output.replaceChildren(
 		Object.assign(document.createElement("p"), {
