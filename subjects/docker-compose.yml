@@ -38,6 +38,7 @@ services:
       # MCP_ENABLED=false on the compose command line.
       MCP_ENABLED: "${MCP_ENABLED:-true}"
       MCP_SERVER_URL: http://127.0.0.1:8000/mcp
+      RAG_SERVER_URL: http://localhost:5010
     depends_on:
       subject-database:
         condition: service_started
