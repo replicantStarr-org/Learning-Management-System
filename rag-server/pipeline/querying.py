@@ -140,7 +140,14 @@ def answer_question(query: str, k: int | None = None, service: str | None = None
             return output
 
     citations = [
-        {"chunk_id": r["chunk_id"], "service": r["service"], "title": r["title"]} for r in results
+        {
+            "chunk_id": r["chunk_id"],
+            "service": r["service"],
+            "entity": r["entity"],
+            "record_id": r["record_id"],
+            "title": r["title"],
+        }
+        for r in results
     ]
     confidence = confidence_from_results(results)
     output = {
