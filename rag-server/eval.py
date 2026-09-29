@@ -51,6 +51,18 @@ BENCHMARKS = [
             "learning-resources:learning_resource:17:",
         ],
     },
+    {
+        "query": "Who coordinates Database Systems?",
+        "relevant": ["subjects:subject:2:"],
+    },
+    {
+        "query": "What is Cybersecurity Fundamentals about?",
+        "relevant": ["subjects:subject:6:"],
+    },
+    {
+        "query": "Which semester is Advanced Software Development offered?",
+        "relevant": ["subjects:subject:1:"],
+    },
 ]
 
 
