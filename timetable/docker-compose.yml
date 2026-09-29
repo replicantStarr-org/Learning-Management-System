@@ -38,6 +38,7 @@ services:
       PLAN_MAX_AGE_HOURS: 24
       IMPORT_RANGE_WEEKS: 16
       IMPORT_TIMEZONE: Australia/Sydney
+      RAG_SERVER_URL: http://localhost:5010
     depends_on:
       timetable-database:
         condition: service_started
