@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAG Tools | Learning Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/assets/theme.css" rel="stylesheet">
+    <style>
+        .rag-output { min-height: 4rem; max-height: 24rem; overflow: auto; }
+        .rag-output pre { white-space: pre-wrap; word-break: break-word; }
+        .rag-route { color: var(--color-brand-strong, #315ca8); background: #eef4ff; }
+        .rag-results { display: flex; flex-direction: column; gap: .75rem; margin: 0; padding: 0; list-style: none; }
+        .rag-result-item { padding: .75rem; background: #fff; border-radius: .5rem; }
+        .rag-result-heading { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .35rem; }
+        .rag-result-title { flex: 1; font-weight: 600; }
+        .rag-result-distance { color: var(--bs-secondary-color); font-size: .75rem; white-space: nowrap; }
+        .rag-result-text { margin: 0; color: var(--bs-secondary-color); font-size: .875rem; white-space: pre-wrap; }
+        .rag-answer { margin-bottom: .75rem; padding: .9rem 1rem; background: #fff; border-left: .25rem solid var(--bs-primary); border-radius: .5rem; }
+        .rag-answer-label { margin-bottom: .35rem; color: var(--bs-primary); font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+        .rag-answer-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; color: var(--bs-secondary-color); font-size: .8125rem; }
+        .rag-citations { margin: 0; padding-left: 1.25rem; }
+        .rag-citations a { text-decoration: none; }
+        .rag-citations a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
+
+    <main class="container page-shell">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-5">
+            <div>
+                <p class="text-primary fw-semibold mb-2">Subject catalogue</p>
+                <h1 class="display-6 fw-bold">RAG Tools</h1>
+                <p class="lead text-secondary mb-0">Index and look up information from the subjects catalogue.</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i> Back to subjects</a>
+        </div>
+
+        <div class="alert alert-info" role="note">
+            These commands operate only on subject records. Ingest subjects before retrieving or asking a question.
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="health-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="health-heading" class="h5">Health check</h2>
+                            <code class="rag-route px-2 py-1">GET /health</code>
+                        </div>
+                        <p class="text-secondary">Check whether the RAG server is reachable.</p>
+                        <button class="btn btn-primary" type="button" data-rag-button="health" data-rag-output="health-output">Check health</button>
+                        <div id="health-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not checked yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="clear-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="clear-heading" class="h5">Clear index</h2>
+                            <code class="rag-route px-2 py-1">POST /clear</code>
+                        </div>
+                        <p class="text-secondary">Remove indexed subject chunks. The catalogue itself is not changed.</p>
+                        <button class="btn btn-outline-danger" type="button" data-rag-button="clear" data-rag-output="clear-output">Clear subjects</button>
+                        <div id="clear-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="ingest-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="ingest-heading" class="h5">Ingest subjects</h2>
+                            <code class="rag-route px-2 py-1">POST /ingest</code>
+                        </div>
+                        <p class="text-secondary">Read the current subject information and rebuild its search index.</p>
+                        <button class="btn btn-primary" type="button" data-rag-button="ingest" data-rag-output="ingest-output">Ingest subjects</button>
+                        <div id="ingest-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="retrieve-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="retrieve-heading" class="h5">Retrieve</h2>
+                            <code class="rag-route px-2 py-1">POST /retrieve</code>
+                        </div>
+                        <p class="text-secondary">Find the indexed subject information closest to a query.</p>
+                        <form data-rag-form="retrieve">
+                            <label class="form-label" for="retrieve-query">Query</label>
+                            <input class="form-control mb-2" id="retrieve-query" required placeholder="e.g. subjects about databases">
+                            <label class="form-label" for="retrieve-k">Results (optional)</label>
+                            <input class="form-control mb-3" id="retrieve-k" type="number" min="1" step="1" placeholder="Configured default">
+                            <button class="btn btn-primary" type="submit">Retrieve information</button>
+                        </form>
+                        <div id="retrieve-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12">
+                <section class="card feature-card shadow-sm" aria-labelledby="answer-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="answer-heading" class="h5">Ask a question</h2>
+                            <code class="rag-route px-2 py-1">POST /answer</code>
+                        </div>
+                        <p class="text-secondary">Ask a question and receive an answer grounded in indexed subject information.</p>
+                        <form data-rag-form="answer">
+                            <label class="form-label" for="answer-query">Question</label>
+                            <div class="input-group">
+                                <input class="form-control" id="answer-query" required placeholder="e.g. Who coordinates Database Systems?">
+                                <button class="btn btn-primary" type="submit">Ask question</button>
+                            </div>
+                            <div class="mt-2" style="max-width: 10rem">
+                                <label class="form-label" for="answer-k">Records (optional)</label>
+                                <input class="form-control" id="answer-k" type="number" min="1" step="1" placeholder="Default">
+                            </div>
+                        </form>
+                        <div id="answer-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>
+        const backend = "http://localhost:5001";
+
+        function statusLine(status, text = null) {
+            const line = document.createElement("p");
+            const ok = status >= 200 && status < 300;
+            line.className = `${ok ? "text-success" : "text-danger"} small`;
+            line.textContent = `${status ? `${status} · ` : ""}${text || (ok ? "Success" : "Request failed")}`;
+            return line;
+        }
+
+        function showResult(output, status, body) {
+            output.replaceChildren(statusLine(status));
+            const pre = document.createElement("pre");
+            pre.className = "mb-0 small";
+            pre.textContent = JSON.stringify(body, null, 2);
+            output.append(pre);
+        }
+
+        function subjectLink(recordId, title) {
+            if (!recordId) {
+                const text = document.createElement("span");
+                text.textContent = title || "Untitled subject";
+                return text;
+            }
+            const link = document.createElement("a");
+            link.href = `/subject.html?id=${encodeURIComponent(recordId)}`;
+            link.textContent = title || "View subject";
+            link.title = "Open subject details";
+            return link;
+        }
+
+        function showRetrieve(output, status, body) {
+            if (status < 200 || status >= 300 || !Array.isArray(body.results)) {
+                showResult(output, status, body);
+                return;
+            }
+
+            output.replaceChildren(statusLine(status, `${body.results.length} result${body.results.length === 1 ? "" : "s"} found`));
+            if (!body.results.length) {
+                const empty = document.createElement("p");
+                empty.className = "text-secondary small mb-0";
+                empty.textContent = "No indexed subject information was close enough to that query.";
+                output.append(empty);
+                return;
+            }
+
+            const list = document.createElement("ol");
+            list.className = "rag-results";
+            for (const item of body.results) {
+                const heading = document.createElement("div");
+                heading.className = "rag-result-heading";
+                const title = document.createElement("span");
+                title.className = "rag-result-title";
+                title.append(subjectLink(item.record_id, item.title));
+                const distance = document.createElement("span");
+                distance.className = "rag-result-distance";
+                distance.textContent = `match distance ${item.distance}`;
+                heading.append(title, distance);
+
+                const text = document.createElement("p");
+                text.className = "rag-result-text";
+                text.textContent = item.text;
+
+                const entry = document.createElement("li");
+                entry.className = "rag-result-item";
+                entry.append(heading, text);
+                list.append(entry);
+            }
+            output.append(list);
+        }
+
+        const confidenceClasses = {
+            High: "text-bg-success",
+            Medium: "text-bg-warning",
+            Low: "text-bg-secondary",
+            None: "text-bg-secondary",
+        };
+
+        function showAnswer(output, status, body) {
+            if (status < 200 || status >= 300 || typeof body.answer !== "string") {
+                showResult(output, status, body);
+                return;
+            }
+
+            output.replaceChildren(statusLine(status, "Answer generated"));
+            const label = document.createElement("div");
+            label.className = "rag-answer-label";
+            label.textContent = "Answer";
+            const answer = document.createElement("p");
+            answer.className = "rag-answer";
+            answer.textContent = body.answer === "Insufficient evidence."
+                ? "The indexed subjects do not contain enough information to answer that question."
+                : body.answer;
+
+            const meta = document.createElement("div");
+            meta.className = "rag-answer-meta mb-3";
+            const confidence = document.createElement("span");
+            confidence.className = `badge ${confidenceClasses[body.confidence_category] || "text-bg-secondary"}`;
+            confidence.textContent = `${body.confidence_category || "Unknown"} match`;
+            const retrieval = body.retrieval_summary || {};
+            const count = retrieval.retrieved_count ?? body.citations?.length ?? 0;
+            const k = retrieval.k ?? "configured";
+            meta.append(confidence, `${count} of ${k} records used`);
+            output.append(label, answer, meta);
+
+            const citations = Array.isArray(body.citations) ? body.citations : [];
+            if (!citations.length) return;
+            const heading = document.createElement("p");
+            heading.className = "text-secondary small fw-semibold mb-1";
+            heading.textContent = "Sources";
+            const list = document.createElement("ol");
+            list.className = "rag-citations small";
+            for (const citation of citations) {
+                const item = document.createElement("li");
+                item.append(subjectLink(citation.record_id, citation.title));
+                list.append(item);
+            }
+            output.append(heading, list);
+        }
+
+        async function call(button, path, method, payload, output, render = showResult) {
+            button.disabled = true;
+            output.textContent = "Waiting for a response…";
+            try {
+                const response = await fetch(`${backend}${path}`, {
+                    method,
+                    headers: payload ? { "Content-Type": "application/json" } : {},
+                    body: payload ? JSON.stringify(payload) : undefined,
+                });
+                const body = await response.json().catch(() => ({ error: "Malformed response" }));
+                render(output, response.status, body);
+            } catch {
+                render(output, 0, { error: "The subject backend or RAG server could not be reached." });
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        document.querySelectorAll("[data-rag-button]").forEach((button) => {
+            button.addEventListener("click", () => {
+                if (button.dataset.ragButton === "clear"
+                    && !window.confirm("Clear indexed subjects? Ingest to restore them.")) return;
+                const method = button.dataset.ragButton === "health" ? "GET" : "POST";
+                call(button, `/rag/${button.dataset.ragButton}`, method, null,
+                    document.getElementById(button.dataset.ragOutput));
+            });
+        });
+
+        document.querySelectorAll("[data-rag-form]").forEach((form) => {
+            form.addEventListener("submit", (event) => {
+                event.preventDefault();
+                const kind = form.dataset.ragForm;
+                const query = document.getElementById(`${kind}-query`).value;
+                const value = document.getElementById(`${kind}-k`).value;
+                call(form.querySelector("button[type=submit]"), `/rag/${kind}`, "POST",
+                    { query, k: value ? Number(value) : null },
+                    document.getElementById(`${kind}-output`),
+                    kind === "retrieve" ? showRetrieve : showAnswer);
+            });
+        });
+    </script>
+</body>
+</html>
