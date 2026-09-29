@@ -237,8 +237,17 @@ function ragPost(path, body = {}) {
     });
 }
 
-async function loadRagHealth() {
+async function loadRagStatus() {
     try {
+        const status = await ragRequest("/status");
+        if (!status.enabled) {
+            setRagHealth("Disabled", "text-bg-secondary");
+            showRagAlert("RAG integration is disabled by the application configuration.");
+            document.querySelectorAll("[data-rag-action], [data-rag-submit]").forEach((button) => {
+                button.disabled = true;
+            });
+            return;
+        }
         await ragRequest("/health");
         setRagHealth("RAG server online", "text-bg-success");
     } catch (error) {
@@ -375,5 +384,5 @@ if (document.querySelector("[data-rag-page]")) {
         button.addEventListener("click", () => runRagIndexAction(button.dataset.ragAction));
     });
     document.querySelector("#rag-form").addEventListener("submit", askRag);
-    loadRagHealth();
+    loadRagStatus();
 }

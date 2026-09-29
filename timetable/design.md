@@ -165,9 +165,10 @@ from the student's own entries.
 - `POST /timetable/ai-advice` - request AI time-management advice
 - `POST /timetable/import-ical` - import events from an external iCal URL over the next
   `IMPORT_RANGE_WEEKS` weeks (default 16)
+- `GET /rag/status` - whether RAG integration is enabled (`RAG_ENABLED`); always answers
 - `GET /rag/health`, `POST /rag/retrieve`, `POST /rag/answer`, `POST /rag/ingest`,
   `POST /rag/clear` - relayed to the shared RAG server for the `timetable` service only (JSON, see
-  *Release 1: RAG*)
+  *Release 1: RAG*); each returns 403 when RAG is disabled
 
 The **database service** exposes the equivalent REST resource directly (`GET/POST/PUT/DELETE
 /timetable/<id>`, plus `/timetable/plans*`, `/timetable/advice` and `/timetable/users`), matching the
@@ -335,7 +336,10 @@ lecture shared by three students) must PASS at P@5 ceiling and R@5 = 1.0, and th
 loop's RAG mode (`--area rag --service timetable`) reviews the connector.
 
 **Configuration:** `RAG_SERVER_URL` in `docker-compose.yml` (`http://localhost:5010`), following
-the same host-network approach the backend already uses to reach Ollama.
+the same host-network approach the backend already uses to reach Ollama, and `RAG_ENABLED`
+(default `true`). CI runs with `RAG_ENABLED=false`, since no RAG server runs on the runner;
+`/rag/status` then reports disabled and every other `/rag/*` route returns 403, which
+`timetable.yml` asserts. The integration stays in the code either way - only the switch changes.
 
 ### Known Limitations
 
@@ -368,6 +372,6 @@ the same host-network approach the backend already uses to reach Ollama.
 
 The timetable feature has a CI workflow (`timetable.yml`) mirroring the pattern described in
 [the app design](../design.md): build images, smoke-check each container (database, backend,
-frontend, in that order), and upload evidence reports. In Release 1 it also probes the new
-`/timetable/users` endpoint and RAG page. No RAG server runs on the runner, so the `/rag/*` routes
-are not probed.
+frontend, in that order), and upload evidence reports. In Release 1 it also starts the stack with
+`RAG_ENABLED=false`, probes the new `/timetable/users` endpoint and RAG page, and verifies that RAG is
+reported disabled and refused with 403.

@@ -9,9 +9,15 @@ TIMEOUT = float(os.getenv("RAG_TIMEOUT_SECONDS", "10"))
 INGEST_TIMEOUT = float(os.getenv("RAG_INGEST_TIMEOUT_SECONDS", "60"))
 ANSWER_TIMEOUT = float(os.getenv("RAG_ANSWER_TIMEOUT_SECONDS", "150"))
 
+TRUE_VALUES = {"1", "true", "yes", "on"}
+
 
 class RagError(RuntimeError):
     pass
+
+
+def rag_is_enabled():
+    return os.getenv("RAG_ENABLED", "false").strip().lower() in TRUE_VALUES
 
 
 def _request(method, path, payload=None, timeout=TIMEOUT):
