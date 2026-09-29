@@ -3,6 +3,7 @@ from flask_cors import CORS
 
 from routes.api import api_bp
 from routes.mcp import mcp_bp
+from routes.rag import rag_bp
 from routes.subjects import subjects_bp
 
 
@@ -12,6 +13,7 @@ def create_app():
     app.register_blueprint(subjects_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(mcp_bp)
+    app.register_blueprint(rag_bp)
 
     @app.get("/")
     def health():
