@@ -186,3 +186,194 @@ async function loadEntry() {
 }
 
 if (entryView) loadEntry();
+
+const RAG_URL = "http://localhost:5005/rag";
+const CONFIDENCE_BADGES = {
+    High: "text-bg-success",
+    Medium: "text-bg-warning",
+    Low: "text-bg-danger",
+    None: "text-bg-secondary",
+};
+
+function showRagAlert(text, kind = "warning") {
+    const alertBox = document.querySelector("#rag-alert");
+    alertBox.className = `alert alert-${kind}`;
+    alertBox.textContent = text;
+    alertBox.hidden = false;
+}
+
+function setRagHealth(text, badge) {
+    const health = document.querySelector("#rag-health");
+    health.className = `badge ${badge}`;
+    health.textContent = text;
+}
+
+async function ragRequest(path, options = {}) {
+    let response;
+    try {
+        response = await fetch(`${RAG_URL}${path}`, options);
+    } catch {
+        throw new Error("The timetable backend is unavailable. Check that its container is running.");
+    }
+
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error("The timetable backend returned an unreadable response.");
+    }
+    if (!response.ok || data.status === "error") {
+        const serviceError = data.services?.find((service) => service.error)?.error;
+        throw new Error(data.error || serviceError || "The RAG request failed.");
+    }
+    return data;
+}
+
+function ragPost(path, body = {}) {
+    return ragRequest(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+}
+
+async function loadRagHealth() {
+    try {
+        await ragRequest("/health");
+        setRagHealth("RAG server online", "text-bg-success");
+    } catch (error) {
+        setRagHealth("RAG server offline", "text-bg-danger");
+        showRagAlert(error.message, "danger");
+    }
+}
+
+async function runRagIndexAction(action) {
+    const result = document.querySelector("#rag-index-result");
+    if (action === "clear" && !window.confirm("Remove every timetable entry from the RAG index? Re-index to restore it.")) {
+        return;
+    }
+    result.textContent = action === "ingest" ? "Re-indexing…" : "Clearing…";
+    document.querySelector("#rag-alert").hidden = true;
+
+    try {
+        const data = await ragPost(`/${action}`);
+        if (action === "ingest") {
+            const service = data.services?.[0] || {};
+            result.textContent = `Indexed ${service.chunk_count ?? 0} timetable chunks (${service.removed_count ?? 0} stale removed).`;
+        } else {
+            result.textContent = `Removed ${data.removed_count ?? 0} timetable chunks from the index.`;
+        }
+    } catch (error) {
+        result.textContent = "";
+        showRagAlert(error.message, "danger");
+    }
+}
+
+function renderRagAnswer(data) {
+    const confidence = data.confidence_category || "None";
+    const badge = document.querySelector("#rag-confidence");
+    badge.className = `badge ${CONFIDENCE_BADGES[confidence] || "text-bg-secondary"}`;
+    badge.textContent = `Confidence: ${confidence}`;
+
+    document.querySelector("#rag-answer-text").textContent = data.answer;
+
+    const citations = document.querySelector("#rag-citations");
+    citations.replaceChildren();
+    if (!data.citations?.length) {
+        const item = document.createElement("li");
+        item.className = "text-secondary";
+        item.textContent = "No timetable entries were close enough to the question, so no answer was generated.";
+        citations.append(item);
+    }
+    data.citations?.forEach((citation) => {
+        const item = document.createElement("li");
+        item.textContent = `${citation.title} `;
+        const chunkId = document.createElement("code");
+        chunkId.className = "small";
+        chunkId.textContent = citation.chunk_id;
+        item.append(chunkId);
+        citations.append(item);
+    });
+
+    document.querySelector("#rag-answer").hidden = false;
+}
+
+function renderRagResults(results) {
+    const list = document.querySelector("#rag-results-list");
+    list.replaceChildren();
+    if (!results.length) {
+        const empty = document.createElement("p");
+        empty.className = "text-secondary mb-0";
+        empty.textContent = "No timetable entries were close enough to the question.";
+        list.append(empty);
+    }
+    results.forEach((result) => {
+        const card = document.createElement("div");
+        card.className = "border rounded p-3";
+
+        const heading = document.createElement("div");
+        heading.className = "d-flex justify-content-between gap-2 mb-2";
+        const title = document.createElement("strong");
+        title.textContent = `${result.rank}. ${result.title}`;
+        const distance = document.createElement("span");
+        distance.className = "badge text-bg-light";
+        distance.textContent = `distance ${result.distance}`;
+        heading.append(title, distance);
+
+        const text = document.createElement("pre");
+        text.className = "bg-light rounded p-2 mb-0 small";
+        text.textContent = result.text;
+
+        card.append(heading, text);
+        list.append(card);
+    });
+
+    document.querySelector("#rag-results").hidden = false;
+}
+
+async function askRag(event) {
+    event.preventDefault();
+    const mode = event.submitter?.dataset.ragSubmit || "answer";
+    const query = document.querySelector("#rag-query").value.trim();
+    if (!query) {
+        showRagAlert("Enter a question first.");
+        return;
+    }
+
+    const loading = document.querySelector("#rag-loading");
+    const elapsed = document.querySelector("#rag-elapsed");
+    const buttons = document.querySelectorAll("[data-rag-submit]");
+    const start = Date.now();
+    elapsed.textContent = "0";
+    const timer = setInterval(() => {
+        elapsed.textContent = Math.round((Date.now() - start) / 1000);
+    }, 1000);
+    loading.hidden = false;
+    buttons.forEach((button) => { button.disabled = true; });
+    document.querySelector("#rag-alert").hidden = true;
+    document.querySelector("#rag-answer").hidden = true;
+    document.querySelector("#rag-results").hidden = true;
+
+    try {
+        const data = await ragPost(`/${mode}`, { query });
+        if (mode === "answer") {
+            renderRagAnswer(data);
+        } else {
+            renderRagResults(data.results || []);
+        }
+    } catch (error) {
+        showRagAlert(error.message, "danger");
+    } finally {
+        clearInterval(timer);
+        loading.hidden = true;
+        buttons.forEach((button) => { button.disabled = false; });
+    }
+}
+
+if (document.querySelector("[data-rag-page]")) {
+    document.querySelectorAll("[data-rag-action]").forEach((button) => {
+        button.addEventListener("click", () => runRagIndexAction(button.dataset.ragAction));
+    });
+    document.querySelector("#rag-form").addEventListener("submit", askRag);
+    loadRagHealth();
+}
