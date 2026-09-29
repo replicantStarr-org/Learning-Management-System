@@ -1,11 +1,19 @@
 name: Timetable Manager CI
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "timetable/**"
+      - "shared/**"
+      - ".github/workflows/timetable.yml"
   pull_request:
     paths:
       - "timetable/**"
       - "shared/**"
       - ".github/workflows/timetable.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -66,6 +74,14 @@ jobs:
           probe "Timetable database" "http://localhost:6005/"
           probe "Timetable backend" "http://localhost:5005/"
           probe "Timetable frontend" "http://localhost:3005/"
+          # Read by the RAG connector (rag-server/pipeline/connectors/timetable.py).
+          probe "Timetable database users" "http://localhost:6005/timetable/users"
+          probe "Timetable RAG page" "http://localhost:3005/rag.html"
+
+      - name: Dump service logs
+        if: failure()
+        working-directory: timetable
+        run: docker compose logs --no-color
 
       - name: Stop timetable services
         if: always()
