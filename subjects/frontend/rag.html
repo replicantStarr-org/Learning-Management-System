@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,23 +9,103 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/assets/theme.css" rel="stylesheet">
     <style>
-        .rag-output { min-height: 4rem; max-height: 24rem; overflow: auto; }
-        .rag-output pre { white-space: pre-wrap; word-break: break-word; }
-        .rag-route { color: var(--color-brand-strong, #315ca8); background: #eef4ff; }
-        .rag-results { display: flex; flex-direction: column; gap: .75rem; margin: 0; padding: 0; list-style: none; }
-        .rag-result-item { padding: .75rem; background: #fff; border-radius: .5rem; }
-        .rag-result-heading { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .35rem; }
-        .rag-result-title { flex: 1; font-weight: 600; }
-        .rag-result-distance { color: var(--bs-secondary-color); font-size: .75rem; white-space: nowrap; }
-        .rag-result-text { margin: 0; color: var(--bs-secondary-color); font-size: .875rem; white-space: pre-wrap; }
-        .rag-answer { margin-bottom: .75rem; padding: .9rem 1rem; background: #fff; border-left: .25rem solid var(--bs-primary); border-radius: .5rem; }
-        .rag-answer-label { margin-bottom: .35rem; color: var(--bs-primary); font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-        .rag-answer-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; color: var(--bs-secondary-color); font-size: .8125rem; }
-        .rag-citations { margin: 0; padding-left: 1.25rem; }
-        .rag-citations a { text-decoration: none; }
-        .rag-citations a:hover { text-decoration: underline; }
+        .rag-output {
+            min-height: 4rem;
+            max-height: 24rem;
+            overflow: auto;
+        }
+
+        .rag-output pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .rag-route {
+            color: var(--color-brand-strong, #315ca8);
+            background: #eef4ff;
+        }
+
+        .rag-results {
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .rag-result-item {
+            padding: .75rem;
+            background: #fff;
+            border-radius: .5rem;
+        }
+
+        .rag-result-heading {
+            display: flex;
+            align-items: baseline;
+            gap: .5rem;
+            margin-bottom: .35rem;
+        }
+
+        .rag-result-title {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .rag-result-distance {
+            color: var(--bs-secondary-color);
+            font-size: .75rem;
+            white-space: nowrap;
+        }
+
+        .rag-result-text {
+            margin: 0;
+            color: var(--bs-secondary-color);
+            font-size: .875rem;
+            white-space: pre-wrap;
+        }
+
+        .rag-answer {
+            margin-bottom: .75rem;
+            padding: .9rem 1rem;
+            background: #fff;
+            border-left: .25rem solid var(--bs-primary);
+            border-radius: .5rem;
+        }
+
+        .rag-answer-label {
+            margin-bottom: .35rem;
+            color: var(--bs-primary);
+            font-size: .75rem;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .rag-answer-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .5rem;
+            color: var(--bs-secondary-color);
+            font-size: .8125rem;
+        }
+
+        .rag-citations {
+            margin: 0;
+            padding-left: 1.25rem;
+        }
+
+        .rag-citations a {
+            text-decoration: none;
+        }
+
+        .rag-citations a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
+
 <body>
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
 
@@ -38,10 +119,6 @@
             <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i> Back to subjects</a>
         </div>
 
-        <div class="alert alert-info" role="note">
-            These commands operate only on subject records. Ingest subjects before retrieving or asking a question.
-        </div>
-
         <div class="row g-4">
             <div class="col-lg-6">
                 <section class="card feature-card shadow-sm h-100" aria-labelledby="health-heading">
@@ -51,8 +128,10 @@
                             <code class="rag-route px-2 py-1">GET /health</code>
                         </div>
                         <p class="text-secondary">Check whether the RAG server is reachable.</p>
-                        <button class="btn btn-primary" type="button" data-rag-button="health" data-rag-output="health-output">Check health</button>
-                        <div id="health-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not checked yet.</div>
+                        <button class="btn btn-primary" type="button" data-rag-button="health"
+                            data-rag-output="health-output">Check health</button>
+                        <div id="health-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            checked yet.</div>
                     </div>
                 </section>
             </div>
@@ -64,9 +143,12 @@
                             <h2 id="clear-heading" class="h5">Clear index</h2>
                             <code class="rag-route px-2 py-1">POST /clear</code>
                         </div>
-                        <p class="text-secondary">Remove indexed subject chunks. The catalogue itself is not changed.</p>
-                        <button class="btn btn-outline-danger" type="button" data-rag-button="clear" data-rag-output="clear-output">Clear subjects</button>
-                        <div id="clear-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                        <p class="text-secondary">Remove indexed subject chunks.
+                        </p>
+                        <button class="btn btn-outline-danger" type="button" data-rag-button="clear"
+                            data-rag-output="clear-output">Clear subjects</button>
+                        <div id="clear-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
                     </div>
                 </section>
             </div>
@@ -79,8 +161,10 @@
                             <code class="rag-route px-2 py-1">POST /ingest</code>
                         </div>
                         <p class="text-secondary">Read the current subject information and rebuild its search index.</p>
-                        <button class="btn btn-primary" type="button" data-rag-button="ingest" data-rag-output="ingest-output">Ingest subjects</button>
-                        <div id="ingest-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                        <button class="btn btn-primary" type="button" data-rag-button="ingest"
+                            data-rag-output="ingest-output">Ingest subjects</button>
+                        <div id="ingest-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
                     </div>
                 </section>
             </div>
@@ -95,12 +179,15 @@
                         <p class="text-secondary">Find the indexed subject information closest to a query.</p>
                         <form data-rag-form="retrieve">
                             <label class="form-label" for="retrieve-query">Query</label>
-                            <input class="form-control mb-2" id="retrieve-query" required placeholder="e.g. subjects about databases">
+                            <input class="form-control mb-2" id="retrieve-query" required
+                                placeholder="e.g. subjects about databases">
                             <label class="form-label" for="retrieve-k">Results (optional)</label>
-                            <input class="form-control mb-3" id="retrieve-k" type="number" min="1" step="1" placeholder="Configured default">
+                            <input class="form-control mb-3" id="retrieve-k" type="number" min="1" step="1"
+                                placeholder="Configured default">
                             <button class="btn btn-primary" type="submit">Retrieve information</button>
                         </form>
-                        <div id="retrieve-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                        <div id="retrieve-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
                     </div>
                 </section>
             </div>
@@ -112,19 +199,23 @@
                             <h2 id="answer-heading" class="h5">Ask a question</h2>
                             <code class="rag-route px-2 py-1">POST /answer</code>
                         </div>
-                        <p class="text-secondary">Ask a question and receive an answer grounded in indexed subject information.</p>
+                        <p class="text-secondary">Ask a question and receive an answer grounded in indexed subject
+                            information.</p>
                         <form data-rag-form="answer">
                             <label class="form-label" for="answer-query">Question</label>
                             <div class="input-group">
-                                <input class="form-control" id="answer-query" required placeholder="e.g. Who coordinates Database Systems?">
+                                <input class="form-control" id="answer-query" required
+                                    placeholder="e.g. Who coordinates Database Systems?">
                                 <button class="btn btn-primary" type="submit">Ask question</button>
                             </div>
                             <div class="mt-2" style="max-width: 10rem">
                                 <label class="form-label" for="answer-k">Records (optional)</label>
-                                <input class="form-control" id="answer-k" type="number" min="1" step="1" placeholder="Default">
+                                <input class="form-control" id="answer-k" type="number" min="1" step="1"
+                                    placeholder="Default">
                             </div>
                         </form>
-                        <div id="answer-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not called yet.</div>
+                        <div id="answer-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
                     </div>
                 </section>
             </div>
@@ -295,4 +386,5 @@
         });
     </script>
 </body>
+
 </html>
