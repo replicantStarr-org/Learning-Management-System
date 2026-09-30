@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RAG_ENABLED: "false"
+
 jobs:
   build-images:
     name: Build Images
@@ -32,7 +35,7 @@ jobs:
 
       - name: Start timetable services
         working-directory: timetable
-        run: RAG_ENABLED=false docker compose up --detach --build
+        run: docker compose up --detach --build
 
       - name: Probe timetable services
         shell: bash

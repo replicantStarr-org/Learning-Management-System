@@ -3,9 +3,12 @@ name: Integration of all Services
 
 on: [push, workflow_dispatch]
 
+env:
+  RAG_ENABLED: "false"
+
 jobs:
   placeholder:
     runs-on: ubuntu-latest
     steps:
       - name: Placeholder
-        run: RAG_ENABLED=false exit 0
+        run: exit 0

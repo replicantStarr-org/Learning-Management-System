@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RAG_ENABLED: "false"
+
 jobs:
   build-images:
     name: Build Images
@@ -31,7 +34,7 @@ jobs:
 
       - name: Start quiz services
         working-directory: quizzes
-        run: RAG_ENABLED=false docker compose up --detach --build
+        run: docker compose up --detach --build
 
       - name: Probe quiz services
         shell: bash
