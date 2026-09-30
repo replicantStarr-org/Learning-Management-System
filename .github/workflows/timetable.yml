@@ -32,7 +32,7 @@ jobs:
 
       - name: Start timetable services
         working-directory: timetable
-        run: docker compose up --detach --build
+        run: RAG_ENABLED=false docker compose up --detach --build
 
       - name: Probe timetable services
         shell: bash

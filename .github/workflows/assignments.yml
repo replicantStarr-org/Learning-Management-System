@@ -32,7 +32,7 @@ jobs:
 
       - name: Start assignment services
         working-directory: assignments
-        run: docker compose up --detach --build
+        run: RAG_ENABLED=false docker compose up --detach --build
 
       - name: Probe assignment services
         shell: bash

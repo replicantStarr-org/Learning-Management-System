@@ -32,7 +32,7 @@ jobs:
 
       - name: Start subject services with MCP disabled
         working-directory: subjects
-        run: MCP_ENABLED=false docker compose up --detach --build
+        run: RAG_ENABLED=false MCP_ENABLED=false docker compose up --detach --build
 
       - name: Probe subject services
         shell: bash

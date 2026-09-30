@@ -32,7 +32,7 @@ jobs:
 
       - name: Start access services
         working-directory: access
-        run: docker compose up --detach --build
+        run: RAG_ENABLED=false docker compose up --detach --build
 
       - name: Probe access services
         shell: bash

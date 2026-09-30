@@ -8,4 +8,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Placeholder
-        run: exit 0
+        run: RAG_ENABLED=false exit 0

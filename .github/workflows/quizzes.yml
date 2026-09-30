@@ -31,7 +31,7 @@ jobs:
 
       - name: Start quiz services
         working-directory: quizzes
-        run: docker compose up --detach --build
+        run: RAG_ENABLED=false docker compose up --detach --build
 
       - name: Probe quiz services
         shell: bash

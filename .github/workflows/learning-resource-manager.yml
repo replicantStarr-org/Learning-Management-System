@@ -82,7 +82,7 @@ jobs:
         # The database service runs for as long as the application does, and the
         # backend waits for its health check before starting. MCP is off, like
         # the subjects workflow, because no MCP server runs on the runner.
-        run: MCP_ENABLED=false docker compose up --detach --build
+        run: RAG_ENABLED=false MCP_ENABLED=false docker compose up --detach --build
 
       - name: Check the database service is serving
         run: |
