@@ -19,6 +19,7 @@ pages have no question search and no single-question practice.
 import json
 import os
 import random
+import re
 from typing import Any, Literal
 
 import requests
@@ -27,6 +28,11 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 MAX_TEXT_LENGTH = 100
 MAX_SEARCH_RESULTS = 25
+# A question's search relevance is its text score (up to 1.0) plus this share of its
+# quiz's best gallery keyword weight, so a question that names the topic always
+# outranks one that only sits in a quiz tagged with it.
+KEYWORD_SCORE_SHARE = 0.5
+MIN_RELEVANCE = 0.2
 
 Difficulty = Literal["Easy", "Medium", "Hard"]
 
@@ -98,6 +104,7 @@ def _summary(quiz: dict) -> dict:
         "difficulty": quiz["difficulty"],
         "question_count": quiz["question_count"],
         "source": quiz["source"],
+        "keywords": quiz.get("keywords", []),
     }
 
 
@@ -121,6 +128,67 @@ def _filtered(quizzes: list[dict], subject: str | None, difficulty: str | None) 
     if difficulty:
         quizzes = [q for q in quizzes if q["difficulty"] == difficulty]
     return quizzes
+
+
+STOPWORDS = {
+    "a", "an", "and", "are", "do", "does", "for", "how", "in", "is", "of", "on", "or",
+    "the", "to", "what", "which", "why", "with",
+}
+
+
+def _stem(word: str) -> str:
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+def _tokens(text: str) -> list[str]:
+    return [_stem(word) for word in re.findall(r"[a-z0-9]+", text.lower())]
+
+
+def _phrase_in(phrase: list[str], tokens: list[str]) -> bool:
+    """Whether the token sequence phrase appears, whole words, in tokens."""
+    return f" {' '.join(phrase)} " in f" {' '.join(tokens)} "
+
+
+def _word_match(a: str, b: str) -> float:
+    """1 for the same word after stemming; 0.5 when one is a prefix of the
+    other ("sort" and "sorting"), which is looser, as "contain" and "container"
+    show; else 0."""
+    if a == b:
+        return 1.0
+    if min(len(a), len(b)) >= 4 and (a.startswith(b) or b.startswith(a)):
+        return 0.5
+    return 0.0
+
+
+def _best_match(word: str, words: list[str]) -> float:
+    return max((_word_match(word, other) for other in words), default=0.0)
+
+
+def _keyword_score(query: list[str], terms: list[str], keyword: list[str], weight: float) -> float:
+    """How strongly one gallery keyword matches the search: its full weight when
+    either phrase contains the other, else a share of it for the words in common."""
+    if _phrase_in(keyword, query) or _phrase_in(query, keyword):
+        return weight
+    matched = sum(_best_match(word, terms) for word in keyword)
+    return weight * matched / len(keyword) / 2
+
+
+def _text_score(query: list[str], terms: list[str], question: list[str], rest: list[str]) -> float:
+    """1.0 when the question names the search, 0.7 when its answers or
+    explanation do, else up to 0.5 for the search words it shares."""
+    if _phrase_in(query, question):
+        return 1.0
+    if _phrase_in(query, rest):
+        return 0.7
+    words = question + rest
+    if not terms:
+        return 0.0
+    found = sum(_best_match(term, words) for term in terms)
+    return 0.5 * found / len(terms)
 
 
 def register_quiz_tools(mcp):
@@ -157,19 +225,41 @@ def register_quiz_tools(mcp):
 
     @mcp.tool(name="quizzes_search_questions")
     def quizzes_search_questions(keyword: str) -> str:
-        """Find questions across every quiz whose question text, answers or
-        explanation contain keyword, ignoring case, to revise one topic.
-        Returns at most 25 matches. MCP-only: the quiz pages have no question
-        search.
+        """Find questions on a topic across every quiz, to revise it, best
+        matches first.
+
+        Each question is scored on its text, answers and explanation, plus the
+        weighted keyword gallery of its quiz, so related wording also matches:
+        "containers" finds the Docker questions. Each match has its relevance and
+        the gallery keywords it matched. Returns at most 25 matches. MCP-only:
+        the quiz pages have no question search.
         """
-        needle = _required_text(keyword, "keyword").lower()
+        query = _tokens(_required_text(keyword, "keyword"))
+        terms = [t for t in query if t not in STOPWORDS] or query
         matches = []
         for summary in client.request("/quizzes"):
+            # The list already carries each quiz's gallery, so scoring it costs
+            # no extra request; only the question fetch below does, as before.
+            gallery = []
+            for entry in summary.get("keywords", []):
+                score = _keyword_score(query, terms, _tokens(entry["keyword"]), entry["weight"])
+                if score:
+                    gallery.append((score, entry["keyword"]))
+            keyword_score = max((score for score, _ in gallery), default=0.0)
+            if not summary["question_count"]:
+                continue
+
             quiz = client.request(f"/quizzes/{summary['quiz_id']}")
             for number, question in enumerate(quiz["questions"], start=1):
                 answers = [answer["answer_text"] for answer in question["answers"]]
-                haystack = " ".join([question["question_text"], question["explanation"], *answers]).lower()
-                if needle in haystack:
+                text_score = _text_score(
+                    query,
+                    terms,
+                    _tokens(question["question_text"]),
+                    _tokens(" ".join([question["explanation"], *answers])),
+                )
+                relevance = round(text_score + KEYWORD_SCORE_SHARE * keyword_score, 2)
+                if relevance >= MIN_RELEVANCE:
                     matches.append(
                         {
                             "quiz_id": quiz["quiz_id"],
@@ -178,8 +268,11 @@ def register_quiz_tools(mcp):
                             "question_id": question["question_id"],
                             "number": number,
                             "question_text": question["question_text"],
+                            "relevance": relevance,
+                            "matched_keywords": [k for _, k in sorted(gallery, reverse=True)],
                         }
                     )
+        matches.sort(key=lambda m: (-m["relevance"], m["quiz_id"], m["number"]))
         return json.dumps(
             {
                 "keyword": keyword.strip(),

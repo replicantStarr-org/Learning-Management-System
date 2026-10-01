@@ -339,9 +339,40 @@ async function loadMcpSubjects() {
         document.querySelectorAll("[data-mcp-subjects]").forEach((select) => {
             select.append(...subjects.map((name) => new Option(name, name)));
         });
+        showMcpGallery(body.result);
     } catch {
-        // Left as "Any subject" only; the tools still work without a filter.
+        // Left as "Any subject" only, with no gallery; the tools still work without them.
     }
+}
+
+// Every quiz's keywords in one gallery, each at its heaviest weight across quizzes.
+function showMcpGallery(quizzes) {
+    const weights = new Map();
+    quizzes.flatMap((quiz) => quiz.keywords || []).forEach(({ keyword, weight }) => {
+        weights.set(keyword, Math.max(weight, weights.get(keyword) || 0));
+    });
+    if (!weights.size) return;
+    const keywords = [...weights].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    document.querySelector("#search-gallery").replaceChildren(
+        ...keywords.map(([keyword, weight]) => mcpKeywordChip(keyword, weight)));
+    document.querySelector("[data-mcp-gallery]").hidden = false;
+}
+
+// A keyword sized by its weight; picking it runs the question search for it.
+function mcpKeywordChip(keyword, weight) {
+    const chip = mcpElement("button", "mcp-keyword", keyword);
+    chip.type = "button";
+    chip.style.fontSize = `${(0.7 + 0.35 * weight).toFixed(2)}rem`;
+    chip.title = `Weight ${weight.toFixed(1)}. Search questions on "${keyword}"`;
+    chip.addEventListener("click", () => searchKeyword(keyword));
+    return chip;
+}
+
+function searchKeyword(keyword) {
+    const form = document.querySelector("[data-mcp-form=search]");
+    form.querySelector("[name=keyword]").value = keyword;
+    form.requestSubmit();
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function mcpStatusLine(status, text) {
@@ -519,18 +550,26 @@ const MCP_RENDERERS = {
             all.textContent = reveal ? "Hide all answers" : "Show all answers";
             toggles.forEach((setRevealed) => setRevealed(reveal));
         });
-        return [summary, all, mcpList(items)];
+        const nodes = [summary];
+        if (result.keywords?.length) {
+            const gallery = mcpElement("div", "mcp-gallery mb-3");
+            gallery.setAttribute("aria-label", "Quiz keywords");
+            gallery.append(...result.keywords.map(({ keyword, weight }) => mcpKeywordChip(keyword, weight)));
+            nodes.push(gallery);
+        }
+        return [...nodes, all, mcpList(items)];
     },
     practice: mcpPracticeQuestion,
     search(result) {
         const summary = mcpElement("p", "mcp-summary",
-            `${result.match_count} question${result.match_count === 1 ? "" : "s"} mention "${result.keyword}"`
-            + (result.truncated ? "; showing the first 25." : "."));
+            `${result.match_count} question${result.match_count === 1 ? "" : "s"} match "${result.keyword}", best first`
+            + (result.truncated ? "; showing the top 25." : "."));
         if (!result.matches.length) return [summary];
         return [summary, mcpList(result.matches.map((match) => mcpItem(
             mcpQuizTitle(match.quiz_id, `${match.quiz_title}, question ${match.number}`),
-            `#${match.question_id}`,
-            match.question_text,
+            `relevance ${match.relevance.toFixed(2)} · #${match.question_id}`,
+            match.question_text + (match.matched_keywords.length
+                ? ` (keywords: ${match.matched_keywords.join(", ")})` : ""),
         )))];
     },
 };

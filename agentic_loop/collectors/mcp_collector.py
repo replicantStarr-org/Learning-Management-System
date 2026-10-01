@@ -422,6 +422,25 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
     if not any(m["question_id"] == quiz["questions"][0]["question_id"] for m in found["matches"]):
         raise RuntimeError(f"quizzes_search_questions({keyword!r}) did not find the question it came from")
     evidence.append(f"quizzes_search_questions({keyword!r}) found the question the keyword came from")
+    relevance = [m["relevance"] for m in found["matches"]]
+    if relevance != sorted(relevance, reverse=True):
+        raise RuntimeError("quizzes_search_questions did not rank matches by relevance")
+    evidence.append("quizzes_search_questions ranks matches by relevance, best first")
+
+    # The keyword gallery broadens the search: a quiz keyword that none of its
+    # questions spells out must still find that quiz's questions.
+    text = json.dumps(quiz["questions"]).lower()
+    unspoken = next((k["keyword"] for k in quiz.get("keywords", []) if k["keyword"].lower() not in text), None)
+    if unspoken is None:
+        evidence.append(f"quiz {quiz['quiz_id']} has no gallery keyword absent from its questions; broadening not checked")
+    else:
+        broadened = await _call(session, "quizzes_search_questions", {"keyword": unspoken})
+        if not any(m["quiz_id"] == quiz["quiz_id"] for m in broadened["matches"]):
+            raise RuntimeError(f"quizzes_search_questions({unspoken!r}) ignored quiz {quiz['quiz_id']}'s keyword gallery")
+        evidence.append(
+            f"quizzes_search_questions({unspoken!r}) finds quiz {quiz['quiz_id']} through its keyword gallery, "
+            "though no question mentions it"
+        )
 
     refused = {
         "non-positive id": ("quizzes_get", {"quiz_id": 0}),

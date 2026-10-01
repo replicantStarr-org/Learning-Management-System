@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+import re
 import sqlite3
 
 app = Flask(__name__)
@@ -6,6 +7,11 @@ app = Flask(__name__)
 DATABASE_NAME = "data/quizzes.db"
 
 QUIZ_FIELDS = ("subject_id", "subject_name", "title", "description", "difficulty")
+
+# A quiz created without a keyword gallery (on the quiz pages or by AI generation) gets one
+# from its title, at this weight, so the MCP question search still finds it by topic.
+TITLE_KEYWORD_WEIGHT = 0.5
+TITLE_STOPWORDS = {"and", "the", "for", "with", "from", "into", "quiz", "basics", "practice", "concepts"}
 
 
 def get_db_connection():
@@ -37,6 +43,26 @@ def get_quiz(quiz_id, conn=None):
     if owns_connection:
         conn.close()
     return row
+
+
+def get_keywords(conn, quiz_id=None):
+    """Return {quiz_id: [{"keyword", "weight"}, ...]}, heaviest first, for one quiz or all."""
+    query = "SELECT quiz_id, keyword, weight FROM quiz_keywords"
+    params = ()
+    if quiz_id is not None:
+        query += " WHERE quiz_id = ?"
+        params = (quiz_id,)
+    keywords = {}
+    for row in conn.execute(query + " ORDER BY quiz_id, weight DESC, keyword", params):
+        keywords.setdefault(row["quiz_id"], []).append(
+            {"keyword": row["keyword"], "weight": row["weight"]}
+        )
+    return keywords
+
+
+def title_keywords(title):
+    words = re.findall(r"[a-z0-9][a-z0-9/+#-]*", title.lower())
+    return list(dict.fromkeys(w for w in words if len(w) > 2 and w not in TITLE_STOPWORDS))
 
 
 def get_questions_with_answers(quiz_id, conn):
@@ -124,7 +150,10 @@ def list_quizzes():
             ORDER BY quiz_id
             """
         ).fetchall()
-        return jsonify([dict(row) for row in quizzes])
+        keywords = get_keywords(conn)
+        return jsonify(
+            [{**dict(row), "keywords": keywords.get(row["quiz_id"], [])} for row in quizzes]
+        )
     finally:
         conn.close()
 
@@ -137,6 +166,7 @@ def get_quiz_details(quiz_id):
         if quiz is None:
             return jsonify({"error": "Quiz not found"}), 404
         body = dict(quiz)
+        body["keywords"] = get_keywords(conn, quiz_id).get(quiz_id, [])
         body["questions"] = get_questions_with_answers(quiz_id, conn)
         return jsonify(body)
     finally:
@@ -165,6 +195,13 @@ def create_quiz():
                 body["subject_id"], body["subject_name"], body["title"],
                 body["description"], body["difficulty"], source,
             ),
+        )
+        conn.executemany(
+            "INSERT INTO quiz_keywords (quiz_id, keyword, weight) VALUES (?, ?, ?)",
+            [
+                (cursor.lastrowid, keyword, TITLE_KEYWORD_WEIGHT)
+                for keyword in title_keywords(str(body["title"]))
+            ],
         )
         conn.commit()
         return jsonify(dict(get_quiz(cursor.lastrowid, conn))), 201
@@ -227,6 +264,7 @@ def delete_quiz(quiz_id):
             (quiz_id,),
         )
         conn.execute("DELETE FROM quiz_questions WHERE quiz_id = ?", (quiz_id,))
+        conn.execute("DELETE FROM quiz_keywords WHERE quiz_id = ?", (quiz_id,))
         conn.execute("DELETE FROM quizzes WHERE quiz_id = ?", (quiz_id,))
         conn.commit()
         return "", 204

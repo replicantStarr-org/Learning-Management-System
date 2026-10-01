@@ -86,9 +86,14 @@ Subject options are served from `GET /subjects`.
 - `quiz_answers` - answer options per question, with an `is_correct` flag
 - `quiz_attempts` - student name, score, total_questions, cached `ai_feedback`, timestamps
 - `quiz_responses` - the answer selected for each question in an attempt, and whether it was correct
+- `quiz_keywords` - each quiz's weighted keyword gallery: a keyword and a weight from 0.1 (loosely
+  related) to 1.0 (the quiz's core topic), unique per quiz
 
-Seeded with 10 quizzes, 42 questions, 168 answers, 12 attempts, and 50 responses (see
-`database/init_db.py`), satisfying the 10-row-per-table minimum.
+Seeded with 10 quizzes, 42 questions, 168 answers, 12 attempts, 50 responses and 92 keywords (see
+`database/init_db.py`), satisfying the 10-row-per-table minimum. A quiz created later (on the quiz
+pages or by AI generation) gets keywords from the words of its title at weight 0.5; deleting a quiz
+deletes its keywords. `GET /quizzes` and `GET /quizzes/{id}` return each quiz's `keywords`, heaviest
+first.
 
 ### AI model choice
 
@@ -163,7 +168,7 @@ page shows a readable view of `result` with the raw tool result folded beneath i
 | `quizzes_list` | optional `subject` (part of name or code), optional `difficulty` (Easy/Medium/Hard) | quiz summaries |
 | `quizzes_get` | `quiz_id` | one quiz with every question, its options, correct answer and explanation |
 | `quizzes_practice_question` | optional `subject`, optional `difficulty` | one random question with its options, correct answer and explanation (MCP-only) |
-| `quizzes_search_questions` | `keyword` | up to 25 questions whose text, answers or explanation contain it (MCP-only) |
+| `quizzes_search_questions` | `keyword` | up to 25 questions on that topic, best first, each with its relevance and matched gallery keywords (MCP-only) |
 
 The page keeps answers hidden until the student asks for them: the quiz lookup has a Show answer
 button per question (and Show all answers), and the practice question is answered first, then
@@ -171,6 +176,24 @@ checked, showing whether it was right and the explanation. Buttons rather than h
 on touch screens and from the keyboard. The subject filters are dropdowns filled from
 `quizzes_list`, so they only offer subjects that have quizzes and a filter can never match nothing;
 a refused request (such as a quiz ID that does not exist) is shown as a plain note, not an error.
+
+**Keyword gallery and search ranking:** each quiz's keywords include related terms its questions
+never spell out ("containers" and "kubernetes" on Cloud and DevOps, "big o" on Sorting and
+Searching), so the question search is a little broader than the question wording. Each question's
+relevance is its text score plus half its quiz's best keyword match:
+
+- text score: 1.0 when the question text contains the search, 0.7 when its answers or explanation
+  do, else up to 0.5 for the share of search words it contains (a word only sharing a prefix, such
+  as "contain" for "containers", counts half)
+- keyword match: a gallery keyword's full weight when it and the search contain each other, else a
+  share of it for the words in common
+
+A question that names the topic (at least 1.0) therefore always outranks one that only sits in a
+quiz tagged with it (at most 0.5), and matches under 0.2 are dropped. The keywords come inline with
+`GET /quizzes`, which the search already fetched, so the gallery adds no request: timed over the
+same searches, the median call took about 126 ms before and after. The page shows every keyword as
+a gallery above the search, sized by weight (a keyword's heaviest weight across quizzes), and
+picking one searches for it; the quiz lookup shows that quiz's keywords the same way.
 
 **Tool boundaries:** every tool is read-only and about the study material. None returns attempts,
 student names or scores, so no student can look up another's results (there is no login, so a name
@@ -184,7 +207,8 @@ refused tool call into a 400 and an unreachable MCP server into a 503.
 **Validation:** `mcp/test_tools.py quizzes` calls every quiz tool in-process, and the shared agentic
 loop's MCP mode (`--area mcp --service quizzes`) cross-checks the tools against each other over the
 running server: difficulty filters match the full list, every correct answer is one of its options,
-practice questions honour their filter, a search finds the question its keyword came from, no tool
+practice questions honour their filter, a search finds the question its keyword came from, ranks
+matches by relevance and finds a quiz through a gallery keyword none of its questions mention, no tool
 returns attempt or student data, each bad input above is refused, and no write tool is advertised. Its output is in
 `agentic_loop/runs/mcp-review-for-quiz-manager.txt`. `scripts/mcp_endpoint_test.sh` validates
 every `/mcp/*` route and its boundaries from the terminal.
@@ -214,6 +238,8 @@ disabled and `/mcp/quiz` returns 403, which `quizzes.yml` asserts.
   when their servers have been started separately (`rag-server/run.ps1` or `run.sh`, and
   `mcp/run.ps1` or `run.sh`). A grounded answer from the local model takes around 30-60 seconds.
 - The MCP tools are read-only by design, so no MCP client can change quiz data.
+- The keyword gallery is set in the seed data and, for new quizzes, from the title; there is no
+  page for editing a quiz's keywords, and renaming a quiz does not update them.
 
 ### Additional Notes
 

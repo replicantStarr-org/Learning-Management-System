@@ -10,6 +10,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 conn = sqlite3.connect(DATABASE_NAME)
 cursor = conn.cursor()
 
+cursor.execute("DROP TABLE IF EXISTS quiz_keywords;")
 cursor.execute("DROP TABLE IF EXISTS quiz_responses;")
 cursor.execute("DROP TABLE IF EXISTS quiz_attempts;")
 cursor.execute("DROP TABLE IF EXISTS quiz_answers;")
@@ -82,6 +83,19 @@ CREATE TABLE quiz_responses (
     question_id INTEGER NOT NULL REFERENCES quiz_questions(question_id),
     selected_answer_id INTEGER REFERENCES quiz_answers(answer_id),
     is_correct INTEGER NOT NULL DEFAULT 0
+);
+""")
+
+# Weighted keyword gallery per quiz: the topics a quiz covers, including related terms its
+# questions never spell out, so the MCP question search can match broader wording.
+# weight runs from 0.1 (loosely related) to 1.0 (the quiz's core topic).
+cursor.execute("""
+CREATE TABLE quiz_keywords (
+    keyword_id INTEGER PRIMARY KEY,
+    quiz_id INTEGER NOT NULL REFERENCES quizzes(quiz_id),
+    keyword TEXT NOT NULL,
+    weight REAL NOT NULL CHECK (weight > 0 AND weight <= 1),
+    UNIQUE (quiz_id, keyword)
 );
 """)
 
@@ -581,6 +595,60 @@ QUIZZES = [
     },
 ]
 
+# Keyword gallery for each seeded quiz, keyed by title: (keyword, weight).
+KEYWORDS = {
+    "Advanced Software Development Fundamentals": [
+        ("software development", 1.0), ("microservices", 0.9), ("agentic workflow", 0.8),
+        ("non-functional requirements", 0.8), ("ci/cd", 0.7), ("devops", 0.6),
+        ("ai agents", 0.6), ("requirements", 0.6), ("distributed systems", 0.5),
+    ],
+    "Agile and Scrum Practices": [
+        ("agile", 1.0), ("scrum", 1.0), ("sprint", 0.9), ("product backlog", 0.8),
+        ("product owner", 0.8), ("user story", 0.8), ("retrospective", 0.8),
+        ("velocity", 0.7), ("stand-up", 0.5), ("kanban", 0.4),
+    ],
+    "Relational Database Basics": [
+        ("relational database", 1.0), ("primary key", 0.9), ("foreign key", 0.9),
+        ("normalisation", 0.9), ("normalization", 0.9), ("data integrity", 0.7),
+        ("tables", 0.6), ("schema", 0.6), ("sqlite", 0.4),
+    ],
+    "SQL Query Practice": [
+        ("sql", 1.0), ("queries", 0.9), ("joins", 0.9), ("group by", 0.8),
+        ("aggregate functions", 0.8), ("transactions", 0.8), ("acid", 0.6),
+        ("alter table", 0.6), ("count", 0.5),
+    ],
+    "HTTP and Web Fundamentals": [
+        ("http", 1.0), ("web", 0.9), ("rest api", 0.8), ("status codes", 0.8),
+        ("htmx", 0.8), ("cors", 0.8), ("request methods", 0.7), ("browser", 0.6),
+        ("frontend", 0.5),
+    ],
+    "Web Security Essentials": [
+        ("web security", 1.0), ("cross-site scripting", 0.9), ("xss", 0.9),
+        ("sql injection", 0.9), ("prompt injection", 0.9), ("least privilege", 0.8),
+        ("owasp", 0.7), ("input validation", 0.7), ("parameterised queries", 0.6),
+    ],
+    "Sorting and Searching Algorithms": [
+        ("algorithms", 1.0), ("sorting", 1.0), ("searching", 0.9), ("binary search", 0.9),
+        ("time complexity", 0.9), ("big o", 0.8), ("quicksort", 0.8), ("merge sort", 0.8),
+        ("dynamic programming", 0.8), ("heap", 0.7), ("data structures", 0.6),
+    ],
+    "Software Architecture Patterns": [
+        ("software architecture", 1.0), ("design patterns", 0.9), ("layered architecture", 0.8),
+        ("event-driven", 0.8), ("single responsibility", 0.8), ("solid principles", 0.8),
+        ("microservices", 0.7), ("monolith", 0.7), ("separation of concerns", 0.6),
+    ],
+    "Cybersecurity Basics": [
+        ("cybersecurity", 1.0), ("authentication", 0.9), ("password hashing", 0.9),
+        ("phishing", 0.9), ("attack surface", 0.8), ("social engineering", 0.7),
+        ("security", 0.6), ("encryption", 0.5),
+    ],
+    "Cloud and DevOps Concepts": [
+        ("cloud", 1.0), ("devops", 1.0), ("docker", 0.9), ("containers", 0.9),
+        ("ci/cd", 0.9), ("docker compose", 0.8), ("deployment", 0.8),
+        ("build pipeline", 0.7), ("kubernetes", 0.4),
+    ],
+}
+
 now = datetime.now(timezone.utc)
 
 
@@ -604,6 +672,10 @@ for quiz in QUIZZES:
     )
     quiz_id = cursor.lastrowid
     quiz_ids.append(quiz_id)
+    cursor.executemany(
+        "INSERT INTO quiz_keywords (quiz_id, keyword, weight) VALUES (?, ?, ?)",
+        [(quiz_id, keyword, weight) for keyword, weight in KEYWORDS[quiz["title"]]],
+    )
 
     questions = []
     for order, question in enumerate(quiz["questions"], start=1):

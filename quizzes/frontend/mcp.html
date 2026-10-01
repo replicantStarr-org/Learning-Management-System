@@ -74,6 +74,29 @@
             border-radius: .5rem;
         }
 
+        .mcp-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .35rem;
+            max-height: 9rem;
+            overflow: auto;
+        }
+
+        .mcp-keyword {
+            padding: .15rem .6rem;
+            color: var(--color-brand-strong, #315ca8);
+            background: #eef4ff;
+            border: 1px solid #d6e3ff;
+            border-radius: 1rem;
+            line-height: 1.4;
+        }
+
+        button.mcp-keyword:hover,
+        button.mcp-keyword:focus-visible {
+            background: #dbe7ff;
+        }
+
         .mcp-raw summary {
             color: var(--bs-secondary-color);
             font-size: .8125rem;
@@ -159,7 +182,7 @@
                             <label class="form-label" for="quiz-quiz-id">Quiz ID</label>
                             <div class="input-group">
                                 <input class="form-control" id="quiz-quiz-id" name="quiz_id" type="number"
-                                    min="1" step="1" required data-mcp-quiz-id placeholder="e.g. 3">
+                                    min="1" step="1" required data-mcp-quiz-id placeholder="e.g. 2">
                                 <button class="btn btn-primary" type="submit">Run MCP tool</button>
                             </div>
                         </form>
@@ -212,13 +235,19 @@
                             <h2 id="search-heading" class="h5">Question search</h2>
                             <code class="mcp-tool px-2 py-1">quizzes_search_questions</code>
                         </div>
-                        <p class="text-secondary">Find questions in any quiz whose text, answers or explanation contain
-                            a keyword. MCP-only: the quiz pages have no question search.</p>
+                        <p class="text-secondary">Find questions on a topic in any quiz, best matches first. Each quiz
+                            has a weighted keyword gallery, so related words match too: "containers" finds the Docker
+                            questions. MCP-only: the quiz pages have no question search.</p>
+                        <div class="mb-3" data-mcp-gallery hidden>
+                            <p class="form-label mb-2">Keyword gallery <span class="text-secondary small">(larger means
+                                    a heavier weight; pick one to search it)</span></p>
+                            <div class="mcp-gallery" id="search-gallery"></div>
+                        </div>
                         <form data-mcp-form="search">
                             <label class="form-label" for="search-keyword">Keyword</label>
                             <div class="input-group">
                                 <input class="form-control" id="search-keyword" name="keyword" required
-                                    maxlength="100" placeholder="e.g. primary key">
+                                    maxlength="100" placeholder="e.g. containers">
                                 <button class="btn btn-primary" type="submit">Run MCP tool</button>
                             </div>
                         </form>

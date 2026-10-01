@@ -62,7 +62,8 @@ check POST /mcp/quizzes 200 '"tool":"quizzes_list"' '{"difficulty": "Easy"}'
 check POST /mcp/quizzes 200 '"DBS102 - Database Systems"' '{"subject": "dbs102"}'
 check POST /mcp/quiz 200 '"tool":"quizzes_get"' '{"quiz_id": 3}'
 check POST /mcp/practice 200 '"tool":"quizzes_practice_question"' '{"difficulty": "Hard"}'
-check POST /mcp/search 200 '"tool":"quizzes_search_questions"' '{"keyword": "primary key"}'
+check POST /mcp/quiz 200 '"keywords":[{' '{"quiz_id": 2}'
+check POST /mcp/search 200 '"matched_keywords":["containers"]' '{"keyword": "containers"}'
 
 # Tool boundaries: the backend rejects malformed input before calling MCP (400),
 # and the MCP tool itself refuses a quiz that does not exist (400).

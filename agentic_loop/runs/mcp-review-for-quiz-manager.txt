@@ -11,12 +11,14 @@ Service area: quizzes
 Tools listed by the running server: learning_resources_by_tag, learning_resources_list, learning_resources_tags_list, quizzes_get, quizzes_list, quizzes_practice_question, quizzes_search_questions, subjects_create, subjects_delete, subjects_get, subjects_list, subjects_query_by_field, subjects_query_by_tag, subjects_subject_tag_remove, subjects_subject_tags_list, subjects_subject_tags_set, subjects_tag_create, subjects_tag_delete, subjects_tag_get, subjects_tag_update, subjects_tags_list, subjects_update, timetable_entries_list, timetable_entry_get, timetable_free_time, timetable_users_list
 Validation evidence:
 - quiz tools advertised: 4; all read-only, so no fixture is created
-- quizzes_list returned 15 quiz(zes)
+- quizzes_list returned 10 quiz(zes)
 - quizzes_list difficulty filters match the unfiltered list for Easy, Medium and Hard
 - quizzes_get(1) returned 4 questions, each with its correct answer among the options
 - quizzes_practice_question honours its difficulty filter and returns a correct answer among the options
 - no tool returns attempts, student names, scores or AI feedback
 - quizzes_search_questions('architecture') found the question the keyword came from
+- quizzes_search_questions ranks matches by relevance, best first
+- quizzes_search_questions('software development') finds quiz 1 through its keyword gallery, though no question mentions it
 - tools reject non-positive id, missing quiz, unknown difficulty, subject with no quizzes, blank keyword with an MCP error
 - quizzes_get contract: inputs ['quiz_id']
 - quizzes_list contract: inputs ['subject', 'difficulty']
@@ -24,7 +26,7 @@ Validation evidence:
 - quizzes_search_questions contract: inputs ['keyword']
 
 IMPLEMENTATION:
-One concrete, high-value improvement is to ensure that the Quiz Manager service area correctly advertises the expected tools through the MCP protocol. Specifically, the Quiz Manager service area should advertise the following tools: 1. `quizzes_list`: Returns a list of quizzes with their difficulty filters. 2. ...
+The Quiz Manager at quizzes is functioning correctly. It allows students to browse and manage quizzes, answer questions, submit graded attempts, review explanations, and view attempt history. The database owns quizzes, questions, answer options, attempts, and individual responses. AI can generate subject-based practice quizzes and ...
 
 REVIEW:
-Approved: The MCP server at mcp for the Quiz Manager service area correctly advertises the expected tools through the MCP protocol, and all advertised tools pass the collector's safe CRUD, assignment, and query checks. Evidence supports the correct tool naming, input/output contract consistency, and error ...
+Approved: The MCP server at quizzes responds correctly, advertises the expected tools, and the collector's safe CRUD, assignment, and query checks succeed. The tool naming, input/output contract consistency, error handling, and boundary between the MCP adapter and service APIs are sound.

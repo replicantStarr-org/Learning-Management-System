@@ -154,9 +154,11 @@ async def test_quizzes(tester: ToolTester) -> None:
     )
     await tester.call(
         "quizzes_search_questions",
-        {"keyword": "primary key"},
+        {"keyword": "containers"},
+        # "containers" is in the Cloud and DevOps keyword gallery, so its Docker
+        # questions match even where the question text does not say "containers".
         check=lambda value: isinstance(value, dict)
-        and isinstance(value.get("matches"), list),
+        and any("containers" in m["matched_keywords"] for m in value.get("matches", [])),
     )
 
 
