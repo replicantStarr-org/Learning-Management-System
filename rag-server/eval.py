@@ -86,6 +86,23 @@ BENCHMARKS = [
             "timetable:timetable_entry:16:",
         ],
     },
+    {
+        "query": "What is the correct answer to what is a primary key?",
+        "relevant": ["quizzes:quiz_question:9:"],
+    },
+    {
+        "query": "What does velocity measure in Scrum?",
+        "relevant": ["quizzes:quiz_question:8:"],
+    },
+    {
+        "query": "What score did Daniel Kim get on Web Security Essentials?",
+        "relevant": ["quizzes:quiz_attempt:8:"],
+    },
+    {
+        # Both attempts at the quiz are needed to say who did and did not.
+        "query": "Who got full marks on Relational Database Basics?",
+        "relevant": ["quizzes:quiz_attempt:4:", "quizzes:quiz_attempt:5:"],
+    },
 ]
 
 
