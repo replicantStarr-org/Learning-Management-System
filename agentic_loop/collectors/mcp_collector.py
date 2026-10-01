@@ -48,6 +48,11 @@ QUIZ_TOOL_NAMES = {
     "quizzes_search_questions",
     "quizzes_practice_question",
 }
+ASSIGNMENT_TOOL_NAMES = {
+    "assignments_list",
+    "assignments_upcoming",
+    "assignments_get",
+}
 
 
 async def _call(session: ClientSession, name: str, arguments: dict[str, Any] | None = None) -> Any:
@@ -485,11 +490,48 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
     return evidence
 
 
+async def _review_assignments(session: ClientSession, tool_names: set[str]) -> list[str]:
+    missing = sorted(ASSIGNMENT_TOOL_NAMES - tool_names)
+    if missing:
+        raise RuntimeError("assignment tools missing from MCP server: " + ", ".join(missing))
+    
+    listed = await _call(session, "assignments_list")
+
+    if not isinstance(listed, list):
+        raise RuntimeError("assignments_list did not return a JSON list")
+    
+    upcoming = await _call(session, "assignments_upcoming", {"days": 365})
+
+    if not isinstance(upcoming, list):
+        raise RuntimeError("assignments_upcoming did not return a JSON list")
+    
+    evidence = [f"assignment tools advertised: {len(ASSIGNMENT_TOOL_NAMES)}"]
+    evidence.append(f"assignments_list returned {len(listed)} assignment(s)")
+    evidence.append(f"assignments_upcoming returned {len(upcoming)} assignment(s) within 365 days")
+
+    if listed:
+        assignment_id = listed[0].get("assignment_id")
+        if not isinstance(assignment_id, int):
+            raise RuntimeError("assignments_list returned an invalid assignment_id")
+        detail = await _call(session, "assignments_get", {"assignment_id": assignment_id})
+        if detail.get("assignment_id") != assignment_id:
+            raise RuntimeError("assignments_get returned the wrong assignment")
+        evidence.append(f"assignments_get({assignment_id}) passed")
+
+    for name, arguments in (("assignments_get", {"assignment_id": 0}), ("assignments_upcoming", {"days": 0})):
+        if not (await session.call_tool(name, arguments)).is_error:
+            raise RuntimeError(f"{name} accepted invalid arguments")
+        
+    evidence.append("assignment tools reject non-positive IDs and day ranges")
+    return evidence
+
+
 SERVICE_REVIEWS: dict[str, Callable[[ClientSession, set[str]], Awaitable[list[str]]]] = {
     "subjects": _review_subjects,
     "resources": _review_resources,
     "timetable": _review_timetable,
     "quizzes": _review_quizzes,
+    "assignments": _review_assignments,
 }
 
 

@@ -24,7 +24,6 @@ from pathlib import Path
 
 import chromadb
 from chromadb.errors import NotFoundError
-
 from pipeline.common import resolve_path, settings
 from pipeline.querying import retrieve_context
 from pipeline.vectors import embedding_signature
@@ -107,6 +106,14 @@ BENCHMARKS = [
         # The quiz that covers the topic and the question that teaches it.
         "query": "Which quiz covers SQL joins?",
         "relevant": ["quizzes:quiz:4:", "quizzes:quiz_question:14:"],
+    },
+    {
+        "query": "I want to drop out, what does the Release 0 Technical Report need to include?",
+        "relevant": ["assignments:assignment:1:"],
+    },
+    {
+        "query": "Which checks must the CI workflow run for the assignment services?",
+        "relevant": ["assignments:assignment:3:"],
     },
 ]
 
