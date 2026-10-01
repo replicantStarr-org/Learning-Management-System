@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 
+from routes.mcp import mcp_bp
 from routes.rag import rag_bp
 from routes.timetable import timetable_bp
 
@@ -10,6 +11,7 @@ def create_app():
     CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
     app.register_blueprint(timetable_bp)
     app.register_blueprint(rag_bp)
+    app.register_blueprint(mcp_bp)
 
     @app.get("/")
     def health():
