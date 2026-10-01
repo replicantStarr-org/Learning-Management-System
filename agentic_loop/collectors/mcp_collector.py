@@ -43,9 +43,8 @@ TIMETABLE_TOOL_NAMES = {
 QUIZ_TOOL_NAMES = {
     "quizzes_list",
     "quizzes_get",
-    "quizzes_attempts_list",
-    "quizzes_student_results",
     "quizzes_search_questions",
+    "quizzes_practice_question",
 }
 
 
@@ -359,10 +358,10 @@ async def _review_timetable(session: ClientSession, tool_names: set[str]) -> lis
 
 
 async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[str]:
-    """Cross-check the read-only quiz tools against each other.
+    """Cross-check the read-only quiz study tools against each other.
 
-    The tools only read, so the seed quizzes and attempts are the test data and
-    nothing is created or cleaned up.
+    The tools only read, so the seed quizzes are the test data and nothing is
+    created or cleaned up.
     """
     missing = sorted(QUIZ_TOOL_NAMES - tool_names)
     if missing:
@@ -400,26 +399,23 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
         "each with its correct answer among the options"
     )
 
-    attempts = [
-        attempt
-        for summary in quizzes
-        for attempt in await _call(session, "quizzes_attempts_list", {"quiz_id": summary["quiz_id"]})
-    ]
-    if not attempts:
-        raise RuntimeError("quizzes_attempts_list returned no attempts for any quiz")
-    if any("ai_feedback" in attempt for attempt in attempts):
-        raise RuntimeError("quizzes_attempts_list exposed AI feedback")
-    evidence.append(f"quizzes_attempts_list returned {len(attempts)} attempt(s) across every quiz, without AI feedback")
-
-    student = attempts[0]["student_name"]
-    theirs = [a for a in attempts if a["student_name"] == student]
-    results = await _call(session, "quizzes_student_results", {"student_name": f"  {student.upper()} "})
-    if results["attempt_count"] != len(theirs):
-        raise RuntimeError("quizzes_student_results attempt count does not match quizzes_attempts_list")
+    for difficulty in ("Easy", "Hard"):
+        practice = await _call(session, "quizzes_practice_question", {"difficulty": difficulty})
+        if practice["difficulty"] != difficulty or practice["correct_answer"] not in practice["answers"]:
+            raise RuntimeError(f"quizzes_practice_question(difficulty={difficulty!r}) returned a bad question")
     evidence.append(
-        f"quizzes_student_results({student!r}) matched {len(theirs)} attempt(s) from "
-        "quizzes_attempts_list, ignoring case and surrounding spaces"
+        "quizzes_practice_question honours its difficulty filter and returns a correct answer among the options"
     )
+
+    # A self-study tool: no tool may reveal other students' attempts or scores.
+    results = [quizzes, quiz, practice]
+    leaked = {
+        key for key in ("attempt_id", "student_name", "score", "ai_feedback")
+        if f'"{key}"' in json.dumps(results)
+    }
+    if leaked:
+        raise RuntimeError("quiz tools returned student data: " + ", ".join(sorted(leaked)))
+    evidence.append("no tool returns attempts, student names, scores or AI feedback")
 
     keyword = quiz["questions"][0]["question_text"].split()[-1].strip("?.,'")
     found = await _call(session, "quizzes_search_questions", {"keyword": keyword})
@@ -431,7 +427,7 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
         "non-positive id": ("quizzes_get", {"quiz_id": 0}),
         "missing quiz": ("quizzes_get", {"quiz_id": 999999}),
         "unknown difficulty": ("quizzes_list", {"difficulty": "Impossible"}),
-        "unknown student": ("quizzes_student_results", {"student_name": f"No Such Student {uuid4().hex[:6]}"}),
+        "subject with no quizzes": ("quizzes_practice_question", {"subject": f"No Such Subject {uuid4().hex[:6]}"}),
         "blank keyword": ("quizzes_search_questions", {"keyword": "   "}),
     }
     for label, (name, arguments) in refused.items():

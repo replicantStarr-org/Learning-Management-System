@@ -145,15 +145,12 @@ async def test_quizzes(tester: ToolTester) -> None:
         and value.get("quiz_id") == quiz_id
         and isinstance(value.get("questions"), list),
     )
-    attempts = await tester.call(
-        "quizzes_attempts_list", {"quiz_id": quiz_id}, check=is_list
-    )
-    student = attempts[0]["student_name"] if attempts else "Alice Nguyen"
     await tester.call(
-        "quizzes_student_results",
-        {"student_name": student},
+        "quizzes_practice_question",
+        {"difficulty": "Easy"},
         check=lambda value: isinstance(value, dict)
-        and isinstance(value.get("best_by_quiz"), list),
+        and value.get("difficulty") == "Easy"
+        and value.get("correct_answer") in value.get("answers", []),
     )
     await tester.call(
         "quizzes_search_questions",

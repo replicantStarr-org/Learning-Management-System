@@ -72,10 +72,8 @@ def mcp_status():
     )
 
 
-@mcp_bp.post("/mcp/quizzes")
-@mcp_required
-def mcp_quizzes():
-    body = _body()
+def _filters(body):
+    """The optional subject and difficulty filters, or None if difficulty is invalid."""
     arguments = {}
     subject = _text(body, "subject")
     if subject:
@@ -83,8 +81,17 @@ def mcp_quizzes():
     difficulty = _text(body, "difficulty")
     if difficulty:
         if difficulty not in DIFFICULTIES:
-            return _bad_request("difficulty must be Easy, Medium or Hard")
+            return None
         arguments["difficulty"] = difficulty
+    return arguments
+
+
+@mcp_bp.post("/mcp/quizzes")
+@mcp_required
+def mcp_quizzes():
+    arguments = _filters(_body())
+    if arguments is None:
+        return _bad_request("difficulty must be Easy, Medium or Hard")
     return _run("quizzes_list", arguments)
 
 
@@ -97,27 +104,13 @@ def mcp_quiz():
     return _run("quizzes_get", {"quiz_id": quiz_id})
 
 
-@mcp_bp.post("/mcp/attempts")
+@mcp_bp.post("/mcp/practice")
 @mcp_required
-def mcp_attempts():
-    body = _body()
-    quiz_id = _quiz_id(body)
-    if quiz_id is None:
-        return _bad_request("quiz_id must be a positive integer")
-    arguments = {"quiz_id": quiz_id}
-    student_name = _text(body, "student_name")
-    if student_name:
-        arguments["student_name"] = student_name
-    return _run("quizzes_attempts_list", arguments)
-
-
-@mcp_bp.post("/mcp/student-results")
-@mcp_required
-def mcp_student_results():
-    student_name = _text(_body(), "student_name")
-    if not student_name:
-        return _bad_request("student_name is required")
-    return _run("quizzes_student_results", {"student_name": student_name})
+def mcp_practice():
+    arguments = _filters(_body())
+    if arguments is None:
+        return _bad_request("difficulty must be Easy, Medium or Hard")
+    return _run("quizzes_practice_question", arguments)
 
 
 @mcp_bp.post("/mcp/search")

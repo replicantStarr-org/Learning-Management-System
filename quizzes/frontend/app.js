@@ -111,11 +111,10 @@ function showRagJson(output, status, body) {
 const SOURCE_LABELS = {
     quiz: "Quiz",
     quiz_question: "Question",
-    quiz_attempt: "Attempt",
 };
 
-// A quiz source opens that quiz. Questions and attempts have no page of their
-// own, so they are labelled with their kind instead.
+// A quiz source opens that quiz. Questions have no page of their own, so they
+// are labelled with their kind instead.
 function sourceLink(source) {
     const label = SOURCE_LABELS[source.entity];
     const prefix = label ? `${label}: ` : "";
@@ -286,8 +285,7 @@ const MCP_URL = "http://localhost:5004/mcp";
 const MCP_ROUTES = {
     quizzes: "/quizzes",
     quiz: "/quiz",
-    attempts: "/attempts",
-    "student-results": "/student-results",
+    practice: "/practice",
     search: "/search",
 };
 const MCP_DIFFICULTY_BADGES = {
@@ -379,18 +377,6 @@ function mcpList(items) {
     return list;
 }
 
-function mcpAttemptItem(attempt) {
-    const title = attempt.quiz_title
-        ? mcpQuizTitle(attempt.quiz_id, attempt.quiz_title)
-        : mcpElement("span", "mcp-item-title", attempt.student_name);
-    return mcpItem(
-        title,
-        `#${attempt.attempt_id}`,
-        `${attempt.student_name} · ${attempt.score}/${attempt.total_questions} (${attempt.percent}%)`
-            + (attempt.completed_at ? ` · ${attempt.completed_at.slice(0, 10)}` : ""),
-    );
-}
-
 let mcpAnswerCount = 0;
 
 // The correct answer and explanation start hidden behind a button, so the
@@ -416,8 +402,58 @@ function mcpAnswerReveal(item, question) {
     return setRevealed;
 }
 
-function fillQuizIds(quizId) {
-    document.querySelectorAll("[data-mcp-quiz-id]").forEach((input) => { input.value = quizId; });
+// Fills the quiz lookup with this quiz and runs it, so a listed quiz can be opened in one click.
+function lookUpQuiz(quizId) {
+    const form = document.querySelector("[data-mcp-form=quiz]");
+    form.querySelector("[name=quiz_id]").value = quizId;
+    form.requestSubmit();
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// One question to answer before seeing whether it was right, with the explanation.
+function mcpPracticeQuestion(result) {
+    const heading = mcpElement("p", "fw-semibold mb-2", result.question_text);
+    const source = mcpElement("p", "text-secondary small mb-3",
+        `${result.quiz_title}, question ${result.number} · ${result.subject_name} · ${result.difficulty}`);
+
+    const name = `practice-${result.question_id}-${++mcpAnswerCount}`;
+    const options = mcpElement("div", "mb-3");
+    result.answers.forEach((text, index) => {
+        const option = mcpElement("div", "form-check");
+        const input = mcpElement("input", "form-check-input");
+        input.type = "radio";
+        input.name = name;
+        input.id = `${name}-${index}`;
+        input.value = text;
+        const label = mcpElement("label", "form-check-label", text);
+        label.htmlFor = input.id;
+        option.append(input, label);
+        options.append(option);
+    });
+
+    const feedback = mcpElement("div", "mcp-summary mb-0");
+    feedback.hidden = true;
+    feedback.setAttribute("role", "status");
+    const check = mcpElement("button", "btn btn-sm btn-outline-primary", "Check answer");
+    check.type = "button";
+    check.addEventListener("click", () => {
+        const chosen = options.querySelector("input:checked");
+        if (!chosen) {
+            feedback.textContent = "Choose an answer first.";
+            feedback.hidden = false;
+            return;
+        }
+        const correct = chosen.value === result.correct_answer;
+        feedback.replaceChildren(
+            mcpElement("p", `fw-semibold mb-1 ${correct ? "text-success" : "text-danger"}`,
+                correct ? "Correct!" : `Not quite. The answer is: ${result.correct_answer}`),
+            mcpElement("p", "mb-0 small", result.explanation),
+        );
+        feedback.hidden = false;
+        options.querySelectorAll("input").forEach((input) => { input.disabled = true; });
+        check.hidden = true;
+    });
+    return [heading, source, options, check, feedback];
 }
 
 const MCP_RENDERERS = {
@@ -431,9 +467,9 @@ const MCP_RENDERERS = {
                     + (quiz.source === "ai_generated" ? " · AI generated" : ""),
                 mcpDifficulty(quiz.difficulty),
             );
-            const use = mcpElement("button", "btn btn-sm btn-outline-primary mt-2", "Use this quiz ID");
+            const use = mcpElement("button", "btn btn-sm btn-outline-primary mt-2", "Look up this quiz");
             use.type = "button";
-            use.addEventListener("click", () => fillQuizIds(quiz.quiz_id));
+            use.addEventListener("click", () => lookUpQuiz(quiz.quiz_id));
             item.append(use);
             return item;
         }))];
@@ -464,17 +500,7 @@ const MCP_RENDERERS = {
         });
         return [summary, all, mcpList(items)];
     },
-    attempts(result) {
-        if (!result.length) return [mcpElement("p", "text-secondary small", "No attempts match.")];
-        return [mcpList(result.map(mcpAttemptItem))];
-    },
-    "student-results"(result) {
-        const summary = mcpElement("p", "mcp-summary",
-            `${result.student_name} has made ${result.attempt_count} attempt${result.attempt_count === 1 ? "" : "s"} `
-            + `across ${result.quiz_count} quiz${result.quiz_count === 1 ? "" : "zes"}, averaging ${result.average_percent}%.`);
-        const heading = mcpElement("p", "text-secondary small fw-semibold mb-1", "Best attempt per quiz");
-        return [summary, heading, mcpList(result.best_by_quiz.map(mcpAttemptItem))];
-    },
+    practice: mcpPracticeQuestion,
     search(result) {
         const summary = mcpElement("p", "mcp-summary",
             `${result.match_count} question${result.match_count === 1 ? "" : "s"} mention "${result.keyword}"`
@@ -496,7 +522,7 @@ function showMcpResult(output, kind, status, body) {
     output.replaceChildren(
         mcpStatusLine(status, `${body.tool} returned a result`),
         ...MCP_RENDERERS[kind](body.result),
-        mcpRawResult(body.result, kind === "quiz" ? "Raw tool result (includes answers)" : undefined),
+        mcpRawResult(body.result, ["quiz", "practice"].includes(kind) ? "Raw tool result (includes answers)" : undefined),
     );
 }
 

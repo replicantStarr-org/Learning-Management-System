@@ -89,7 +89,7 @@
             <div>
                 <p class="text-primary fw-semibold mb-2">Quizzes</p>
                 <h1 class="display-6 fw-bold">MCP Tools</h1>
-                <p class="lead text-secondary mb-0">Browse quizzes and results through the read-only quiz tools on the shared MCP server.</p>
+                <p class="lead text-secondary mb-0">Study with the read-only quiz tools on the shared MCP server: find quizzes, revise a topic, or practise one question at a time.</p>
             </div>
             <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i> Back to quizzes</a>
         </div>
@@ -120,7 +120,7 @@
                             <code class="mcp-tool px-2 py-1">quizzes_list</code>
                         </div>
                         <p class="text-secondary">List quizzes, optionally by subject (name or code) and difficulty.
-                            Pick one to fill in the quiz IDs below.</p>
+                            Pick one to look it up.</p>
                         <form data-mcp-form="quizzes">
                             <div class="row g-3 mb-3">
                                 <div class="col-sm-7">
@@ -168,55 +168,37 @@
                 </section>
             </div>
 
-            <div class="col-lg-6">
-                <section class="card feature-card shadow-sm h-100" aria-labelledby="attempts-heading">
+            <div class="col-12">
+                <section class="card feature-card shadow-sm" aria-labelledby="practice-heading">
                     <div class="card-body">
                         <div class="d-flex justify-content-between gap-2">
-                            <h2 id="attempts-heading" class="h5">Quiz attempts</h2>
-                            <code class="mcp-tool px-2 py-1">quizzes_attempts_list</code>
+                            <h2 id="practice-heading" class="h5">Practice question</h2>
+                            <code class="mcp-tool px-2 py-1">quizzes_practice_question</code>
                         </div>
-                        <p class="text-secondary">List the attempts at one quiz, newest first, optionally for one
-                            student.</p>
-                        <form data-mcp-form="attempts">
+                        <p class="text-secondary">Draw one random question to test yourself, optionally from one
+                            subject or difficulty. Pick an answer, then check it. MCP-only: the quiz pages only run
+                            whole quizzes.</p>
+                        <form data-mcp-form="practice">
                             <div class="row g-3 mb-3">
-                                <div class="col-sm-5">
-                                    <label class="form-label" for="attempts-quiz-id">Quiz ID</label>
-                                    <input class="form-control" id="attempts-quiz-id" name="quiz_id" type="number"
-                                        min="1" step="1" required data-mcp-quiz-id placeholder="e.g. 1">
-                                </div>
                                 <div class="col-sm-7">
-                                    <label class="form-label" for="attempts-student-name">Student (optional)</label>
-                                    <input class="form-control" id="attempts-student-name" name="student_name"
-                                        maxlength="100" data-mcp-student placeholder="e.g. Alice Nguyen">
+                                    <label class="form-label" for="practice-subject">Subject (optional)</label>
+                                    <input class="form-control" id="practice-subject" name="subject" maxlength="100"
+                                        placeholder="e.g. Database">
+                                </div>
+                                <div class="col-sm-5">
+                                    <label class="form-label" for="practice-difficulty">Difficulty</label>
+                                    <select class="form-select" id="practice-difficulty" name="difficulty">
+                                        <option value="">Any</option>
+                                        <option>Easy</option>
+                                        <option>Medium</option>
+                                        <option>Hard</option>
+                                    </select>
                                 </div>
                             </div>
-                            <button class="btn btn-primary" type="submit">Run MCP tool</button>
+                            <button class="btn btn-primary" type="submit">Draw a question</button>
                         </form>
-                        <div id="attempts-output" class="mcp-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                        <div id="practice-output" class="mcp-output bg-light rounded p-3 mt-3" aria-live="polite">Not
                             called yet.</div>
-                    </div>
-                </section>
-            </div>
-
-            <div class="col-lg-6">
-                <section class="card feature-card shadow-sm h-100" aria-labelledby="student-results-heading">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between gap-2">
-                            <h2 id="student-results-heading" class="h5">Student results</h2>
-                            <code class="mcp-tool px-2 py-1">quizzes_student_results</code>
-                        </div>
-                        <p class="text-secondary">Summarise one student's results across every quiz. MCP-only: the
-                            quiz pages show attempts one quiz at a time.</p>
-                        <form data-mcp-form="student-results">
-                            <label class="form-label" for="student-results-student-name">Student</label>
-                            <div class="input-group">
-                                <input class="form-control" id="student-results-student-name" name="student_name"
-                                    required maxlength="100" data-mcp-student placeholder="e.g. Ben Carter">
-                                <button class="btn btn-primary" type="submit">Run MCP tool</button>
-                            </div>
-                        </form>
-                        <div id="student-results-output" class="mcp-output bg-light rounded p-3 mt-3"
-                            aria-live="polite">Not called yet.</div>
                     </div>
                 </section>
             </div>

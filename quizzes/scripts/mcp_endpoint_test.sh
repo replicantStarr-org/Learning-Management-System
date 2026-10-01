@@ -61,8 +61,7 @@ check GET /mcp/status 200 '"enabled":true'
 check POST /mcp/quizzes 200 '"tool":"quizzes_list"' '{"difficulty": "Easy"}'
 check POST /mcp/quizzes 200 '"DBS102 - Database Systems"' '{"subject": "dbs102"}'
 check POST /mcp/quiz 200 '"tool":"quizzes_get"' '{"quiz_id": 3}'
-check POST /mcp/attempts 200 '"tool":"quizzes_attempts_list"' '{"quiz_id": 1}'
-check POST /mcp/student-results 200 '"tool":"quizzes_student_results"' '{"student_name": "Ben Carter"}'
+check POST /mcp/practice 200 '"tool":"quizzes_practice_question"' '{"difficulty": "Hard"}'
 check POST /mcp/search 200 '"tool":"quizzes_search_questions"' '{"keyword": "primary key"}'
 
 # Tool boundaries: the backend rejects malformed input before calling MCP (400),
@@ -71,7 +70,7 @@ check POST /mcp/quiz 400 'quiz_id must be a positive integer' '{"quiz_id": 0}'
 check POST /mcp/quizzes 400 'difficulty must be Easy, Medium or Hard' '{"difficulty": "Impossible"}'
 check POST /mcp/search 400 'keyword is required' '{"keyword": "  "}'
 check POST /mcp/quiz 400 'Quiz not found' '{"quiz_id": 999999}'
-check POST /mcp/student-results 400 'No quiz attempts exist' '{"student_name": "No Such Student"}'
+check POST /mcp/practice 400 'No quizzes with questions match' '{"subject": "No Such Subject"}'
 
 log ""
 if (( FAILURES > 0 )); then

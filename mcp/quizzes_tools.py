@@ -1,28 +1,31 @@
 """
-MCP tools for the quiz manager.
+MCP tools for the quiz manager, a self-study tool for students.
 
 The tools call the quiz database API. The quiz backend's routes return HTML
 fragments for its pages, so the database API is the JSON view of the same
 quizzes (the RAG connector reads it for the same reason).
 
-Every tool is read-only. An MCP client can browse quizzes, questions and
-attempt results, but cannot create, edit or delete a quiz, submit an attempt,
-or run AI generation. Writes stay behind the backend's validation, and the
-quiz pages remain the only way to change quiz data.
+Every tool is read-only and about the study material: finding quizzes,
+reading a quiz's questions, searching questions by topic and drawing a
+practice question. None of them returns attempts or scores, so no student can
+look up another's results, and none can create, edit or delete a quiz,
+submit an attempt or run AI generation; those stay on the quiz pages, behind
+the backend's validation.
 
-quizzes_student_results and quizzes_search_questions are MCP-only: no backend
-route or page offers a cross-quiz view of one student or a question search.
+quizzes_search_questions and quizzes_practice_question are MCP-only: the quiz
+pages have no question search and no single-question practice.
 """
 
 import json
 import os
+import random
 from typing import Any, Literal
 
 import requests
 from mcp.server.mcpserver.exceptions import ToolError
 
 
-MAX_KEYWORD_LENGTH = 100
+MAX_TEXT_LENGTH = 100
 MAX_SEARCH_RESULTS = 25
 
 Difficulty = Literal["Easy", "Medium", "Hard"]
@@ -79,8 +82,8 @@ def _required_text(value: str, name: str) -> str:
     text = value.strip()
     if not text:
         raise ToolError(f"{name} is required.")
-    if len(text) > MAX_KEYWORD_LENGTH:
-        raise ToolError(f"{name} must be {MAX_KEYWORD_LENGTH} characters or fewer.")
+    if len(text) > MAX_TEXT_LENGTH:
+        raise ToolError(f"{name} must be {MAX_TEXT_LENGTH} characters or fewer.")
     return text
 
 
@@ -95,21 +98,26 @@ def _summary(quiz: dict) -> dict:
     }
 
 
-def _percent(score: int, total: int) -> float:
-    return round(100 * score / total, 1) if total else 0.0
-
-
-def _attempt(attempt: dict) -> dict:
-    # ai_feedback is model-written text, not a result, so it is left out.
+def _question(number: int, question: dict) -> dict:
     return {
-        "attempt_id": attempt["attempt_id"],
-        "quiz_id": attempt["quiz_id"],
-        "student_name": attempt["student_name"],
-        "score": attempt["score"],
-        "total_questions": attempt["total_questions"],
-        "percent": _percent(attempt["score"], attempt["total_questions"]),
-        "completed_at": attempt["completed_at"],
+        "question_id": question["question_id"],
+        "number": number,
+        "question_text": question["question_text"],
+        "answers": [answer["answer_text"] for answer in question["answers"]],
+        "correct_answer": next(
+            (a["answer_text"] for a in question["answers"] if a["is_correct"]), None
+        ),
+        "explanation": question["explanation"],
     }
+
+
+def _filtered(quizzes: list[dict], subject: str | None, difficulty: str | None) -> list[dict]:
+    if subject and subject.strip():
+        needle = subject.strip().lower()
+        quizzes = [q for q in quizzes if needle in q["subject_name"].lower()]
+    if difficulty:
+        quizzes = [q for q in quizzes if q["difficulty"] == difficulty]
+    return quizzes
 
 
 def register_quiz_tools(mcp):
@@ -124,12 +132,7 @@ def register_quiz_tools(mcp):
         subject matches part of the subject name or code, ignoring case
         (e.g. "DBS102" or "database"). difficulty is Easy, Medium or Hard.
         """
-        quizzes = client.request("/quizzes")
-        if subject and subject.strip():
-            needle = subject.strip().lower()
-            quizzes = [q for q in quizzes if needle in q["subject_name"].lower()]
-        if difficulty:
-            quizzes = [q for q in quizzes if q["difficulty"] == difficulty]
+        quizzes = _filtered(client.request("/quizzes"), subject, difficulty)
         return json.dumps([_summary(q) for q in quizzes], ensure_ascii=False)
 
     @mcp.tool(name="quizzes_get")
@@ -142,72 +145,8 @@ def register_quiz_tools(mcp):
                 **_summary(quiz),
                 "description": quiz["description"],
                 "questions": [
-                    {
-                        "question_id": question["question_id"],
-                        "number": number,
-                        "question_text": question["question_text"],
-                        "answers": [answer["answer_text"] for answer in question["answers"]],
-                        "correct_answer": next(
-                            (a["answer_text"] for a in question["answers"] if a["is_correct"]),
-                            None,
-                        ),
-                        "explanation": question["explanation"],
-                    }
+                    _question(number, question)
                     for number, question in enumerate(quiz["questions"], start=1)
-                ],
-            },
-            ensure_ascii=False,
-        )
-
-    @mcp.tool(name="quizzes_attempts_list")
-    def quizzes_attempts_list(quiz_id: int, student_name: str | None = None) -> str:
-        """List the attempts made at one quiz, newest first, optionally for one
-        student only (exact name, e.g. "Alice Nguyen")."""
-        quiz_id = _positive_id(quiz_id, "quiz_id")
-        params = {"student_name": student_name.strip()} if student_name and student_name.strip() else {}
-        attempts = client.request(f"/quizzes/{quiz_id}/attempts", **params)
-        return json.dumps([_attempt(a) for a in attempts], ensure_ascii=False)
-
-    @mcp.tool(name="quizzes_student_results")
-    def quizzes_student_results(student_name: str) -> str:
-        """Summarise one student's results across every quiz: each attempt,
-        their best score per quiz, and their average percentage.
-
-        student_name matches ignoring case and surrounding spaces. MCP-only:
-        the quiz pages show attempts one quiz at a time.
-        """
-        name = _required_text(student_name, "student_name").lower()
-        attempts = []
-        titles = {}
-        for quiz in client.request("/quizzes"):
-            titles[quiz["quiz_id"]] = quiz["title"]
-            attempts.extend(
-                a for a in client.request(f"/quizzes/{quiz['quiz_id']}/attempts")
-                if a["student_name"].strip().lower() == name
-            )
-        if not attempts:
-            raise ToolError(f"No quiz attempts exist for {student_name.strip()!r}.")
-
-        attempts.sort(key=lambda a: (a["completed_at"] or "", a["attempt_id"]))
-        best = {}
-        for attempt in attempts:
-            current = best.get(attempt["quiz_id"])
-            if current is None or attempt["score"] > current["score"]:
-                best[attempt["quiz_id"]] = attempt
-        return json.dumps(
-            {
-                "student_name": attempts[0]["student_name"],
-                "attempt_count": len(attempts),
-                "quiz_count": len(best),
-                "average_percent": round(
-                    sum(_percent(a["score"], a["total_questions"]) for a in attempts) / len(attempts), 1
-                ),
-                "best_by_quiz": [
-                    {"quiz_title": titles[quiz_id], **_attempt(attempt)}
-                    for quiz_id, attempt in sorted(best.items())
-                ],
-                "attempts": [
-                    {"quiz_title": titles[a["quiz_id"]], **_attempt(a)} for a in attempts
                 ],
             },
             ensure_ascii=False,
@@ -216,8 +155,9 @@ def register_quiz_tools(mcp):
     @mcp.tool(name="quizzes_search_questions")
     def quizzes_search_questions(keyword: str) -> str:
         """Find questions across every quiz whose question text, answers or
-        explanation contain keyword, ignoring case. Returns at most 25 matches.
-        MCP-only: the quiz pages have no question search.
+        explanation contain keyword, ignoring case, to revise one topic.
+        Returns at most 25 matches. MCP-only: the quiz pages have no question
+        search.
         """
         needle = _required_text(keyword, "keyword").lower()
         matches = []
@@ -243,6 +183,36 @@ def register_quiz_tools(mcp):
                 "match_count": len(matches),
                 "truncated": len(matches) > MAX_SEARCH_RESULTS,
                 "matches": matches[:MAX_SEARCH_RESULTS],
+            },
+            ensure_ascii=False,
+        )
+
+    @mcp.tool(name="quizzes_practice_question")
+    def quizzes_practice_question(
+        subject: str | None = None, difficulty: Difficulty | None = None
+    ) -> str:
+        """Pick one random question to practise, optionally from quizzes on a
+        subject (part of its name or code) or of a difficulty.
+
+        The result includes the correct answer and explanation; a client
+        quizzing the student should hold them back until the student has
+        answered. MCP-only: the quiz pages only run whole quizzes.
+        """
+        quizzes = [
+            q for q in _filtered(client.request("/quizzes"), subject, difficulty)
+            if q["question_count"]
+        ]
+        if not quizzes:
+            raise ToolError("No quizzes with questions match that subject and difficulty.")
+        quiz = client.request(f"/quizzes/{random.choice(quizzes)['quiz_id']}")
+        number, question = random.choice(list(enumerate(quiz["questions"], start=1)))
+        return json.dumps(
+            {
+                "quiz_id": quiz["quiz_id"],
+                "quiz_title": quiz["title"],
+                "subject_name": quiz["subject_name"],
+                "difficulty": quiz["difficulty"],
+                **_question(number, question),
             },
             ensure_ascii=False,
         )
