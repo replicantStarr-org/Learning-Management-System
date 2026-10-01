@@ -8,7 +8,7 @@ RUNNING: Quiz Manager - MCP Server
 OBSERVE:
 MCP endpoint: http://127.0.0.1:8000/mcp
 Service area: quizzes
-Tools listed by the running server: learning_resources_by_tag, learning_resources_list, learning_resources_tags_list, quizzes_get, quizzes_list, quizzes_practice_question, quizzes_search_questions, subjects_create, subjects_delete, subjects_get, subjects_list, subjects_query_by_field, subjects_query_by_tag, subjects_subject_tag_remove, subjects_subject_tags_list, subjects_subject_tags_set, subjects_tag_create, subjects_tag_delete, subjects_tag_get, subjects_tag_update, subjects_tags_list, subjects_update, timetable_entries_list, timetable_entry_get, timetable_free_time, timetable_users_list
+Tools listed by the running server: assignments_get, assignments_list, assignments_upcoming, learning_resources_by_tag, learning_resources_list, learning_resources_tags_list, quizzes_get, quizzes_list, quizzes_practice_question, quizzes_search_questions, subjects_create, subjects_delete, subjects_get, subjects_list, subjects_query_by_field, subjects_query_by_tag, subjects_subject_tag_remove, subjects_subject_tags_list, subjects_subject_tags_set, subjects_tag_create, subjects_tag_delete, subjects_tag_get, subjects_tag_update, subjects_tags_list, subjects_update, timetable_entries_list, timetable_entry_get, timetable_free_time, timetable_users_list
 Validation evidence:
 - quiz tools advertised: 4; all read-only, so no fixture is created
 - quizzes_list returned 10 quiz(zes)
@@ -28,7 +28,7 @@ Validation evidence:
 - quizzes_search_questions contract: inputs ['keyword']
 
 IMPLEMENTATION:
-One concrete high-value improvement is the validation evidence provided, which highlights the expected responses and tools for the Quiz Manager service area. Specifically, the evidence shows that the server advertises the expected tools (learning_resources_by_tag, learning_resources_list, learning_resources_tags_list, quizzes_get, quizzes_list, quizzes_practice_question, quizzes_search_questions, subjects_create, subjects_delete, subjects_get, subjects_list, subjects_query_by_field, ...
+One concrete, high-value improvement is to ensure that the Quiz Manager service area correctly advertises its expected tools through the MCP protocol. Specifically, the Quiz Manager should advertise the following tools: 1. `assignments_get`: This tool should return a list of assignments for the current user. ...
 
 REVIEW:
-Approved: The MCP server responds correctly, advertises the expected tools, and the collector's safe CRUD, assignment, and query checks succeed. The validation evidence shows consistent tool naming, input/output contract consistency, and error handling. The boundary between the MCP adapter and the service APIs is respected, ...
+Approved: The MCP server at mcp for the Quiz Manager service area correctly advertises its expected tools through the MCP protocol, and the collector's safe CRUD, assignment, and query checks succeed. The server responds, and the tools' input/output contracts are consistent with the validation evidence.
