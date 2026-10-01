@@ -97,6 +97,18 @@ def list_entries():
         conn.close()
 
 
+@app.get("/timetable/users")
+def list_users():
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT username FROM timetable_entries ORDER BY username"
+        ).fetchall()
+        return jsonify([row["username"] for row in rows])
+    finally:
+        conn.close()
+
+
 @app.get("/timetable/<int:timetable_id>")
 def get_entry_details(timetable_id):
     row = get_entry(timetable_id)

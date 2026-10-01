@@ -63,6 +63,29 @@ BENCHMARKS = [
         "query": "Which semester is Advanced Software Development offered?",
         "relevant": ["subjects:subject:1:"],
     },
+    {
+        "query": "When is priya.patel's Cybersecurity lab?",
+        "relevant": ["timetable:timetable_entry:13:"],
+    },
+    {
+        # Matched through the day name: the entries' dates never say "Monday".
+        "query": "What does alex.wong have on Monday?",
+        "relevant": [
+            "timetable:timetable_entry:1:",
+            "timetable:timetable_entry:2:",
+        ],
+    },
+    {
+        # One lecture shared by three students, twice for alex.wong; the room is
+        # only in the notes.
+        "query": "Which room is the Advanced Software Development lecture in?",
+        "relevant": [
+            "timetable:timetable_entry:1:",
+            "timetable:timetable_entry:8:",
+            "timetable:timetable_entry:11:",
+            "timetable:timetable_entry:16:",
+        ],
+    },
 ]
 
 

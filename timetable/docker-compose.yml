@@ -38,6 +38,10 @@ services:
       PLAN_MAX_AGE_HOURS: 24
       IMPORT_RANGE_WEEKS: 16
       IMPORT_TIMEZONE: Australia/Sydney
+      # RAG is enabled by default for local application use. CI passes
+      # RAG_ENABLED=false on the compose command line.
+      RAG_ENABLED: "${RAG_ENABLED:-true}"
+      RAG_SERVER_URL: http://localhost:5010
     depends_on:
       timetable-database:
         condition: service_started
