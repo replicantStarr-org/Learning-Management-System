@@ -12,8 +12,8 @@ look up another's results, and none can create, edit or delete a quiz,
 submit an attempt or run AI generation; those stay on the quiz pages, behind
 the backend's validation.
 
-quizzes_search_questions and quizzes_practice_question are MCP-only: the quiz
-pages have no question search and no single-question practice.
+quizzes_search_questions and quizzes_practice_question are MCP-only: the
+Release 0 quiz pages have no question search and no single-question practice.
 """
 
 import json
@@ -30,6 +30,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 MAX_TEXT_LENGTH = 100
 MAX_SEARCH_RESULTS = 25
+SQLITE_MAX_INTEGER = 2**63 - 1
 # A question's search relevance is its text score (up to 1.0), plus these shares of
 # its quiz's keyword match and of how many of the quiz's keywords it mentions (each
 # up to 1.0). The keywords the search matched also stand in for it, like "did you
@@ -91,6 +92,9 @@ class QuizzesApiClient:
 def _positive_id(value: int, name: str) -> int:
     if value < 1:
         raise ToolError(f"{name} must be a positive integer.")
+    if value > SQLITE_MAX_INTEGER:
+        # Past what SQLite can store, so no such row; the API would fail with a 500.
+        raise ToolError("Quiz not found.")
     return value
 
 
@@ -265,10 +269,13 @@ def register_quiz_tools(mcp):
         its quiz's weighted keywords, which add related terms and forgive small
         typos: "containers" finds the Docker questions and "kubernets" still
         finds the Kubernetes one. Each match has its relevance. Returns at most
-        25 matches. MCP-only: the quiz pages have no question search.
+        25 matches. MCP-only: the Release 0 quiz pages have no question search.
         """
         query = _tokens(_required_text(keyword, "keyword"))
-        terms = [t for t in query if t not in STOPWORDS] or query
+        terms = list(dict.fromkeys(t for t in query if t not in STOPWORDS))
+        if not terms:
+            # "what is" or "???" would otherwise match nearly every question.
+            raise ToolError('Search for a topic, such as "containers" or "sprint".')
         matches = []
         for summary in client.request("/quizzes"):
             # The list already carries each quiz's keywords, so scoring them costs
@@ -348,6 +355,9 @@ def register_quiz_tools(mcp):
         if not quizzes:
             raise ToolError("No quizzes with questions match that subject and difficulty.")
         quiz = client.request(f"/quizzes/{random.choice(quizzes)['quiz_id']}")
+        if not quiz["questions"]:
+            # question_count is stored on the quiz, so it can briefly disagree with its questions.
+            raise ToolError("That quiz has no questions yet. Try again.")
         number, question = random.choice(list(enumerate(quiz["questions"], start=1)))
         return json.dumps(
             {

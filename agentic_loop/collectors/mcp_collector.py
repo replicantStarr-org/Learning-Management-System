@@ -396,8 +396,12 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
             raise RuntimeError(f"quizzes_list(difficulty={difficulty!r}) did not match the full list")
     evidence.append("quizzes_list difficulty filters match the unfiltered list for Easy, Medium and Hard")
 
-    quiz = await _call(session, "quizzes_get", {"quiz_id": quizzes[0]["quiz_id"]})
-    if len(quiz["questions"]) != quizzes[0]["question_count"]:
+    # The first quiz with questions, so a quiz still being written cannot break the review.
+    first = next((q for q in quizzes if q["question_count"]), None)
+    if first is None:
+        raise RuntimeError("quizzes_list returned no quiz with questions to review")
+    quiz = await _call(session, "quizzes_get", {"quiz_id": first["quiz_id"]})
+    if len(quiz["questions"]) != first["question_count"]:
         raise RuntimeError("quizzes_get question count does not match quizzes_list")
     if any(not q["correct_answer"] or q["correct_answer"] not in q["answers"] for q in quiz["questions"]):
         raise RuntimeError("quizzes_get returned a question whose correct answer is not one of its options")
@@ -406,25 +410,18 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
         "each with its correct answer among the options"
     )
 
+    practices = []
     for difficulty in ("Easy", "Hard"):
         practice = await _call(session, "quizzes_practice_question", {"difficulty": difficulty})
+        practices.append(practice)
         if practice["difficulty"] != difficulty or practice["correct_answer"] not in practice["answers"]:
             raise RuntimeError(f"quizzes_practice_question(difficulty={difficulty!r}) returned a bad question")
     evidence.append(
         "quizzes_practice_question honours its difficulty filter and returns a correct answer among the options"
     )
 
-    # A self-study tool: no tool may reveal other students' attempts or scores.
-    results = [quizzes, quiz, practice]
-    leaked = {
-        key for key in ("attempt_id", "student_name", "score", "ai_feedback")
-        if f'"{key}"' in json.dumps(results)
-    }
-    if leaked:
-        raise RuntimeError("quiz tools returned student data: " + ", ".join(sorted(leaked)))
-    evidence.append("no tool returns attempts, student names, scores or AI feedback")
-
-    keyword = quiz["questions"][0]["question_text"].split()[-1].strip("?.,'")
+    # The longest word of the question, so it is a topic word rather than "is" or "a".
+    keyword = max(quiz["questions"][0]["question_text"].split(), key=len).strip("?.,'()")
     found = await _call(session, "quizzes_search_questions", {"keyword": keyword})
     if not any(m["question_id"] == quiz["questions"][0]["question_id"] for m in found["matches"]):
         raise RuntimeError(f"quizzes_search_questions({keyword!r}) did not find the question it came from")
@@ -433,6 +430,16 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
     if relevance != sorted(relevance, reverse=True):
         raise RuntimeError("quizzes_search_questions did not rank matches by relevance")
     evidence.append("quizzes_search_questions ranks matches by relevance, best first")
+
+    # A self-study tool: no tool may reveal other students' attempts or scores.
+    results = [quizzes, quiz, *practices, found]
+    leaked = {
+        key for key in ("attempt_id", "student_name", "score", "ai_feedback")
+        if f'"{key}"' in json.dumps(results)
+    }
+    if leaked:
+        raise RuntimeError("quiz tools returned student data: " + ", ".join(sorted(leaked)))
+    evidence.append("no list, lookup, practice or search result returns attempts, student names, scores or AI feedback")
 
     # The quiz keywords broaden the search: a keyword that none of its quiz's
     # questions spells out must still find that quiz's questions. The tools keep
@@ -466,7 +473,7 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
             raise RuntimeError(f"quizzes_search_questions({typo!r}) did not forgive the typo")
         evidence.append(f"quizzes_search_questions({typo!r}) forgives the typo and still finds quiz {quiz['quiz_id']}")
 
-    if any("keywords" in result for result in (quizzes[0], quiz)):
+    if any("keywords" in result for result in (first, quiz)):
         raise RuntimeError("quizzes_list or quizzes_get exposes the internal quiz keywords")
     evidence.append("quizzes_list and quizzes_get keep the quiz keywords internal")
 
@@ -476,6 +483,7 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
         "unknown difficulty": ("quizzes_list", {"difficulty": "Impossible"}),
         "subject with no quizzes": ("quizzes_practice_question", {"subject": f"No Such Subject {uuid4().hex[:6]}"}),
         "blank keyword": ("quizzes_search_questions", {"keyword": "   "}),
+        "search of only common words": ("quizzes_search_questions", {"keyword": "what is"}),
     }
     for label, (name, arguments) in refused.items():
         if not (await session.call_tool(name, arguments)).is_error:

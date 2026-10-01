@@ -542,7 +542,7 @@ const MCP_RENDERERS = {
     },
     quiz(result) {
         const summary = mcpElement("p", "mcp-summary",
-            `${result.title} · ${result.subject_name} · ${result.difficulty} · ${result.questions.length} questions. ${result.description}`);
+            `${result.title} · ${result.subject_name} · ${result.difficulty} · ${result.questions.length} question${result.questions.length === 1 ? "" : "s"}. ${result.description}`);
         const toggles = [];
         const items = result.questions.map((question) => {
             const item = mcpItem(
@@ -564,6 +564,7 @@ const MCP_RENDERERS = {
             all.textContent = reveal ? "Hide all answers" : "Show all answers";
             toggles.forEach((setRevealed) => setRevealed(reveal));
         });
+        if (!items.length) return [summary, mcpElement("p", "text-secondary small", "This quiz has no questions yet.")];
         return [summary, all, mcpList(items)];
     },
     practice: mcpPracticeQuestion,

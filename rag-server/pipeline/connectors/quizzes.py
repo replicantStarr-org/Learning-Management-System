@@ -11,16 +11,13 @@ connector = Connector("quizzes", "http://localhost:6004")
 AI_SOURCE = "ai_generated"
 
 
-def _authored_quizzes(get):
-    # List, then detail: /quizzes omits the questions and their answers.
-    for row in get("/quizzes"):
-        if row["source"] != AI_SOURCE:
-            yield get(f"/quizzes/{row['quiz_id']}")
-
-
 @connector.entity
 def quizzes(get):
-    for quiz in _authored_quizzes(get):
+    # List, then detail: /quizzes omits the questions and their answers.
+    for row in get("/quizzes"):
+        if row["source"] == AI_SOURCE:
+            continue
+        quiz = get(f"/quizzes/{row['quiz_id']}")
         yield Record(
             entity="quiz",
             id=quiz["quiz_id"],
@@ -40,7 +37,10 @@ def quizzes(get):
 def questions(get):
     # Each question is its own record, repeating its quiz and subject, so a
     # question about one answer is not answered from a neighbouring question.
-    for quiz in _authored_quizzes(get):
+    for row in get("/quizzes"):
+        if row["source"] == AI_SOURCE:
+            continue
+        quiz = get(f"/quizzes/{row['quiz_id']}")
         for number, question in enumerate(quiz["questions"], start=1):
             answers = question["answers"]
             yield Record(

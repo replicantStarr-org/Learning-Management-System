@@ -71,6 +71,8 @@ check POST /mcp/search 200 '"question_id":37' '{"keyword": "phising"}'
 check POST /mcp/quiz 400 'quiz_id must be a positive integer' '{"quiz_id": 0}'
 check POST /mcp/quizzes 400 'difficulty must be Easy, Medium or Hard' '{"difficulty": "Impossible"}'
 check POST /mcp/search 400 'keyword is required' '{"keyword": "  "}'
+check POST /mcp/quiz 400 'quiz_id must be a positive integer' '{"quiz_id": "99999999999999999999"}'
+check POST /mcp/search 400 'Search for a topic' '{"keyword": "what is"}'
 check POST /mcp/quiz 400 'Quiz not found' '{"quiz_id": 999999}'
 check POST /mcp/practice 400 'No quizzes with questions match' '{"subject": "No Such Subject"}'
 

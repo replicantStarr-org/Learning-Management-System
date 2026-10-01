@@ -15,20 +15,20 @@ Validation evidence:
 - quizzes_list difficulty filters match the unfiltered list for Easy, Medium and Hard
 - quizzes_get(1) returned 4 questions, each with its correct answer among the options
 - quizzes_practice_question honours its difficulty filter and returns a correct answer among the options
-- no tool returns attempts, student names, scores or AI feedback
-- quizzes_search_questions('architecture') found the question the keyword came from
+- quizzes_search_questions('microservices') found the question the keyword came from
 - quizzes_search_questions ranks matches by relevance, best first
+- no list, lookup, practice or search result returns attempts, student names, scores or AI feedback
 - quizzes_search_questions('software development') finds quiz 1 through its keywords, though no question mentions it
 - quizzes_search_questions('software developmet') forgives the typo and still finds quiz 1
 - quizzes_list and quizzes_get keep the quiz keywords internal
-- tools reject non-positive id, missing quiz, unknown difficulty, subject with no quizzes, blank keyword with an MCP error
+- tools reject non-positive id, missing quiz, unknown difficulty, subject with no quizzes, blank keyword, search of only common words with an MCP error
 - quizzes_get contract: inputs ['quiz_id']
 - quizzes_list contract: inputs ['subject', 'difficulty']
 - quizzes_practice_question contract: inputs ['subject', 'difficulty']
 - quizzes_search_questions contract: inputs ['keyword']
 
 IMPLEMENTATION:
-One concrete, high-value improvement is to ensure that the Quiz Manager service area correctly advertises its expected tools through the MCP protocol. Specifically, the Quiz Manager should advertise the following tools: 1. `assignments_get`: This tool should return a list of assignments for the current user. ...
+One concrete, high-value improvement is to ensure that the Quiz Manager service area correctly advertises the expected tools through the MCP protocol. Specifically, the Quiz Manager service area should advertise the following tools: 1. `assignments_get`: Allows students to browse and manage quizzes, answer questions, submit ...
 
 REVIEW:
-Approved: The MCP server at mcp for the Quiz Manager service area correctly advertises its expected tools through the MCP protocol, and the collector's safe CRUD, assignment, and query checks succeed. The server responds, and the tools' input/output contracts are consistent with the validation evidence.
+Approved: The MCP server at mcp for the Quiz Manager service area correctly advertises the expected tools through the MCP protocol, including `assignments_get` and other relevant tools, and the collector's safe CRUD, assignment, and query checks succeed. Evidence supports consistent input/output contracts and error handling.

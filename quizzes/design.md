@@ -248,6 +248,9 @@ disabled and `/mcp/quiz` returns 403, which `quizzes.yml` asserts.
   when their servers have been started separately (`rag-server/run.ps1` or `run.sh`, and
   `mcp/run.ps1` or `run.sh`). A grounded answer from the local model takes around 30-60 seconds.
 - The MCP tools are read-only by design, so no MCP client can change quiz data.
+- The agentic loop's closing review text is written by a small local model and can misname
+  things (for example, listing another feature's tool among the quiz tools); the evidence lines
+  above it are the collector's own checks and are what the verdict rests on.
 - The quiz keywords are set in the seed data and, for new quizzes, from the title; there is no
   page for editing a quiz's keywords, and renaming a quiz does not update them.
 

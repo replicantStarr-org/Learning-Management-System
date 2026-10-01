@@ -1,3 +1,4 @@
+import re
 from functools import wraps
 
 from flask import Blueprint, jsonify, request
@@ -40,8 +41,10 @@ def _bad_request(message):
 
 
 def _quiz_id(body):
+    # ASCII digits only ("²".isdigit() is True but int("²") fails), and few enough
+    # that the database can hold the ID.
     value = _text(body, "quiz_id")
-    return int(value) if value.isdigit() and int(value) >= 1 else None
+    return int(value) if re.fullmatch(r"[0-9]{1,9}", value) and int(value) >= 1 else None
 
 
 def _run(tool_name, arguments=None):
