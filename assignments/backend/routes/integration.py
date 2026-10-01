@@ -45,16 +45,37 @@ def mcp_status():
 @integration_bp.post("/mcp/assignments")
 @_required("MCP_ENABLED")
 def mcp_assignments():
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"status": "error", "error": "Request body must be a JSON object"}), 400
+
     action = body.get("action", "list")
-    tools = {
-        "list": ("assignments_list", {key: body[key] for key in ("status", "subject_id") if key in body}),
-        "upcoming": ("assignments_upcoming", {"days": body.get("days", 7)}),
-        "get": ("assignments_get", {"assignment_id": body.get("assignment_id")}),
-    }
-    if action not in tools:
+    if action == "list":
+        status = body.get("status")
+        subject_id = body.get("subject_id")
+        if status is not None and not isinstance(status, str):
+            return jsonify({"status": "error", "error": "status must be a string"}), 400
+        if subject_id is not None and (
+            isinstance(subject_id, bool) or not isinstance(subject_id, int) or subject_id < 1
+        ):
+            return jsonify({"status": "error", "error": "subject_id must be a positive integer"}), 400
+        tool = "assignments_list"
+        arguments = {key: body[key] for key in ("status", "subject_id") if key in body}
+    elif action == "upcoming":
+        days = body.get("days", 7)
+        if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= 365:
+            return jsonify({"status": "error", "error": "days must be an integer from 1 to 365"}), 400
+        tool = "assignments_upcoming"
+        arguments = {"days": days}
+    elif action == "get":
+        assignment_id = body.get("assignment_id")
+        if isinstance(assignment_id, bool) or not isinstance(assignment_id, int) or assignment_id < 1:
+            return jsonify({"status": "error", "error": "assignment_id must be a positive integer"}), 400
+        tool = "assignments_get"
+        arguments = {"assignment_id": assignment_id}
+    else:
         return jsonify({"status": "error", "error": "action must be list, upcoming, or get"}), 400
-    tool, arguments = tools[action]
+
     try:
         result = call_mcp(tool, arguments)
     except IntegrationError as exc:
