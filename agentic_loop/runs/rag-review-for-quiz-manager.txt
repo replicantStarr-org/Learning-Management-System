@@ -1,0 +1,55 @@
+AGENTIC MICROSERVICE REVIEW
+[quizzes][rag][OBSERVE] Collecting and validating evidence
+[quizzes][rag][IMPLEMENT] Running implementation model
+[quizzes][rag][REVIEW] Running review model
+[quizzes][rag][DONE] Review complete
+
+RUNNING: Quiz Manager - RAG Connector
+OBSERVE:
+RAG server: rag-server/ has all 18 required files and 6 routes bound to endpoint functions.
+Connector for Quiz Manager: rag-server/pipeline/connectors/quizzes.py
+Service name "quizzes", base URL http://localhost:6004, 2 entity function(s):
+- quizzes(): fetches '/quizzes', f'/quizzes/{row['quiz_id']}'; yields entity quiz; fields: quiz, subject, difficulty, description, number of questions, questions
+- questions(): fetches '/quizzes', f'/quizzes/{row['quiz_id']}'; yields entity quiz_question; fields: quiz, subject, question, answer options, correct answer, explanation
+Static rule checks (AGENTS.md):
+- PASS fetches only through get()
+- PASS no try/except (errors raise)
+- PASS no time- or random-dependent calls
+- PASS no secret-looking fields
+- PASS no AI-generated-looking fields
+- PASS no internal ID fields
+Live preview (connector run twice against the running service):
+- 52 chunks (quiz: 10, quiz_question: 42)
+- chunk size: longest 110 words, average 78, limit 150, 0 over the limit
+- PASS chunk ids unique
+- PASS identical ids and text across two runs
+- PASS raw 0/1 or True/False values: 0 line(s)
+- PASS empty titles: 0
+Sample chunk (quiz):
+  Quiz: Advanced Software Development Fundamentals (ASD101 - Advanced Software Development)
+  quiz: Advanced Software Development Fundamentals
+  subject: ASD101 - Advanced Software Development
+  difficulty: Easy
+  description: Test your understanding of core ASD concepts covered in the unit introduction.
+  number of questions: 4
+  questions: Which of the following best describes a microservices architecture?; What does 'CI/CD' stand for in a DevOps pipeline?; In the Plan → Act → Observe → Adapt agentic workfl ...
+Sample chunk (quiz_question):
+  Quiz question: Advanced Software Development Fundamentals, question 1
+  quiz: Advanced Software Development Fundamentals
+  subject: ASD101 - Advanced Software Development
+  question: Which of the following best describes a microservices architecture?
+  answer options: A single monolithic application deployed as one unit; A collection of small, independently deployable services that communicate over a network; A design pattern for writing recursive functions; A database normalisation technique
+  correct an ...
+Retrieval metrics (rag-server/eval.py benchmarks, measured against the current index):
+- 5/5 benchmarks pass (P@5 at its ceiling and R@5 1.0); 52 chunks indexed
+- PASS P@5 0.20 of 0.20 possible, R@5 1.00: "What is the correct answer to what is a primary key?"
+- PASS P@5 0.20 of 0.20 possible, R@5 1.00: "What does velocity measure in Scrum?"
+- PASS P@5 0.20 of 0.20 possible, R@5 1.00: "Why should passwords be hashed?"
+- PASS P@5 0.20 of 0.20 possible, R@5 1.00: "How do I defend against SQL injection?"
+- PASS P@5 0.40 of 0.40 possible, R@5 1.00: "Which quiz covers SQL joins?"
+
+IMPLEMENTATION:
+The Quiz Manager frontend is functional and accessible, with a user-friendly interface for browsing quizzes and managing questions. The backend is well-designed, with the Quiz Manager serving as the central API endpoint. The database is organized and accessible, with quizzes and questions stored in separate ...
+
+REVIEW:
+Approved: The RAG connector for Quiz Manager meets all the connector rules and passes the static analysis and live preview checks. The retrieval metrics also show perfect scores for all benchmarks, indicating that the connector is correctly indexing relevant records.

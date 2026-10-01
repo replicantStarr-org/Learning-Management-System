@@ -10,6 +10,7 @@ permissions:
   contents: read
 
 env:
+  MCP_ENABLED: "false"
   RAG_ENABLED: "false"
 
 jobs:
@@ -32,9 +33,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Start quiz services
+      - name: Start quiz services with MCP and RAG disabled
         working-directory: quizzes
-        run: docker compose up --detach --build
+        # No MCP or RAG server runs on the runner, so both are switched off here.
+        run: MCP_ENABLED=false RAG_ENABLED=false docker compose up --detach --build
 
       - name: Probe quiz services
         shell: bash
@@ -68,6 +70,46 @@ jobs:
           probe "Quiz database" "http://localhost:6004/"
           probe "Quiz backend" "http://localhost:5004/"
           probe "Quiz frontend" "http://localhost:3004/"
+          probe "Quiz RAG page" "http://localhost:3004/rag.html"
+          probe "Quiz MCP page" "http://localhost:3004/mcp.html"
+
+      - name: Verify MCP integration is disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response="$(curl --silent --show-error --fail http://localhost:5004/mcp/status)"
+          echo "$response"
+          jq -e '.enabled == false and .mcp_enabled == false' <<< "$response"
+
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --request POST --header "Content-Type: application/json" \
+            --data '{"quiz_id": 1}' \
+            http://localhost:5004/mcp/quiz)"
+          if [[ "$status" != "403" ]]; then
+            echo "::error::/mcp/quiz returned HTTP $status with MCP disabled, expected 403."
+            exit 1
+          fi
+          echo "/mcp/quiz is refused with HTTP 403."
+
+      - name: Verify RAG integration is disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response="$(curl --silent --show-error --fail http://localhost:5004/rag/status)"
+          echo "$response"
+          jq -e '.enabled == false and .rag_enabled == false' <<< "$response"
+
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --request POST --header "Content-Type: application/json" \
+            --data '{"query": "What is a primary key?"}' \
+            http://localhost:5004/rag/answer)"
+          if [[ "$status" != "403" ]]; then
+            echo "::error::/rag/answer returned HTTP $status with RAG disabled, expected 403."
+            exit 1
+          fi
+          echo "/rag/answer is refused with HTTP 403."
 
       - name: Stop quiz services
         if: always()
