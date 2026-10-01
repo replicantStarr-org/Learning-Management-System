@@ -168,7 +168,9 @@ page shows a readable view of `result` with the raw tool result folded beneath i
 The page keeps answers hidden until the student asks for them: the quiz lookup has a Show answer
 button per question (and Show all answers), and the practice question is answered first, then
 checked, showing whether it was right and the explanation. Buttons rather than hover, so it works
-on touch screens and from the keyboard.
+on touch screens and from the keyboard. The subject filters are dropdowns filled from
+`quizzes_list`, so they only offer subjects that have quizzes and a filter can never match nothing;
+a refused request (such as a quiz ID that does not exist) is shown as a plain note, not an error.
 
 **Tool boundaries:** every tool is read-only and about the study material. None returns attempts,
 student names or scores, so no student can look up another's results (there is no login, so a name

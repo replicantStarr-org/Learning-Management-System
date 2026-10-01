@@ -321,6 +321,27 @@ async function loadMcpStatus() {
         showMcpAlert("MCP status could not be checked. The quiz backend may be unavailable.");
     }
     setMcpModeText();
+    if (toggle.checked) loadMcpSubjects();
+}
+
+// The subject filters list only subjects that have quizzes, taken from
+// quizzes_list itself, so every choice matches at least one quiz.
+async function loadMcpSubjects() {
+    try {
+        const response = await fetch(`${MCP_URL}/quizzes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+        });
+        const body = await response.json();
+        if (body.status !== "success") return;
+        const subjects = [...new Set(body.result.map((quiz) => quiz.subject_name))].sort();
+        document.querySelectorAll("[data-mcp-subjects]").forEach((select) => {
+            select.append(...subjects.map((name) => new Option(name, name)));
+        });
+    } catch {
+        // Left as "Any subject" only; the tools still work without a filter.
+    }
 }
 
 function mcpStatusLine(status, text) {
@@ -515,6 +536,15 @@ const MCP_RENDERERS = {
 };
 
 function showMcpResult(output, kind, status, body) {
+    if (status === 400) {
+        // The request was refused for its input (nothing matched, a bad ID), not
+        // because anything broke, so it reads as a note rather than an error.
+        output.replaceChildren(
+            mcpElement("p", "text-secondary mb-2", body.error || "Nothing matched that request."),
+            mcpRawResult(body),
+        );
+        return;
+    }
     if (status < 200 || status >= 300 || body.status !== "success") {
         output.replaceChildren(mcpStatusLine(status, body.error || "Request failed"), mcpRawResult(body));
         return;

@@ -48,7 +48,10 @@ async def _call_tool_async(tool_name, arguments):
     if not isinstance(result, CallToolResult):
         raise MCPError("The MCP server returned an unsupported result.")
     if result.is_error:
-        raise MCPToolError(_text(result) or f"{tool_name} failed.")
+        # The SDK prefixes a tool's own message with "Error executing tool <name>: ";
+        # the page shows the tool's message to the student, so the prefix is dropped.
+        message = _text(result).removeprefix(f"Error executing tool {tool_name}: ")
+        raise MCPToolError(message or f"{tool_name} failed.")
     try:
         return json.loads(_text(result))
     except ValueError as exc:

@@ -62,6 +62,9 @@ class QuizzesApiClient:
                 message = response.json().get("error")
             except ValueError:
                 message = None
+            if response.status_code == 404:
+                # Shown to the student as-is, such as "Quiz not found."
+                raise QuizzesApiError(f"{message or 'Not found'}.")
             raise QuizzesApiError(
                 f"HTTP {response.status_code}: {message or 'quiz database request failed'}"
             )

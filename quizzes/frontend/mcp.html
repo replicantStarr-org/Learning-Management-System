@@ -119,14 +119,15 @@
                             <h2 id="quizzes-heading" class="h5">Quiz list</h2>
                             <code class="mcp-tool px-2 py-1">quizzes_list</code>
                         </div>
-                        <p class="text-secondary">List quizzes, optionally by subject (name or code) and difficulty.
-                            Pick one to look it up.</p>
+                        <p class="text-secondary">List quizzes, optionally by subject and difficulty. Pick one to look
+                            it up.</p>
                         <form data-mcp-form="quizzes">
                             <div class="row g-3 mb-3">
                                 <div class="col-sm-7">
-                                    <label class="form-label" for="quizzes-subject">Subject (optional)</label>
-                                    <input class="form-control" id="quizzes-subject" name="subject" maxlength="100"
-                                        placeholder="e.g. DBS102">
+                                    <label class="form-label" for="quizzes-subject">Subject</label>
+                                    <select class="form-select" id="quizzes-subject" name="subject" data-mcp-subjects>
+                                        <option value="">Any subject</option>
+                                    </select>
                                 </div>
                                 <div class="col-sm-5">
                                     <label class="form-label" for="quizzes-difficulty">Difficulty</label>
@@ -181,9 +182,10 @@
                         <form data-mcp-form="practice">
                             <div class="row g-3 mb-3">
                                 <div class="col-sm-7">
-                                    <label class="form-label" for="practice-subject">Subject (optional)</label>
-                                    <input class="form-control" id="practice-subject" name="subject" maxlength="100"
-                                        placeholder="e.g. Database">
+                                    <label class="form-label" for="practice-subject">Subject</label>
+                                    <select class="form-select" id="practice-subject" name="subject" data-mcp-subjects>
+                                        <option value="">Any subject</option>
+                                    </select>
                                 </div>
                                 <div class="col-sm-5">
                                     <label class="form-label" for="practice-difficulty">Difficulty</label>
