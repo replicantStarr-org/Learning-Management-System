@@ -4,6 +4,7 @@ from flask_cors import CORS
 from routes.ai import ai_bp
 from routes.assignments import assignments_bp
 from routes.reminders import reminders_bp
+from routes.integration import integration_bp
 from services.errors import ServiceError, UpstreamError
 from views.html import error
 from views.responses import respond_error
@@ -16,6 +17,7 @@ def create_app():
     app.register_blueprint(assignments_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(reminders_bp)
+    app.register_blueprint(integration_bp)
 
     @app.errorhandler(ServiceError)
     def handle_service_error(exc):
