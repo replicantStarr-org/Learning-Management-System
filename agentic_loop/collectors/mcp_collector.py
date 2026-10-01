@@ -40,6 +40,13 @@ TIMETABLE_TOOL_NAMES = {
     "timetable_entry_get",
     "timetable_free_time",
 }
+QUIZ_TOOL_NAMES = {
+    "quizzes_list",
+    "quizzes_get",
+    "quizzes_attempts_list",
+    "quizzes_student_results",
+    "quizzes_search_questions",
+}
 
 
 async def _call(session: ClientSession, name: str, arguments: dict[str, Any] | None = None) -> Any:
@@ -351,10 +358,100 @@ async def _review_timetable(session: ClientSession, tool_names: set[str]) -> lis
     return evidence
 
 
+async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[str]:
+    """Cross-check the read-only quiz tools against each other.
+
+    The tools only read, so the seed quizzes and attempts are the test data and
+    nothing is created or cleaned up.
+    """
+    missing = sorted(QUIZ_TOOL_NAMES - tool_names)
+    if missing:
+        raise RuntimeError("quiz tools missing from MCP server: " + ", ".join(missing))
+    writes = sorted(
+        name for name in tool_names
+        if name.startswith("quizzes_") and name not in QUIZ_TOOL_NAMES
+    )
+    if writes:
+        raise RuntimeError("unexpected quiz tools beyond the read-only set: " + ", ".join(writes))
+
+    evidence: list[str] = [
+        f"quiz tools advertised: {len(QUIZ_TOOL_NAMES)}; all read-only, so no fixture is created"
+    ]
+
+    quizzes = await _call(session, "quizzes_list")
+    if not isinstance(quizzes, list) or not quizzes:
+        raise RuntimeError("quizzes_list did not return a non-empty JSON list")
+    evidence.append(f"quizzes_list returned {len(quizzes)} quiz(zes)")
+
+    for difficulty in ("Easy", "Medium", "Hard"):
+        filtered = await _call(session, "quizzes_list", {"difficulty": difficulty})
+        expected = [q["quiz_id"] for q in quizzes if q["difficulty"] == difficulty]
+        if [q["quiz_id"] for q in filtered] != expected:
+            raise RuntimeError(f"quizzes_list(difficulty={difficulty!r}) did not match the full list")
+    evidence.append("quizzes_list difficulty filters match the unfiltered list for Easy, Medium and Hard")
+
+    quiz = await _call(session, "quizzes_get", {"quiz_id": quizzes[0]["quiz_id"]})
+    if len(quiz["questions"]) != quizzes[0]["question_count"]:
+        raise RuntimeError("quizzes_get question count does not match quizzes_list")
+    if any(not q["correct_answer"] or q["correct_answer"] not in q["answers"] for q in quiz["questions"]):
+        raise RuntimeError("quizzes_get returned a question whose correct answer is not one of its options")
+    evidence.append(
+        f"quizzes_get({quiz['quiz_id']}) returned {len(quiz['questions'])} questions, "
+        "each with its correct answer among the options"
+    )
+
+    attempts = [
+        attempt
+        for summary in quizzes
+        for attempt in await _call(session, "quizzes_attempts_list", {"quiz_id": summary["quiz_id"]})
+    ]
+    if not attempts:
+        raise RuntimeError("quizzes_attempts_list returned no attempts for any quiz")
+    if any("ai_feedback" in attempt for attempt in attempts):
+        raise RuntimeError("quizzes_attempts_list exposed AI feedback")
+    evidence.append(f"quizzes_attempts_list returned {len(attempts)} attempt(s) across every quiz, without AI feedback")
+
+    student = attempts[0]["student_name"]
+    theirs = [a for a in attempts if a["student_name"] == student]
+    results = await _call(session, "quizzes_student_results", {"student_name": f"  {student.upper()} "})
+    if results["attempt_count"] != len(theirs):
+        raise RuntimeError("quizzes_student_results attempt count does not match quizzes_attempts_list")
+    evidence.append(
+        f"quizzes_student_results({student!r}) matched {len(theirs)} attempt(s) from "
+        "quizzes_attempts_list, ignoring case and surrounding spaces"
+    )
+
+    keyword = quiz["questions"][0]["question_text"].split()[-1].strip("?.,'")
+    found = await _call(session, "quizzes_search_questions", {"keyword": keyword})
+    if not any(m["question_id"] == quiz["questions"][0]["question_id"] for m in found["matches"]):
+        raise RuntimeError(f"quizzes_search_questions({keyword!r}) did not find the question it came from")
+    evidence.append(f"quizzes_search_questions({keyword!r}) found the question the keyword came from")
+
+    refused = {
+        "non-positive id": ("quizzes_get", {"quiz_id": 0}),
+        "missing quiz": ("quizzes_get", {"quiz_id": 999999}),
+        "unknown difficulty": ("quizzes_list", {"difficulty": "Impossible"}),
+        "unknown student": ("quizzes_student_results", {"student_name": f"No Such Student {uuid4().hex[:6]}"}),
+        "blank keyword": ("quizzes_search_questions", {"keyword": "   "}),
+    }
+    for label, (name, arguments) in refused.items():
+        if not (await session.call_tool(name, arguments)).is_error:
+            raise RuntimeError(f"{name} accepted a {label}")
+    evidence.append("tools reject " + ", ".join(refused) + " with an MCP error")
+
+    for tool in sorted((await session.list_tools()).tools, key=lambda tool: tool.name):
+        if tool.name in QUIZ_TOOL_NAMES:
+            inputs = list((tool.input_schema or {}).get("properties", {}))
+            evidence.append(f"{tool.name} contract: inputs {inputs or 'none'}")
+
+    return evidence
+
+
 SERVICE_REVIEWS: dict[str, Callable[[ClientSession, set[str]], Awaitable[list[str]]]] = {
     "subjects": _review_subjects,
     "resources": _review_resources,
     "timetable": _review_timetable,
+    "quizzes": _review_quizzes,
 }
 
 
