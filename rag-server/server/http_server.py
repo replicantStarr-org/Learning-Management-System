@@ -9,7 +9,7 @@ import signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
-from pipeline.common import BASE_DIR, settings
+from pipeline.common import BASE_DIR, rag_is_enabled, settings
 
 from . import endpoints
 from .endpoints import ApiError
@@ -20,12 +20,17 @@ PID_FILE = BASE_DIR / "rag-server.pid"
 # (method, path) -> endpoint(payload) returning (status code, JSON body).
 ROUTES = {
     ("GET", "/health"): endpoints.health,
+    ("GET", "/status"): endpoints.status,
     ("GET", "/services"): endpoints.services,
     ("POST", "/ingest"): endpoints.ingest,
     ("POST", "/clear"): endpoints.clear,
     ("POST", "/retrieve"): endpoints.retrieve,
     ("POST", "/answer"): endpoints.answer,
 }
+
+# Reachable while RAG_ENABLED is off: liveness, and whether the rest is on.
+# Every other route answers 403 until RAG_ENABLED is turned back on.
+ALWAYS_OPEN = {("GET", "/health"), ("GET", "/status")}
 
 
 class RAGHandler(BaseHTTPRequestHandler):
@@ -42,6 +47,9 @@ class RAGHandler(BaseHTTPRequestHandler):
             return
 
         try:
+            # Checked before the body is read, so nothing is parsed or run.
+            if (method, self.path) not in ALWAYS_OPEN and not rag_is_enabled():
+                raise endpoints.disabled_error()
             payload = self._read_json() if method == "POST" else {}
             status, body = endpoint(payload)
         except ApiError as exc:
@@ -91,6 +99,8 @@ def main():
     PID_FILE.write_text(str(os.getpid()))
     signal.signal(signal.SIGTERM, stop_on_sigterm)
     print(f"RAG HTTP server running on {host}:{port}, reachable at {url}", flush=True)
+    if not rag_is_enabled():
+        print("RAG_ENABLED is off: only /health and /status answer; the rest return 403", flush=True)
     # `url` is what clients use, `port` is what the server binds; they are
     # set separately in config.toml, so catch them drifting apart.
     if urlparse(url).port != port:

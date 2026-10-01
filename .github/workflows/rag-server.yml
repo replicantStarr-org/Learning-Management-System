@@ -38,25 +38,30 @@ jobs:
           echo "RAG server URL: $url"
           echo "RAG_URL=$url" >> "$GITHUB_ENV"
 
-      - name: Start the RAG server
+      - name: Write the probe helpers
+        # Shared by the enabled and disabled passes below, which each source it.
         run: |
-          nohup ./run.sh > server.log 2>&1 &
-
-          for attempt in {1..8}; do
-            if curl --silent --fail --max-time 5 --output /dev/null "${RAG_URL}/health"; then
-              echo "RAG server is up."
-              exit 0
-            fi
-            echo "Waiting for the RAG server ($attempt/8)."
-            sleep 2
-          done
-
-          echo "::error::RAG server did not respond on /health after 8 attempts."
-          exit 1
-
-      - name: Probe the RAG endpoints
-        run: |
+          cat > "$RUNNER_TEMP/probe.sh" <<'EOF'
           failures=0
+          passes=0
+
+          # Starts ./run.sh in the background with RAG_ENABLED set to $1, logging
+          # to $2, and waits for /health, which answers even while disabled.
+          start_server() {
+            RAG_ENABLED="$1" nohup ./run.sh > "$2" 2>&1 &
+
+            for attempt in {1..8}; do
+              if curl --silent --fail --max-time 5 --output /dev/null "${RAG_URL}/health"; then
+                echo "RAG server is up with RAG_ENABLED=$1."
+                return 0
+              fi
+              echo "Waiting for the RAG server ($attempt/8)."
+              sleep 2
+            done
+
+            echo "::error::RAG server did not respond on /health after 8 attempts."
+            exit 1
+          }
 
           # The status code alone is not enough: a missing route also returns
           # JSON (404 not_found), so each check also asserts the body that only
@@ -72,6 +77,7 @@ jobs:
             status="$(curl "${args[@]}" "${RAG_URL}$path" || true)"
             if [[ "$status" == "$expected" ]] && jq --exit-status "$assertion" response.json > /dev/null 2>&1; then
               echo "PASS $method $path -> HTTP $status (expected $expected)"
+              passes=$((passes + 1))
             else
               echo "::error::FAIL $method $path -> HTTP ${status:-000}, expected $expected with $assertion"
               cat response.json 2>/dev/null || true
@@ -80,7 +86,25 @@ jobs:
             fi
           }
 
+          summarise() {
+            echo "$passes/$((passes + failures)) checks passed."
+            if [[ "$failures" -gt 0 ]]; then
+              exit 1
+            fi
+          }
+          EOF
+
+      - name: Start the RAG server with RAG enabled
+        run: |
+          source "$RUNNER_TEMP/probe.sh"
+          start_server true server.log
+
+      - name: Probe the RAG endpoints while enabled
+        run: |
+          source "$RUNNER_TEMP/probe.sh"
+
           check GET /health 200 '.status == "ok"'
+          check GET /status 200 '.enabled == true and .rag_enabled == true'
           check GET /services 200 '.services | type == "array"'
           # An unknown service is rejected by /ingest's own validation, so the
           # endpoint is exercised without fetching or chunking any data.
@@ -89,10 +113,52 @@ jobs:
           check POST /retrieve 200 '.status == "success" and (.results | type == "array")' '{"query": "ci probe"}'
           check POST /answer 200 '.status == "success" and .answer == "Insufficient evidence."' '{"query": "ci probe"}'
 
-          echo "$((5 - failures))/5 endpoints passed."
-          if [[ "$failures" -gt 0 ]]; then
-            exit 1
-          fi
+          summarise
+
+      - name: Restart the RAG server with RAG disabled
+        run: |
+          ./run.sh stop
+          source "$RUNNER_TEMP/probe.sh"
+          start_server false server-disabled.log
+
+      - name: Probe the RAG endpoints while disabled
+        run: |
+          source "$RUNNER_TEMP/probe.sh"
+          disabled='.status == "error" and .error == "RAG server is disabled." and .enabled == false'
+
+          # Liveness and the switch itself stay reachable.
+          check GET /health 200 '.status == "ok"'
+          check GET /status 200 '.enabled == false and .rag_enabled == false'
+          # Everything else is refused before the request is validated or run,
+          # so the unknown service is a 403 rather than /ingest's own 404.
+          check GET /services 403 "$disabled"
+          check POST /ingest 403 "$disabled" '{"service": "ci-probe"}'
+          check POST /clear 403 "$disabled" '{"service": "ci-probe"}'
+          check POST /retrieve 403 "$disabled" '{"query": "ci probe"}'
+          check POST /answer 403 "$disabled" '{"query": "ci probe"}'
+
+          summarise
+
+      - name: Check the MCP tools refuse while disabled
+        # The tools are called directly: the MCP server speaks over stdio and
+        # has no port to probe. Each must return the disabled body unrun.
+        env:
+          RAG_ENABLED: "false"
+        run: |
+          .venv_rag/bin/python - <<'EOF'
+          from server.mcp_server import DISABLED, answer_question, ingest, retrieve_context
+
+          calls = {
+              "ingest": lambda: ingest("ci-probe"),
+              "retrieve_context": lambda: retrieve_context("ci probe"),
+              "answer_question": lambda: answer_question("ci probe"),
+          }
+          failed = [name for name, call in calls.items() if call() != DISABLED]
+          for name in calls:
+              print(("FAIL " if name in failed else "PASS ") + name)
+          if failed:
+              raise SystemExit(f"::error::MCP tools ran while RAG_ENABLED=false: {', '.join(failed)}")
+          EOF
 
       - name: Stop the RAG server
         if: always()
@@ -103,6 +169,10 @@ jobs:
             exit 1
           fi
 
-      - name: Show the RAG server log
+      - name: Show the RAG server logs
         if: always()
-        run: cat server.log 2>/dev/null || echo "No server log was written."
+        run: |
+          for log in server.log server-disabled.log; do
+            echo "=== $log ==="
+            cat "$log" 2>/dev/null || echo "No $log was written."
+          done
