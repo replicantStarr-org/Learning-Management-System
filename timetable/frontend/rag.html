@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAG Tools | Learning Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/assets/theme.css" rel="stylesheet">
+    <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+    <style>
+        .rag-output {
+            min-height: 4rem;
+            max-height: 24rem;
+            overflow: auto;
+        }
+
+        .rag-output pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .rag-route {
+            color: var(--color-brand-strong, #315ca8);
+            background: #eef4ff;
+        }
+
+        .rag-results {
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .rag-result-item {
+            padding: .75rem;
+            background: #fff;
+            border-radius: .5rem;
+        }
+
+        .rag-result-heading {
+            display: flex;
+            align-items: baseline;
+            gap: .5rem;
+            margin-bottom: .35rem;
+        }
+
+        .rag-result-title {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .rag-result-distance {
+            color: var(--bs-secondary-color);
+            font-size: .75rem;
+            white-space: nowrap;
+        }
+
+        .rag-result-text {
+            margin: 0;
+            color: var(--bs-secondary-color);
+            font-size: .875rem;
+            white-space: pre-wrap;
+        }
+
+        .rag-answer {
+            margin-bottom: .75rem;
+            padding: .9rem 1rem;
+            background: #fff;
+            border-left: .25rem solid var(--bs-primary);
+            border-radius: .5rem;
+        }
+
+        .rag-answer-label {
+            margin-bottom: .35rem;
+            color: var(--bs-primary);
+            font-size: .75rem;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .rag-answer-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .5rem;
+            color: var(--bs-secondary-color);
+            font-size: .8125rem;
+        }
+
+        .rag-citations {
+            margin: 0;
+            padding-left: 1.25rem;
+        }
+
+        .rag-citations a {
+            text-decoration: none;
+        }
+
+        .rag-citations a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body data-rag-page>
+    <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
+
+    <main class="container page-shell">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-5">
+            <div>
+                <p class="text-primary fw-semibold mb-2">Weekly timetable</p>
+                <h1 class="display-6 fw-bold">RAG Tools</h1>
+                <p class="lead text-secondary mb-0">Index and look up information from every student's timetable entries.</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i> Back to timetable</a>
+        </div>
+
+        <section class="card border-0 shadow-sm mb-4" aria-labelledby="mode-heading">
+            <div class="card-body p-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between gap-3 align-items-sm-center">
+                    <div>
+                        <h2 id="mode-heading" class="h5 mb-1">RAG mode</h2>
+                        <p id="mode-help" class="text-secondary mb-0">Checking RAG availability…</p>
+                    </div>
+                    <div class="form-check form-switch fs-5">
+                        <input class="form-check-input" type="checkbox" role="switch" id="rag-toggle" checked>
+                        <label class="form-check-label fs-6" for="rag-toggle">Enabled</label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="rag-alert" class="alert alert-warning" role="alert" hidden></div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="health-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="health-heading" class="h5">Health check</h2>
+                            <code class="rag-route px-2 py-1">GET /health</code>
+                        </div>
+                        <p class="text-secondary">Check whether the RAG server is reachable.</p>
+                        <button class="btn btn-primary" type="button" data-rag-button="health"
+                            data-rag-output="health-output">Check health</button>
+                        <div id="health-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            checked yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="index-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="index-heading" class="h5">Timetable index</h2>
+                            <code class="rag-route px-2 py-1">POST /ingest · /clear</code>
+                        </div>
+                        <p class="text-secondary">Ingest reads the current timetable entries and rebuilds their search
+                            index; run it again after adding or changing entries. Clear removes them from the index.</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-primary" type="button" data-rag-button="ingest"
+                                data-rag-output="index-output">Ingest timetable</button>
+                            <button class="btn btn-outline-danger" type="button" data-rag-button="clear"
+                                data-rag-output="index-output">Clear timetable</button>
+                        </div>
+                        <div id="index-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12">
+                <section class="card feature-card shadow-sm" aria-labelledby="retrieve-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="retrieve-heading" class="h5">Retrieve</h2>
+                            <code class="rag-route px-2 py-1">POST /retrieve</code>
+                        </div>
+                        <p class="text-secondary">Find the indexed timetable entries closest to a query, without asking
+                            the model.</p>
+                        <form data-rag-form="retrieve">
+                            <label class="form-label" for="retrieve-query">Query</label>
+                            <div class="input-group">
+                                <input class="form-control" id="retrieve-query" required maxlength="500"
+                                    placeholder="e.g. alex.wong Monday">
+                                <button class="btn btn-primary" type="submit">Retrieve information</button>
+                            </div>
+                            <div class="mt-2" style="max-width: 10rem">
+                                <label class="form-label" for="retrieve-k">Results (optional)</label>
+                                <input class="form-control" id="retrieve-k" type="number" min="1" step="1"
+                                    placeholder="Default">
+                            </div>
+                        </form>
+                        <div id="retrieve-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12">
+                <section class="card feature-card shadow-sm" aria-labelledby="answer-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="answer-heading" class="h5">Ask a question</h2>
+                            <code class="rag-route px-2 py-1">POST /answer</code>
+                        </div>
+                        <p class="text-secondary">Ask a question and receive an answer grounded in indexed timetable
+                            entries. Ask by student and day; relative dates like "tomorrow" are not understood.</p>
+                        <form data-rag-form="answer">
+                            <label class="form-label" for="answer-query">Question</label>
+                            <div class="input-group">
+                                <input class="form-control" id="answer-query" required maxlength="500"
+                                    placeholder="e.g. When is priya.patel's Cybersecurity lab?">
+                                <button class="btn btn-primary" type="submit">Ask question</button>
+                            </div>
+                            <div class="mt-2" style="max-width: 10rem">
+                                <label class="form-label" for="answer-k">Records (optional)</label>
+                                <input class="form-control" id="answer-k" type="number" min="1" step="1"
+                                    placeholder="Default">
+                            </div>
+                        </form>
+                        <div id="answer-output" class="rag-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -146,6 +146,11 @@ out of scope here rather than a missing integration. The one exception is inform
 advice feature's system prompt can point a student towards the Quiz Manager by name when relevant,
 without querying its service.
 
+In Release 1 the timetable is connected to the shared RAG server (see *Release 1: RAG* below).
+That integration runs the other way round - the RAG server reads timetable entries through this
+feature's database API - so the Release 0 AI plan and advice are unchanged and still built only
+from the student's own entries.
+
 ### Backend/API Functions
 
 - `GET /timetable` - the current (or `?week_start=`-selected) week's timetable, as a calendar-grid
@@ -160,9 +165,13 @@ without querying its service.
 - `POST /timetable/ai-advice` - request AI time-management advice
 - `POST /timetable/import-ical` - import events from an external iCal URL over the next
   `IMPORT_RANGE_WEEKS` weeks (default 16)
+- `GET /rag/status` - whether RAG integration is enabled (`RAG_ENABLED`); always answers
+- `GET /rag/health`, `POST /rag/retrieve`, `POST /rag/answer`, `POST /rag/ingest`,
+  `POST /rag/clear` - relayed to the shared RAG server for the `timetable` service only (JSON, see
+  *Release 1: RAG*); each returns 403 when RAG is disabled
 
 The **database service** exposes the equivalent REST resource directly (`GET/POST/PUT/DELETE
-/timetable/<id>`, plus `/timetable/plans*` and `/timetable/advice`), matching the
+/timetable/<id>`, plus `/timetable/plans*`, `/timetable/advice` and `/timetable/users`), matching the
 `subjects`/`quizzes` convention of a JSON CRUD API at the database layer and an HTMX-form-friendly
 flat-route layer at the backend.
 
@@ -289,6 +298,53 @@ already ruled out - are asking for less output and bounding it:
   under 1.5 minutes" estimate instead of a static message, since a multi-minute wait with no
   feedback reads as broken.
 
+### Release 1: RAG
+
+Release 1 connects the timetable to the shared, non-containerised RAG server (`rag-server/`,
+`http://localhost:5010`), so a student can ask questions about timetables in plain language and get
+an answer grounded only in real timetable entries, with its sources and a confidence category.
+
+**Request flow:** Frontend (`rag.html`) -> Backend/API (`/rag/*`) -> RAG server -> ChromaDB (top 5
+matching chunks) -> Ollama (`qwen2.5:0.5b`, instructed to answer from those chunks only) -> Backend
+-> Frontend. The backend (`routes/rag.py`, `services/rag_client.py`) only relays: the RAG server's
+JSON comes back unchanged, and a RAG server that can't be reached is a 503. The page may only send a
+`query` - which service is searched, ingested or cleared is fixed to `timetable` in the backend, so
+the page can never read or wipe another feature's part of the shared index.
+
+**What is indexed** is decided by the timetable connector,
+`rag-server/pipeline/connectors/timetable.py`, which reads this feature's database API (never its
+SQLite file). It yields one record per `timetable_entries` row: student, activity, category, day,
+date, time and notes. The database only lists entries per username, so `GET /timetable/users` was
+added to the database service for the connector to fan out over. Deliberately *not* indexed:
+`ai_timetable_plans` and `ai_advice_logs`, because both hold model-written text, and indexing it
+would let the model cite its own earlier output as evidence. A Study block the student accepted from
+the AI plan *is* indexed - it is the student's own entry now - marked `added from ai plan: yes`.
+All-day iCal due dates are rendered as `due date, all day` rather than their stored `00:00`-`23:59`.
+
+The shared RAG server matches on shared words rather than meaning (its embedding is feature
+hashing), so each record spells out what students actually type: the day name as well as the ISO
+date (the date never contains the word "Monday"), and the username in both the title and the body.
+
+**Grounded responses:** each answer carries `citations` (the chunk IDs and titles it was drawn from)
+and a `confidence_category` from how close the best chunk was (`High` <= 0.6, `Medium` <= 0.75,
+`Low` <= 0.9 cosine distance). When nothing is within the cut-off the model is never called and
+the page says the indexed entries do not contain enough information, with a `None match` badge.
+The page follows the subjects RAG page's layout: a RAG mode switch, one card per route (Health
+check, Timetable index with Ingest and Clear together, Retrieve, Ask a question), each showing its
+HTTP status, and
+answers with their sources linked to the entries they came from. "Retrieve" shows the matched
+chunks and their distances without asking the model.
+
+**Validation:** three benchmarks in `rag-server/eval.py` (a single entry, a student's day, and a
+lecture shared by three students) must PASS at P@5 ceiling and R@5 = 1.0, and the shared agentic
+loop's RAG mode (`--area rag --service timetable`) reviews the connector.
+
+**Configuration:** `RAG_SERVER_URL` in `docker-compose.yml` (`http://localhost:5010`), following
+the same host-network approach the backend already uses to reach Ollama, and `RAG_ENABLED`
+(default `true`). CI runs with `RAG_ENABLED=false`, since no RAG server runs on the runner;
+`/rag/status` then reports disabled and every other `/rag/*` route returns 403, which
+`timetable.yml` asserts. The integration stays in the code either way - only the switch changes.
+
 ### Known Limitations
 
 - The AI weekly plan and the balance calculation always operate on the *current* week (relative to
@@ -307,9 +363,19 @@ already ruled out - are asking for less output and bounding it:
   `PLAN_MAX_AGE_HOURS` and whether entries changed since the plan was last built, per *AI weekly
   plan design* above). `force` exists for a future "regenerate now" control, not a currently
   reachable one.
+- RAG answers come from a snapshot: entries added or edited after the last "Ingest timetable" are
+  not found until it is run again, and the seed data's dates move to the current week whenever the
+  database image is rebuilt.
+- RAG retrieval matches words, not meaning, and nothing in the index knows today's date - "what do I
+  have tomorrow?" or "lecture" when the entry says "class" will not match. Questions work best by
+  student, activity and day name.
+- The RAG server, Ollama and the MCP server run on the host, not in Docker, so RAG only works when
+  the RAG server has been started separately (`rag-server/run.ps1` or `run.sh`).
 
 ### Additional Notes
 
 The timetable feature has a CI workflow (`timetable.yml`) mirroring the pattern described in
 [the app design](../design.md): build images, smoke-check each container (database, backend,
-frontend, in that order), and upload evidence reports.
+frontend, in that order), and upload evidence reports. In Release 1 it also starts the stack with
+`RAG_ENABLED=false`, probes the new `/timetable/users` endpoint and RAG page, and verifies that RAG is
+reported disabled and refused with 403.
