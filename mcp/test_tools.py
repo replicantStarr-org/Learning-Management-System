@@ -29,6 +29,8 @@ SERVICE_ALIASES = {
     "resources": "learning_resources",
     "timetable": "timetable",
     "timetables": "timetable",
+    "quizzes": "quizzes",
+    "quiz": "quizzes",
 }
 
 
@@ -130,6 +132,37 @@ async def test_timetable(tester: ToolTester) -> None:
     )
 
 
+async def test_quizzes(tester: ToolTester) -> None:
+    is_list = lambda value: isinstance(value, list)
+    quizzes = await tester.call("quizzes_list", check=is_list)
+    await tester.call("quizzes_list", {"difficulty": "Easy"}, check=is_list)
+    quiz_id = quizzes[0]["quiz_id"] if quizzes else 1
+
+    await tester.call(
+        "quizzes_get",
+        {"quiz_id": quiz_id},
+        check=lambda value: isinstance(value, dict)
+        and value.get("quiz_id") == quiz_id
+        and isinstance(value.get("questions"), list),
+    )
+    attempts = await tester.call(
+        "quizzes_attempts_list", {"quiz_id": quiz_id}, check=is_list
+    )
+    student = attempts[0]["student_name"] if attempts else "Alice Nguyen"
+    await tester.call(
+        "quizzes_student_results",
+        {"student_name": student},
+        check=lambda value: isinstance(value, dict)
+        and isinstance(value.get("best_by_quiz"), list),
+    )
+    await tester.call(
+        "quizzes_search_questions",
+        {"keyword": "primary key"},
+        check=lambda value: isinstance(value, dict)
+        and isinstance(value.get("matches"), list),
+    )
+
+
 async def test_subjects(tester: ToolTester) -> None:
     token = uuid.uuid4().hex[:8]
     code = f"MCP{token}".upper()
@@ -228,7 +261,7 @@ async def async_main(service: str | None) -> int:
     selected = (
         {SERVICE_ALIASES[service]}
         if service is not None
-        else {"subjects", "learning_resources", "timetable"}
+        else {"subjects", "learning_resources", "timetable", "quizzes"}
     )
     tester = ToolTester()
 
@@ -241,6 +274,9 @@ async def async_main(service: str | None) -> int:
     if "timetable" in selected:
         print("\n== timetable ==", flush=True)
         await test_timetable(tester)
+    if "quizzes" in selected:
+        print("\n== quizzes ==", flush=True)
+        await test_quizzes(tester)
 
     registered = {tool.name for tool in await mcp.list_tools()}
     prefixes = tuple(f"{name}_" for name in selected)
@@ -260,12 +296,16 @@ async def async_main(service: str | None) -> int:
 
 
 def main() -> int:
+    # Windows consoles default to a legacy code page that cannot print some
+    # seed data (such as the arrows in quiz questions).
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         description="Smoke-test all MCP tools, optionally scoped to one service.",
         epilog=(
-            "Services: subjects, learning_resources, timetable (aliases include "
-            "subject, learning-resources, learning-resource-manager, resources, "
-            "timetables). "
+            "Services: subjects, learning_resources, timetable, quizzes (aliases "
+            "include subject, learning-resources, learning-resource-manager, "
+            "resources, timetables, quiz). "
             "Backing containers must be running."
         ),
     )
@@ -279,7 +319,7 @@ def main() -> int:
     if args.service is not None and args.service not in SERVICE_ALIASES:
         parser.error(
             f"unknown service {args.service!r}; "
-            "choose subjects, learning_resources or timetable"
+            "choose subjects, learning_resources, timetable or quizzes"
         )
     return asyncio.run(async_main(args.service))
 
