@@ -68,6 +68,12 @@ def rag_status():
     return jsonify({"enabled": enabled, "rag_enabled": enabled})
 
 
+@integration_bp.get("/rag/health")
+@_required("RAG_ENABLED")
+def rag_health():
+    return _relay(lambda: call_rag("/health"))
+
+
 @integration_bp.post("/rag/answer")
 @_required("RAG_ENABLED")
 def rag_answer():
