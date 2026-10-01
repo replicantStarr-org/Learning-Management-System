@@ -119,6 +119,23 @@
             <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i> Back to subjects</a>
         </div>
 
+        <section class="card border-0 shadow-sm mb-4" aria-labelledby="mode-heading">
+            <div class="card-body p-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between gap-3 align-items-sm-center">
+                    <div>
+                        <h2 id="mode-heading" class="h5 mb-1">RAG mode</h2>
+                        <p id="mode-help" class="text-secondary mb-0">Checking RAG availability…</p>
+                    </div>
+                    <div class="form-check form-switch fs-5">
+                        <input class="form-check-input" type="checkbox" role="switch" id="rag-toggle" checked>
+                        <label class="form-check-label fs-6" for="rag-toggle">Enabled</label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="rag-alert" class="alert alert-warning" role="alert" hidden></div>
+
         <div class="row g-4">
             <div class="col-lg-6">
                 <section class="card feature-card shadow-sm h-100" aria-labelledby="health-heading">
@@ -225,6 +242,45 @@
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script>
         const backend = "http://localhost:5001";
+        const toggle = document.querySelector("#rag-toggle");
+        const modeHelp = document.querySelector("#mode-help");
+        const alertBox = document.querySelector("#rag-alert");
+
+        function showMessage(message, kind = "warning") {
+            alertBox.className = `alert alert-${kind}`;
+            alertBox.textContent = message;
+            alertBox.hidden = false;
+        }
+
+        function setModeText() {
+            modeHelp.textContent = toggle.checked
+                ? "RAG requests are enabled for this page."
+                : "RAG mode is off. Turn it on to use a RAG tool.";
+        }
+
+        function showRagDisabled(output) {
+            output.replaceChildren();
+            const message = document.createElement("p");
+            message.className = "text-secondary mb-0";
+            message.textContent = "RAG mode is off. Turn it on before running a tool.";
+            output.append(message);
+        }
+
+        async function loadMode() {
+            try {
+                const response = await fetch(`${backend}/rag/status`);
+                const status = await response.json();
+                toggle.checked = Boolean(status.enabled);
+                toggle.disabled = !status.enabled;
+                if (!status.enabled) showMessage("RAG integration is disabled by the application configuration.");
+                setModeText();
+            } catch {
+                toggle.checked = false;
+                toggle.disabled = true;
+                showMessage("RAG status could not be checked. The backend may be unavailable.");
+                setModeText();
+            }
+        }
 
         function statusLine(status, text = null) {
             const line = document.createElement("p");
@@ -345,12 +401,21 @@
         }
 
         async function call(button, path, method, payload, output, render = showResult) {
+            if (!toggle.checked) {
+                showRagDisabled(output);
+                showMessage("RAG mode is off. Turn it on before running a tool.");
+                return;
+            }
+
             button.disabled = true;
             output.textContent = "Waiting for a response…";
             try {
                 const response = await fetch(`${backend}${path}`, {
                     method,
-                    headers: payload ? { "Content-Type": "application/json" } : {},
+                    headers: {
+                        ...(payload ? { "Content-Type": "application/json" } : {}),
+                        "X-RAG-Mode": "on",
+                    },
                     body: payload ? JSON.stringify(payload) : undefined,
                 });
                 const body = await response.json().catch(() => ({ error: "Malformed response" }));
@@ -361,6 +426,12 @@
                 button.disabled = false;
             }
         }
+
+        toggle.addEventListener("change", () => {
+            setModeText();
+            if (!toggle.checked) showMessage("RAG mode is off. Turn it on before running a tool.");
+            else alertBox.hidden = true;
+        });
 
         document.querySelectorAll("[data-rag-button]").forEach((button) => {
             button.addEventListener("click", () => {
@@ -384,6 +455,8 @@
                     kind === "retrieve" ? showRetrieve : showAnswer);
             });
         });
+
+        loadMode();
     </script>
 </body>
 
