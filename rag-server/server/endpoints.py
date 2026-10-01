@@ -7,6 +7,7 @@ turns into the response, so no endpoint builds its own error bodies.
 
 from typing import Any
 
+from pipeline.common import rag_is_enabled
 from pipeline.connector import connectors
 from pipeline.ingestion import clear_services, ingest_services
 from pipeline.querying import answer_question, retrieve_context
@@ -22,12 +23,28 @@ class ApiError(Exception):
         self.body = {"status": "error", "error": error, **extra}
 
 
+def disabled_error() -> ApiError:
+    """The 403 every gated endpoint returns while RAG_ENABLED is off."""
+    return ApiError(403, "RAG server is disabled.", enabled=False)
+
+
 # -------------------------------------------------------------------- endpoints
 
 
 def health(payload):
-    """GET /health: whether the RAG server is up."""
+    """GET /health: whether the RAG server is up. Answers even when disabled."""
     return 200, {"status": "ok", "service": "rag-server"}
+
+
+def status(payload):
+    """GET /status: whether RAG_ENABLED lets clients use the other endpoints."""
+    enabled = rag_is_enabled()
+    return 200, {
+        "status": "ok",
+        "enabled": enabled,
+        "rag_enabled": enabled,
+        "message": "RAG server is enabled." if enabled else "RAG server is disabled.",
+    }
 
 
 def services(payload):
