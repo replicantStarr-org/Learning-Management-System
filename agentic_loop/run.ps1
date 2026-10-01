@@ -27,6 +27,9 @@ if (-not $skipReports) {
         [Console]::Error.WriteLine('Run again with --skip-report-download to skip downloading (for non-DevOps reviews or manually supplied reports).')
         exit 1
     }
+    finally {
+        Set-Location -LiteralPath $scriptDir
+    }
 }
 
 $venv = '.venv'
