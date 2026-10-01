@@ -34,6 +34,12 @@ RESOURCE_TOOL_NAMES = {
     "learning_resources_tags_list",
     "learning_resources_by_tag",
 }
+TIMETABLE_TOOL_NAMES = {
+    "timetable_users_list",
+    "timetable_entries_list",
+    "timetable_entry_get",
+    "timetable_free_time",
+}
 
 
 async def _call(session: ClientSession, name: str, arguments: dict[str, Any] | None = None) -> Any:
@@ -261,9 +267,94 @@ async def _review_resources(session: ClientSession, tool_names: set[str]) -> lis
     return evidence
 
 
+async def _review_timetable(session: ClientSession, tool_names: set[str]) -> list[str]:
+    """Cross-check the read-only timetable tools against each other.
+
+    The tools only read, so the seed entries are the test data and nothing is
+    created or cleaned up.
+    """
+    missing = sorted(TIMETABLE_TOOL_NAMES - tool_names)
+    if missing:
+        raise RuntimeError("timetable tools missing from MCP server: " + ", ".join(missing))
+    writes = sorted(
+        name for name in tool_names
+        if name.startswith("timetable_") and name not in TIMETABLE_TOOL_NAMES
+    )
+    if writes:
+        raise RuntimeError("unexpected timetable tools beyond the read-only set: " + ", ".join(writes))
+
+    evidence: list[str] = [
+        f"timetable tools advertised: {len(TIMETABLE_TOOL_NAMES)}; all read-only, "
+        "so no fixture is created"
+    ]
+
+    users = await _call(session, "timetable_users_list")
+    if not isinstance(users, list) or not users:
+        raise RuntimeError("timetable_users_list did not return a non-empty JSON list")
+    evidence.append(f"timetable_users_list returned {len(users)} username(s)")
+
+    weeks = [await _call(session, "timetable_entries_list", {"username": user}) for user in users]
+    week = max(weeks, key=lambda week: len(week["entries"]))
+    entries = week["entries"]
+    if not entries:
+        raise RuntimeError("timetable_entries_list returned no entries this week for any user")
+    if any(
+        entry["username"] != week["username"]
+        or not week["week_start"] <= entry["date"] <= week["week_end"]
+        for entry in entries
+    ):
+        raise RuntimeError("timetable_entries_list returned an entry outside its user or week")
+    evidence.append(
+        f"timetable_entries_list({week['username']!r}) returned {len(entries)} entries, "
+        f"all theirs and within {week['week_start']} to {week['week_end']}"
+    )
+
+    entry = entries[0]
+    if await _call(session, "timetable_entry_get", {"timetable_id": entry["timetable_id"]}) != entry:
+        raise RuntimeError("timetable_entry_get did not match the entry timetable_entries_list returned")
+    evidence.append(f"timetable_entry_get({entry['timetable_id']}) matched timetable_entries_list")
+
+    day = await _call(
+        session, "timetable_free_time", {"username": week["username"], "on_date": entry["date"]}
+    )
+    busy = [(b["start_time"], b["end_time"]) for b in day["busy"]]
+    timed = [
+        (e["start_time"], e["end_time"])
+        for e in entries
+        if e["date"] == entry["date"] and not e["all_day"]
+    ]
+    if sorted(busy) != sorted(timed):
+        raise RuntimeError("timetable_free_time's busy list did not match that day's entries")
+    if any(f["start"] < end and start < f["end"] for f in day["free"] for start, end in busy):
+        raise RuntimeError("timetable_free_time returned free time that overlaps an entry")
+    evidence.append(
+        f"timetable_free_time on {entry['date']} found {len(day['free'])} free gap(s) "
+        f"({day['free_minutes']} minutes), none overlapping that day's {len(busy)} entries"
+    )
+
+    refused = {
+        "unknown username": ("timetable_entries_list", {"username": f"no.such.user.{uuid4().hex[:6]}"}),
+        "malformed date": ("timetable_free_time", {"username": week["username"], "on_date": "next monday"}),
+        "non-positive id": ("timetable_entry_get", {"timetable_id": 0}),
+        "missing entry": ("timetable_entry_get", {"timetable_id": 999999}),
+    }
+    for label, (name, arguments) in refused.items():
+        if not (await session.call_tool(name, arguments)).is_error:
+            raise RuntimeError(f"{name} accepted a {label}")
+    evidence.append("tools reject " + ", ".join(refused) + " with an MCP error")
+
+    for tool in sorted((await session.list_tools()).tools, key=lambda tool: tool.name):
+        if tool.name in TIMETABLE_TOOL_NAMES:
+            inputs = list((tool.input_schema or {}).get("properties", {}))
+            evidence.append(f"{tool.name} contract: inputs {inputs or 'none'}")
+
+    return evidence
+
+
 SERVICE_REVIEWS: dict[str, Callable[[ClientSession, set[str]], Awaitable[list[str]]]] = {
     "subjects": _review_subjects,
     "resources": _review_resources,
+    "timetable": _review_timetable,
 }
 
 

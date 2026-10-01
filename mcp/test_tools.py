@@ -13,6 +13,7 @@ import json
 import sys
 import uuid
 from collections.abc import Callable
+from datetime import date
 from typing import Any
 
 from server import mcp
@@ -26,6 +27,8 @@ SERVICE_ALIASES = {
     "learning-resource-manager": "learning_resources",
     "learning_resource_manager": "learning_resources",
     "resources": "learning_resources",
+    "timetable": "timetable",
+    "timetables": "timetable",
 }
 
 
@@ -95,6 +98,35 @@ async def test_learning_resources(tester: ToolTester) -> None:
         "learning_resources_by_tag",
         {"tag": tag},
         check=lambda value: isinstance(value, list),
+    )
+
+
+async def test_timetable(tester: ToolTester) -> None:
+    users = await tester.call(
+        "timetable_users_list", check=lambda value: isinstance(value, list)
+    )
+    username = users[0] if users else "__mcp_smoke_test_missing_user__"
+
+    week = await tester.call(
+        "timetable_entries_list",
+        {"username": username},
+        check=lambda value: isinstance(value, dict)
+        and isinstance(value.get("entries"), list),
+    )
+    entries = week["entries"] if week else []
+    entry = entries[0] if entries else {"timetable_id": 1, "date": date.today().isoformat()}
+
+    await tester.call(
+        "timetable_entry_get",
+        {"timetable_id": entry["timetable_id"]},
+        check=lambda value: isinstance(value, dict)
+        and value.get("timetable_id") == entry["timetable_id"],
+    )
+    await tester.call(
+        "timetable_free_time",
+        {"username": username, "on_date": entry["date"]},
+        check=lambda value: isinstance(value, dict)
+        and isinstance(value.get("free"), list),
     )
 
 
@@ -196,7 +228,7 @@ async def async_main(service: str | None) -> int:
     selected = (
         {SERVICE_ALIASES[service]}
         if service is not None
-        else {"subjects", "learning_resources"}
+        else {"subjects", "learning_resources", "timetable"}
     )
     tester = ToolTester()
 
@@ -206,6 +238,9 @@ async def async_main(service: str | None) -> int:
     if "learning_resources" in selected:
         print("\n== learning_resources ==", flush=True)
         await test_learning_resources(tester)
+    if "timetable" in selected:
+        print("\n== timetable ==", flush=True)
+        await test_timetable(tester)
 
     registered = {tool.name for tool in await mcp.list_tools()}
     prefixes = tuple(f"{name}_" for name in selected)
@@ -228,8 +263,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Smoke-test all MCP tools, optionally scoped to one service.",
         epilog=(
-            "Services: subjects, learning_resources (aliases include subject, "
-            "learning-resources, learning-resource-manager, resources). "
+            "Services: subjects, learning_resources, timetable (aliases include "
+            "subject, learning-resources, learning-resource-manager, resources, "
+            "timetables). "
             "Backing containers must be running."
         ),
     )
@@ -242,7 +278,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.service is not None and args.service not in SERVICE_ALIASES:
         parser.error(
-            f"unknown service {args.service!r}; choose subjects or learning_resources"
+            f"unknown service {args.service!r}; "
+            "choose subjects, learning_resources or timetable"
         )
     return asyncio.run(async_main(args.service))
 
