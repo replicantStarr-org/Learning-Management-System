@@ -405,3 +405,242 @@ if (document.querySelector("[data-rag-page]")) {
 
     loadRagStatus();
 }
+
+const MCP_URL = "http://localhost:5005/mcp";
+const MCP_ROUTES = {
+    users: "/users",
+    entry: "/entry",
+    entries: "/entries",
+    "free-time": "/free-time",
+};
+const MCP_CATEGORY_BADGES = {
+    Class: "text-bg-primary",
+    Study: "text-bg-info",
+    Personal: "text-bg-warning",
+    Work: "text-bg-secondary",
+    Assessment: "text-bg-danger",
+    Other: "text-bg-dark",
+};
+
+function showMcpAlert(text, kind = "warning") {
+    const alertBox = document.querySelector("#mcp-alert");
+    alertBox.className = `alert alert-${kind}`;
+    alertBox.textContent = text;
+    alertBox.hidden = false;
+}
+
+function setMcpModeText() {
+    document.querySelector("#mode-help").textContent = document.querySelector("#mcp-toggle").checked
+        ? "MCP requests are enabled for this page."
+        : "MCP mode is off. Turn it on to run a tool.";
+}
+
+async function loadMcpStatus() {
+    const toggle = document.querySelector("#mcp-toggle");
+    try {
+        const response = await fetch(`${MCP_URL}/status`);
+        const status = await response.json();
+        toggle.checked = Boolean(status.enabled);
+        toggle.disabled = !status.enabled;
+        if (!status.enabled) showMcpAlert("MCP integration is disabled by the application configuration.");
+    } catch {
+        toggle.checked = false;
+        toggle.disabled = true;
+        showMcpAlert("MCP status could not be checked. The timetable backend may be unavailable.");
+    }
+    setMcpModeText();
+}
+
+function mcpStatusLine(status, text) {
+    const line = document.createElement("p");
+    const ok = status >= 200 && status < 300;
+    line.className = `${ok ? "text-success" : "text-danger"} small`;
+    line.textContent = `${status ? `${status} · ` : ""}${text}`;
+    return line;
+}
+
+function mcpRawResult(body) {
+    const details = document.createElement("details");
+    details.className = "mcp-raw";
+    const summary = document.createElement("summary");
+    summary.textContent = "Raw tool result";
+    const pre = document.createElement("pre");
+    pre.className = "small mt-2 mb-0";
+    pre.textContent = JSON.stringify(body, null, 2);
+    details.append(summary, pre);
+    return details;
+}
+
+function mcpEntryItem(entry) {
+    const heading = document.createElement("div");
+    heading.className = "mcp-item-heading";
+    const title = document.createElement("a");
+    title.className = "mcp-item-title text-decoration-none";
+    title.href = `/edit.html?id=${encodeURIComponent(entry.timetable_id)}`;
+    title.textContent = entry.activity_name;
+    const category = document.createElement("span");
+    category.className = `badge ${MCP_CATEGORY_BADGES[entry.category] || "text-bg-secondary"}`;
+    category.textContent = entry.category;
+    const meta = document.createElement("span");
+    meta.className = "mcp-item-meta";
+    meta.textContent = `#${entry.timetable_id}`;
+    heading.append(title, category, meta);
+
+    const when = document.createElement("p");
+    when.className = "mcp-item-text";
+    const time = entry.all_day ? "due, all day" : `${entry.start_time}–${entry.end_time}`;
+    when.textContent = `${entry.username} · ${entry.day_of_week} ${entry.date} · ${time}`
+        + (entry.notes ? ` · ${entry.notes}` : "")
+        + (entry.ai_generated ? " · added from AI plan" : "");
+
+    const item = document.createElement("li");
+    item.className = "mcp-item";
+    item.append(heading, when);
+    return item;
+}
+
+function mcpList(items) {
+    const list = document.createElement("ol");
+    list.className = "mcp-items";
+    list.append(...items);
+    return list;
+}
+
+function mcpSummary(text) {
+    const summary = document.createElement("p");
+    summary.className = "mcp-summary";
+    summary.textContent = text;
+    return summary;
+}
+
+function mcpEmpty(text) {
+    const empty = document.createElement("p");
+    empty.className = "text-secondary small";
+    empty.textContent = text;
+    return empty;
+}
+
+function mcpHours(minutes) {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return hours && rest ? `${hours}h ${rest}m` : hours ? `${hours}h` : `${rest}m`;
+}
+
+const MCP_RENDERERS = {
+    users(result) {
+        if (!result.length) return [mcpEmpty("No students have timetable entries yet.")];
+        const buttons = document.createElement("div");
+        buttons.className = "d-flex flex-wrap gap-2 mb-3";
+        for (const name of result) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn btn-sm btn-outline-primary";
+            button.textContent = name;
+            button.title = "Use this username below";
+            button.addEventListener("click", () => {
+                document.querySelectorAll("[data-mcp-username]").forEach((input) => { input.value = name; });
+            });
+            buttons.append(button);
+        }
+        return [buttons];
+    },
+    entry(result) {
+        return [mcpList([mcpEntryItem(result)])];
+    },
+    entries(result) {
+        const count = result.entries.length;
+        const summary = mcpSummary(
+            `${result.username} has ${count} entr${count === 1 ? "y" : "ies"} from ${result.week_start} to ${result.week_end}.`
+        );
+        if (!count) return [summary];
+        return [summary, mcpList(result.entries.map(mcpEntryItem))];
+    },
+    "free-time"(result) {
+        const summary = mcpSummary(
+            `${result.username} has ${mcpHours(result.free_minutes)} free on ${result.day_of_week} ${result.date} `
+            + `(between ${result.window.replace("-", " and ")}).`
+        );
+        const slots = result.free.map((slot) => {
+            const item = document.createElement("li");
+            item.className = "mcp-item";
+            const heading = document.createElement("div");
+            heading.className = "mcp-item-heading mb-0";
+            const title = document.createElement("span");
+            title.className = "mcp-item-title";
+            title.textContent = `${slot.start}–${slot.end}`;
+            const meta = document.createElement("span");
+            meta.className = "mcp-item-meta";
+            meta.textContent = `${mcpHours(slot.minutes)} free`;
+            heading.append(title, meta);
+            item.append(heading);
+            return item;
+        });
+        const busy = mcpEmpty(result.busy.length
+            ? `Busy: ${result.busy.map((entry) => `${entry.activity_name} ${entry.start_time}–${entry.end_time}`).join(", ")}.`
+            : "No entries take up time on this day.");
+        return slots.length
+            ? [summary, mcpList(slots), busy]
+            : [summary, mcpEmpty("No gaps of 30 minutes or more."), busy];
+    },
+};
+
+function showMcpResult(output, kind, status, body) {
+    if (status < 200 || status >= 300 || body.status !== "success") {
+        output.replaceChildren(mcpStatusLine(status, body.error || "Request failed"), mcpRawResult(body));
+        return;
+    }
+    output.replaceChildren(
+        mcpStatusLine(status, `${body.tool} returned a result`),
+        ...MCP_RENDERERS[kind](body.result),
+        mcpRawResult(body.result),
+    );
+}
+
+async function runMcpTool(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const kind = form.dataset.mcpForm;
+    const output = document.getElementById(`${kind}-output`);
+    if (!document.querySelector("#mcp-toggle").checked) {
+        output.replaceChildren(mcpEmpty("MCP mode is off. Turn it on before running a tool."));
+        showMcpAlert("MCP mode is off. Turn it on before running a tool.");
+        return;
+    }
+    if (!form.reportValidity()) return;
+
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    output.textContent = "Running MCP tool…";
+    document.querySelector("#mcp-alert").hidden = true;
+    try {
+        const response = await fetch(`${MCP_URL}${MCP_ROUTES[kind]}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(Object.fromEntries(new FormData(form))),
+        });
+        const body = await response.json().catch(() => ({ error: "Malformed response" }));
+        showMcpResult(output, kind, response.status, body);
+    } catch {
+        showMcpResult(output, kind, 0, { error: "The timetable backend could not be reached." });
+    } finally {
+        button.disabled = false;
+    }
+}
+
+if (document.querySelector("[data-mcp-page]")) {
+    const toggle = document.querySelector("#mcp-toggle");
+    toggle.addEventListener("change", () => {
+        setMcpModeText();
+        if (!toggle.checked) showMcpAlert("MCP mode is off. Turn it on before running a tool.");
+        else document.querySelector("#mcp-alert").hidden = true;
+    });
+
+    const savedUsername = getUsernameCookie();
+    document.querySelectorAll("[data-mcp-username]").forEach((input) => { input.value = savedUsername; });
+    const today = new Date();
+    const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    document.querySelector("#free-time-on-date").value = localToday;
+
+    document.querySelectorAll("[data-mcp-form]").forEach((form) => form.addEventListener("submit", runMcpTool));
+    loadMcpStatus();
+}
