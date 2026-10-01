@@ -74,6 +74,13 @@
 				     Everything here is about this service's own records (the learning-resources
 				     connector), so there is no choosing between services. -->
 				<section id="rag-view" aria-label="Rag Mode" hidden>
+					<!-- Turns RAG calls on this page off without touching the backend;
+					     while off, each card fails in place. -->
+					<div class="form-check form-switch mb-4">
+						<input class="form-check-input" type="checkbox" role="switch" id="rag-switch" checked>
+						<label class="form-check-label" for="rag-switch">RAG mode enabled</label>
+					</div>
+
 					<!-- The reason for Rag Mode, so it leads and gets the full width. -->
 					<div class="card rag-card mb-5">
 						<div class="card-body">
@@ -220,6 +227,12 @@
 				     Each card is one backend endpoint calling one tool; the page never names
 				     a tool itself, since the server also holds other services' tools. -->
 				<section id="mcp-view" aria-label="MCP Mode" hidden>
+					<!-- Same switch for MCP calls; the backend status below can also force it off. -->
+					<div class="form-check form-switch mb-4">
+						<input class="form-check-input" type="checkbox" role="switch" id="mcp-switch" checked>
+						<label class="form-check-label" for="mcp-switch">MCP mode enabled</label>
+					</div>
+
 					<div class="alert alert-warning" id="mcp-status" role="status" hidden></div>
 
 					<div class="card mcp-card mb-4">
