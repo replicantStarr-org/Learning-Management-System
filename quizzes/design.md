@@ -41,6 +41,10 @@ through its backend or database directly-coupled. If that service is unreachable
 works using a generic subject placeholder so the quiz feature can be developed and demoed
 independently - but see Known Limitations below.
 
+In Release 1 the quiz feature is connected to the shared RAG and MCP servers (see *Release 1: RAG*
+and *Release 1: MCP* below). Both read quiz data through this feature's database API; neither
+changes the Release 0 quiz pages, quiz generation or attempt feedback.
+
 ### Backend/API Functions
 
 The backend uses resource-oriented paths and HTTP verbs for CRUD:
@@ -62,6 +66,14 @@ The backend uses resource-oriented paths and HTTP verbs for CRUD:
 - `POST /attempts/{id}/feedback` - create/fetch AI feedback for an attempt
 - `POST /quiz-generations` - create an AI-generated quiz from a subject ID
 - `POST /subjects/{id}/quiz-generations` - create an AI-generated quiz for a subject
+- `GET /rag/status` - whether RAG integration is enabled (`RAG_ENABLED`); always answers
+- `GET /rag/health`, `POST /rag/retrieve`, `POST /rag/answer`, `POST /rag/ingest`,
+  `POST /rag/clear` - relayed to the shared RAG server for the `quizzes` service only (JSON, see
+  *Release 1: RAG*); each returns 403 when RAG is disabled
+- `GET /mcp/status` - whether MCP integration is enabled (`MCP_ENABLED`); always answers
+- `POST /mcp/quizzes`, `POST /mcp/quiz`, `POST /mcp/attempts`, `POST /mcp/student-results`,
+  `POST /mcp/search` - call the matching quiz tool on the shared MCP server and return its
+  structured result (JSON, see *Release 1: MCP*); each returns 403 when MCP is disabled
 
 Edit forms are alternate HTML representations of the resources, selected with
 `GET /quizzes/{id}?view=edit` and `GET /quizzes/{id}/questions/{question_id}?view=edit`.
@@ -87,6 +99,89 @@ schema example back rather than generating content. `llama3.1:8b` (also an appro
 instead for `generate_quiz_questions`, and reliably produces valid, on-topic questions in ~10-30s
 per quiz. Attempt feedback still uses the default lightweight model since it only needs free text.
 
+### Release 1: RAG
+
+The quiz feature is indexed by the shared, non-containerised RAG server (`rag-server/`,
+`http://localhost:5010`), and the RAG Tools page (`rag.html`) reaches it through the backend.
+
+**Request flow:** Frontend (`rag.html`) -> Backend/API (`/rag/*`, `routes/rag.py`) -> RAG client
+(`services/rag_client.py`, always sends `"service": "quizzes"`) -> RAG server -> ChromaDB retrieval
+-> local LLM (`llama3.1:8b` via Ollama) for `/answer` -> back the same way. The page shows the
+answer, a confidence badge (High/Medium/Low/None), how many records were used, and the cited
+sources; a quiz source links to that quiz.
+
+**Knowledge sources:** the connector (`rag-server/pipeline/connectors/quizzes.py`) reads the quiz
+database API (`GET /quizzes`, `GET /quizzes/{id}`, `GET /quizzes/{id}/attempts`) and yields three
+kinds of record, 64 chunks from the seed data:
+
+| Entity | One record per | Fields |
+| --- | --- | --- |
+| `quiz` | quiz | title, subject, difficulty, description, number of questions, question texts |
+| `quiz_question` | question | quiz, subject, question, answer options, correct answer, explanation |
+| `quiz_attempt` | attempt | student, quiz, subject, score (n out of m and %), full marks, completed date |
+
+Each question is its own record, repeating its quiz and subject, so "what is the answer to X" is
+answered from that question rather than a neighbour in the same quiz. Two things are deliberately
+not indexed: quizzes with `source = ai_generated` (the model wrote every question, and would cite
+its own output back as evidence) and attempts' `ai_feedback`.
+
+**Grounding and insufficient context:** the RAG server only gives the model the retrieved chunks.
+If nothing is within the retrieval distance threshold it returns `Insufficient evidence.` with no
+citations and confidence `None` without calling the model, and the page shows an insufficient-context
+message instead of an answer.
+
+**Validation:** four benchmarks in `rag-server/eval.py` (a question's correct answer, a concept
+explanation, one student's score, who got full marks) all pass at the P@5 ceiling with R@5 = 1.0.
+The shared agentic loop's RAG mode (`--area rag --service quizzes`) checks the connector statically
+and live, and reports the benchmarks; its output is in
+`agentic_loop/runs/rag-review-for-quiz-manager.txt`. `scripts/rag_endpoint_test.sh` validates the
+RAG server and every `/rag/*` route from the terminal, including a grounded and an
+insufficient-context answer.
+
+**Configuration:** `RAG_SERVER_URL` in `docker-compose.yml` (`http://localhost:5010`) and
+`RAG_ENABLED` (default `true`). CI runs with `RAG_ENABLED=false`; `/rag/status` then reports
+disabled and `/rag/answer` returns 403, which `quizzes.yml` asserts.
+
+### Release 1: MCP
+
+Release 1 registers five quiz tools on the shared, non-containerised MCP server (`mcp/`,
+`http://127.0.0.1:8000/mcp`, Streamable HTTP), which the MCP Tools page (`mcp.html`) runs through
+the backend.
+
+**Request flow:** Frontend (`mcp.html`) -> Backend/API (`/mcp/*`, `routes/mcp.py`) -> MCP client
+(`services/mcp_client.py`) -> MCP server -> quiz tool (`mcp/quizzes_tools.py`) -> quiz database API
+-> back the same way. The backend checks the request (a positive quiz ID, a known difficulty, a
+non-blank name or keyword), calls exactly one tool, and returns `{status, tool, arguments, result}`;
+the page shows a readable view of `result` with the raw tool result folded beneath it.
+
+| Tool | Inputs | Result |
+| --- | --- | --- |
+| `quizzes_list` | optional `subject` (part of name or code), optional `difficulty` (Easy/Medium/Hard) | quiz summaries |
+| `quizzes_get` | `quiz_id` | one quiz with every question, its options, correct answer and explanation |
+| `quizzes_attempts_list` | `quiz_id`, optional `student_name` | that quiz's attempts, newest first, with percentages |
+| `quizzes_student_results` | `student_name` | one student's attempts across every quiz, best per quiz, average % (MCP-only) |
+| `quizzes_search_questions` | `keyword` | up to 25 questions whose text, answers or explanation contain it (MCP-only) |
+
+**Tool boundaries:** every tool is read-only. An MCP client can browse quizzes and results, but
+cannot create, edit or delete a quiz, submit an attempt or run AI generation; those stay on the
+pages, behind the backend's validation. The tools read the database API rather than the backend
+because the backend's routes return HTML for the pages. AI feedback is never returned. Bad input is
+refused with an MCP tool error rather than an empty result: a non-positive or missing quiz ID, an
+unknown difficulty, an unknown student and a blank or over-long keyword. The backend turns a refused
+tool call into a 400 and an unreachable MCP server into a 503.
+
+**Validation:** `mcp/test_tools.py quizzes` calls every quiz tool in-process, and the shared agentic
+loop's MCP mode (`--area mcp --service quizzes`) cross-checks the tools against each other over the
+running server: difficulty filters match the full list, every correct answer is one of its options,
+student results match the per-quiz attempts, a search finds the question its keyword came from,
+each bad input above is refused, and no write tool is advertised. Its output is in
+`agentic_loop/runs/mcp-review-for-quiz-manager.txt`. `scripts/mcp_endpoint_test.sh` validates
+every `/mcp/*` route and its boundaries from the terminal.
+
+**Configuration:** `MCP_SERVER_URL` in `docker-compose.yml` (`http://127.0.0.1:8000/mcp`) and
+`MCP_ENABLED` (default `true`). CI runs with `MCP_ENABLED=false`; `/mcp/status` then reports
+disabled and `/mcp/quiz` returns 403, which `quizzes.yml` asserts.
+
 ### Known Limitations
 
 - If the Subject Management service is unreachable when generating a quiz, the AI is given only a
@@ -98,6 +193,16 @@ per quiz. Attempt feedback still uses the default lightweight model since it onl
 - Editing a quiz's metadata or adding a question does not live-refresh the take-quiz form already
   open in the browser; re-opening the quiz shows the update. The quiz list refreshes automatically
   via the `quizzesChanged` HTMX trigger.
+- RAG retrieval matches words, not meaning (the RAG server uses a hashed bag-of-words embedding),
+  so questions work best using the words in the quiz, such as its title or the question's wording.
+- AI-generated quizzes are not indexed for RAG (see *Release 1: RAG*), so RAG cannot answer
+  questions about them; the MCP tools still list and return them.
+- The RAG index is not updated automatically: run Ingest on the RAG Tools page after adding or
+  editing quizzes or attempts.
+- The RAG server, Ollama and the MCP server run on the host, not in Docker, so RAG and MCP only work
+  when their servers have been started separately (`rag-server/run.ps1` or `run.sh`, and
+  `mcp/run.ps1` or `run.sh`). A grounded answer from the local model takes around 30-60 seconds.
+- The MCP tools are read-only by design, so no MCP client can change quiz data.
 
 ### Additional Notes
 
@@ -116,3 +221,20 @@ On Windows/Mac, `network_mode: host` (used across this whole repo) requires Dock
 of Docker Desktop; each container may also need one `docker restart` after that if its port isn't
 immediately forwarded to the host. This is a Docker Desktop limitation, not specific to this
 feature - every team member's containers need this to be reachable at `localhost` from Windows/Mac.
+
+In Release 1 the CI workflow also starts the stack with `MCP_ENABLED=false` and `RAG_ENABLED=false`,
+probes the MCP and RAG pages, and verifies that both are reported disabled and refused with 403.
+
+#### Running Release 1 locally
+
+1. Start Ollama with `llama3.1:8b` pulled.
+2. Start the quiz containers: `docker compose up -d --build` in `quizzes/` (or the root compose).
+3. Start the MCP server: `mcp/run.ps1` (Windows) or `mcp/run.sh`.
+4. Start the RAG server: `rag-server/init.ps1` once, then `rag-server/run.ps1` (or the `.sh`
+   equivalents).
+5. Open `http://localhost:3004`, then RAG Tools (Ingest first) or MCP Tools.
+6. Terminal validation: `bash scripts/mcp_endpoint_test.sh` and `bash scripts/rag_endpoint_test.sh`
+   from `quizzes/`, and `.venv/Scripts/python.exe test_tools.py quizzes` from `mcp/` (venv created
+   by `mcp/run.ps1`; `.venv/bin/python` on Linux/macOS).
+7. Agentic loop: `agentic_loop/run.ps1 --skip-report-download --area mcp --service quizzes`, and
+   the same with `--area rag`.
