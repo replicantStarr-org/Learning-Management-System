@@ -20,6 +20,8 @@ import json
 import os
 import random
 import re
+from difflib import SequenceMatcher
+from functools import lru_cache
 from typing import Any, Literal
 
 import requests
@@ -28,11 +30,16 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 MAX_TEXT_LENGTH = 100
 MAX_SEARCH_RESULTS = 25
-# A question's search relevance is its text score (up to 1.0) plus this share of its
-# quiz's best gallery keyword weight, so a question that names the topic always
-# outranks one that only sits in a quiz tagged with it.
+# A question's search relevance is its text score (up to 1.0), plus these shares of
+# its quiz's keyword match and of how many of the quiz's keywords it mentions (each
+# up to 1.0). The keywords the search matched also stand in for it, like "did you
+# mean": a question naming one scores as if it named the search, at ALIAS_SHARE.
 KEYWORD_SCORE_SHARE = 0.5
+CONTEXT_SCORE_SHARE = 0.2
+ALIAS_SHARE = 0.9
 MIN_RELEVANCE = 0.2
+# How alike two words must be to count as a misspelling of each other ("kubernets").
+TYPO_SIMILARITY = 0.85
 
 Difficulty = Literal["Easy", "Medium", "Hard"]
 
@@ -104,7 +111,6 @@ def _summary(quiz: dict) -> dict:
         "difficulty": quiz["difficulty"],
         "question_count": quiz["question_count"],
         "source": quiz["source"],
-        "keywords": quiz.get("keywords", []),
     }
 
 
@@ -144,40 +150,67 @@ def _stem(word: str) -> str:
     return word
 
 
-def _tokens(text: str) -> list[str]:
-    return [_stem(word) for word in re.findall(r"[a-z0-9]+", text.lower())]
+@lru_cache(maxsize=4096)
+def _tokens(text: str) -> tuple[str, ...]:
+    """Lowercased, stemmed words. Cached, as every search tokenises the same
+    question text and keywords again; the key is the text itself, so an edited
+    question is simply a new entry."""
+    return tuple(_stem(word) for word in re.findall(r"[a-z0-9]+", text.lower()))
 
 
-def _phrase_in(phrase: list[str], tokens: list[str]) -> bool:
+def _phrase_in(phrase: tuple[str, ...], tokens: tuple[str, ...]) -> bool:
     """Whether the token sequence phrase appears, whole words, in tokens."""
     return f" {' '.join(phrase)} " in f" {' '.join(tokens)} "
 
 
-def _word_match(a: str, b: str) -> float:
+def _word_match(a: str, b: str, typos: bool = False) -> float:
     """1 for the same word after stemming; 0.5 when one is a prefix of the
     other ("sort" and "sorting"), which is looser, as "contain" and "container"
-    show; else 0."""
+    show; with typos, 0.8 for a near spelling of a word of 5+ letters, checked
+    first as a misspelling can also be a prefix ("kubernet"); else 0."""
     if a == b:
         return 1.0
+    if typos and min(len(a), len(b)) >= 5 and _similar(a, b):
+        return 0.8
     if min(len(a), len(b)) >= 4 and (a.startswith(b) or b.startswith(a)):
         return 0.5
     return 0.0
 
 
-def _best_match(word: str, words: list[str]) -> float:
-    return max((_word_match(word, other) for other in words), default=0.0)
+@lru_cache(maxsize=16384)
+def _similar(a: str, b: str) -> bool:
+    return SequenceMatcher(None, a, b).ratio() >= TYPO_SIMILARITY
 
 
-def _keyword_score(query: list[str], terms: list[str], keyword: list[str], weight: float) -> float:
-    """How strongly one gallery keyword matches the search: its full weight when
-    either phrase contains the other, else a share of it for the words in common."""
-    if _phrase_in(keyword, query) or _phrase_in(query, keyword):
+def _best_match(word: str, words: tuple[str, ...], typos: bool = False) -> float:
+    return max((_word_match(word, other, typos) for other in words), default=0.0)
+
+
+def _keyword_score(query, terms, keyword, weight: float) -> float:
+    """How strongly one quiz keyword matches the search: its full weight when
+    either phrase contains the other, else a share of it for the words in
+    common, misspellings included. Typos are only forgiven here, against the
+    hundred or so keywords, not against every word of every question, which
+    keeps the search as fast as before."""
+    if _phrase_in(query, keyword):
         return weight
-    matched = sum(_best_match(word, terms) for word in keyword)
-    return weight * matched / len(keyword) / 2
+    if _phrase_in(keyword, query):
+        # A keyword covering part of the search ("sql" in "sql injection")
+        # counts for that part only.
+        return weight * min(1.0, len(keyword) / len(terms))
+    matched = sum(_best_match(word, terms, typos=True) for word in keyword)
+    share = matched / len(keyword)
+    # A whole keyword misspelt ("kubernets") counts nearly in full; part of one, half.
+    return weight * (share if share >= 0.8 else share / 2)
 
 
-def _text_score(query: list[str], terms: list[str], question: list[str], rest: list[str]) -> float:
+def _context_score(keywords, text: tuple[str, ...]) -> float:
+    """The heaviest of a quiz's keywords that this question mentions, to order
+    the questions of a quiz the search found through its keywords."""
+    return max((weight for tokens, weight in keywords if _phrase_in(tokens, text)), default=0.0)
+
+
+def _text_score(query, terms, question: tuple[str, ...], rest: tuple[str, ...]) -> float:
     """1.0 when the question names the search, 0.7 when its answers or
     explanation do, else up to 0.5 for the search words it shares."""
     if _phrase_in(query, question):
@@ -228,37 +261,52 @@ def register_quiz_tools(mcp):
         """Find questions on a topic across every quiz, to revise it, best
         matches first.
 
-        Each question is scored on its text, answers and explanation, plus the
-        weighted keyword gallery of its quiz, so related wording also matches:
-        "containers" finds the Docker questions. Each match has its relevance and
-        the gallery keywords it matched. Returns at most 25 matches. MCP-only:
-        the quiz pages have no question search.
+        Each question is scored on its text, answers and explanation, and on
+        its quiz's weighted keywords, which add related terms and forgive small
+        typos: "containers" finds the Docker questions and "kubernets" still
+        finds the Kubernetes one. Each match has its relevance. Returns at most
+        25 matches. MCP-only: the quiz pages have no question search.
         """
         query = _tokens(_required_text(keyword, "keyword"))
         terms = [t for t in query if t not in STOPWORDS] or query
         matches = []
         for summary in client.request("/quizzes"):
-            # The list already carries each quiz's gallery, so scoring it costs
+            # The list already carries each quiz's keywords, so scoring them costs
             # no extra request; only the question fetch below does, as before.
-            gallery = []
-            for entry in summary.get("keywords", []):
-                score = _keyword_score(query, terms, _tokens(entry["keyword"]), entry["weight"])
-                if score:
-                    gallery.append((score, entry["keyword"]))
-            keyword_score = max((score for score, _ in gallery), default=0.0)
+            keywords = [(_tokens(k["keyword"]), k["weight"]) for k in summary.get("keywords", [])]
+            scored = [
+                (tokens, weight, _keyword_score(query, terms, tokens, weight))
+                for tokens, weight in keywords
+            ]
+            keyword_score = max((score for _, _, score in scored), default=0.0)
+            # The matched keywords, with how closely each matched (1 for an exact
+            # match, less for part of one or a typo), to try as the search itself.
+            aliases = [(tokens, score / weight) for tokens, weight, score in scored if score]
             if not summary["question_count"]:
                 continue
 
             quiz = client.request(f"/quizzes/{summary['quiz_id']}")
             for number, question in enumerate(quiz["questions"], start=1):
                 answers = [answer["answer_text"] for answer in question["answers"]]
-                text_score = _text_score(
-                    query,
-                    terms,
-                    _tokens(question["question_text"]),
-                    _tokens(" ".join([question["explanation"], *answers])),
+                question_tokens = _tokens(question["question_text"])
+                rest = _tokens(" ".join([question["explanation"], *answers]))
+                text_score = max(
+                    [_text_score(query, terms, question_tokens, rest)]
+                    + [
+                        ALIAS_SHARE * closeness * _text_score(tokens, tokens, question_tokens, rest)
+                        for tokens, closeness in aliases
+                    ]
                 )
-                relevance = round(text_score + KEYWORD_SCORE_SHARE * keyword_score, 2)
+                context = (
+                    keyword_score * _context_score(keywords, question_tokens + rest)
+                    if keyword_score else 0.0
+                )
+                relevance = round(
+                    text_score
+                    + KEYWORD_SCORE_SHARE * keyword_score
+                    + CONTEXT_SCORE_SHARE * context,
+                    2,
+                )
                 if relevance >= MIN_RELEVANCE:
                     matches.append(
                         {
@@ -269,7 +317,6 @@ def register_quiz_tools(mcp):
                             "number": number,
                             "question_text": question["question_text"],
                             "relevance": relevance,
-                            "matched_keywords": [k for _, k in sorted(gallery, reverse=True)],
                         }
                     )
         matches.sort(key=lambda m: (-m["relevance"], m["quiz_id"], m["number"]))

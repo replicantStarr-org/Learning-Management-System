@@ -339,7 +339,6 @@ async function loadMcpSubjects() {
         document.querySelectorAll("[data-mcp-subjects]").forEach((select) => {
             select.append(...subjects.map((name) => new Option(name, name)));
         });
-        showMcpGallery(body.result);
         mcpQuizzes = body.result;
         document.querySelector("#quiz-titles").replaceChildren(...body.result.map((quiz) => {
             const option = new Option(quiz.title);
@@ -347,38 +346,8 @@ async function loadMcpSubjects() {
             return option;
         }));
     } catch {
-        // Left as "Any subject" only, with no gallery or quiz names; the tools still work without them.
+        // Left as "Any subject" only, with no quiz names; the tools still work without them.
     }
-}
-
-// Every quiz's keywords in one gallery, each at its heaviest weight across quizzes.
-function showMcpGallery(quizzes) {
-    const weights = new Map();
-    quizzes.flatMap((quiz) => quiz.keywords || []).forEach(({ keyword, weight }) => {
-        weights.set(keyword, Math.max(weight, weights.get(keyword) || 0));
-    });
-    if (!weights.size) return;
-    const keywords = [...weights].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    document.querySelector("#search-gallery").replaceChildren(
-        ...keywords.map(([keyword, weight]) => mcpKeywordChip(keyword, weight)));
-    document.querySelector("[data-mcp-gallery]").hidden = false;
-}
-
-// A keyword sized by its weight; picking it runs the question search for it.
-function mcpKeywordChip(keyword, weight) {
-    const chip = mcpElement("button", "mcp-keyword", keyword);
-    chip.type = "button";
-    chip.style.fontSize = `${(0.7 + 0.35 * weight).toFixed(2)}rem`;
-    chip.title = `Weight ${weight.toFixed(1)}. Search questions on "${keyword}"`;
-    chip.addEventListener("click", () => searchKeyword(keyword));
-    return chip;
-}
-
-function searchKeyword(keyword) {
-    const form = document.querySelector("[data-mcp-form=search]");
-    form.querySelector("[name=keyword]").value = keyword;
-    form.requestSubmit();
-    form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function mcpStatusLine(status, text) {
@@ -595,14 +564,7 @@ const MCP_RENDERERS = {
             all.textContent = reveal ? "Hide all answers" : "Show all answers";
             toggles.forEach((setRevealed) => setRevealed(reveal));
         });
-        const nodes = [summary];
-        if (result.keywords?.length) {
-            const gallery = mcpElement("div", "mcp-gallery mb-3");
-            gallery.setAttribute("aria-label", "Quiz keywords");
-            gallery.append(...result.keywords.map(({ keyword, weight }) => mcpKeywordChip(keyword, weight)));
-            nodes.push(gallery);
-        }
-        return [...nodes, all, mcpList(items)];
+        return [summary, all, mcpList(items)];
     },
     practice: mcpPracticeQuestion,
     search(result) {
@@ -613,8 +575,7 @@ const MCP_RENDERERS = {
         return [summary, mcpList(result.matches.map((match) => mcpItem(
             mcpQuizTitle(match.quiz_id, `${match.quiz_title}, question ${match.number}`),
             `relevance ${match.relevance.toFixed(2)} · #${match.question_id}`,
-            match.question_text + (match.matched_keywords.length
-                ? ` (keywords: ${match.matched_keywords.join(", ")})` : ""),
+            match.question_text,
         )))];
     },
 };

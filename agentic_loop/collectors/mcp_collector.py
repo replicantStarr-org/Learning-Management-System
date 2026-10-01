@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 from uuid import uuid4
 
+import requests
+
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
@@ -427,20 +429,41 @@ async def _review_quizzes(session: ClientSession, tool_names: set[str]) -> list[
         raise RuntimeError("quizzes_search_questions did not rank matches by relevance")
     evidence.append("quizzes_search_questions ranks matches by relevance, best first")
 
-    # The keyword gallery broadens the search: a quiz keyword that none of its
-    # questions spells out must still find that quiz's questions.
+    # The quiz keywords broaden the search: a keyword that none of its quiz's
+    # questions spells out must still find that quiz's questions. The tools keep
+    # the keywords internal, so they are read from the quiz database API.
     text = json.dumps(quiz["questions"]).lower()
-    unspoken = next((k["keyword"] for k in quiz.get("keywords", []) if k["keyword"].lower() not in text), None)
+    database_url = os.getenv("QUIZZES_DATABASE_API_URL", "http://127.0.0.1:6004").rstrip("/")
+    try:
+        response = await asyncio.to_thread(
+            requests.get, f"{database_url}/quizzes/{quiz['quiz_id']}", timeout=10
+        )
+        keywords = response.json().get("keywords", []) if response.ok else []
+    except (requests.RequestException, ValueError):
+        keywords = []
+    unspoken = next((k["keyword"] for k in keywords if k["keyword"].lower() not in text), None)
     if unspoken is None:
-        evidence.append(f"quiz {quiz['quiz_id']} has no gallery keyword absent from its questions; broadening not checked")
+        evidence.append(
+            f"no keyword of quiz {quiz['quiz_id']} is absent from its questions, or the quiz database "
+            "API was unreachable; keyword broadening not checked"
+        )
     else:
         broadened = await _call(session, "quizzes_search_questions", {"keyword": unspoken})
         if not any(m["quiz_id"] == quiz["quiz_id"] for m in broadened["matches"]):
-            raise RuntimeError(f"quizzes_search_questions({unspoken!r}) ignored quiz {quiz['quiz_id']}'s keyword gallery")
+            raise RuntimeError(f"quizzes_search_questions({unspoken!r}) ignored quiz {quiz['quiz_id']}'s keywords")
         evidence.append(
-            f"quizzes_search_questions({unspoken!r}) finds quiz {quiz['quiz_id']} through its keyword gallery, "
+            f"quizzes_search_questions({unspoken!r}) finds quiz {quiz['quiz_id']} through its keywords, "
             "though no question mentions it"
         )
+        typo = unspoken[:-2] + unspoken[-1]  # drop a letter: "software developmet"
+        misspelt = await _call(session, "quizzes_search_questions", {"keyword": typo})
+        if not any(m["quiz_id"] == quiz["quiz_id"] for m in misspelt["matches"]):
+            raise RuntimeError(f"quizzes_search_questions({typo!r}) did not forgive the typo")
+        evidence.append(f"quizzes_search_questions({typo!r}) forgives the typo and still finds quiz {quiz['quiz_id']}")
+
+    if any("keywords" in result for result in (quizzes[0], quiz)):
+        raise RuntimeError("quizzes_list or quizzes_get exposes the internal quiz keywords")
+    evidence.append("quizzes_list and quizzes_get keep the quiz keywords internal")
 
     refused = {
         "non-positive id": ("quizzes_get", {"quiz_id": 0}),
