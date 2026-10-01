@@ -13,12 +13,15 @@ import json
 import sys
 import uuid
 from collections.abc import Callable
+from datetime import date
 from typing import Any
 
 from server import mcp
 
 
 SERVICE_ALIASES = {
+    "assignments": "assignments",
+    "assignment": "assignments",
     "subjects": "subjects",
     "subject": "subjects",
     "learning_resources": "learning_resources",
@@ -26,6 +29,10 @@ SERVICE_ALIASES = {
     "learning-resource-manager": "learning_resources",
     "learning_resource_manager": "learning_resources",
     "resources": "learning_resources",
+    "timetable": "timetable",
+    "timetables": "timetable",
+    "quizzes": "quizzes",
+    "quiz": "quizzes",
 }
 
 
@@ -70,6 +77,65 @@ class ToolTester:
         except Exception:
             pass
 
+    async def expect_error(
+        self, name: str, arguments: dict[str, Any], expected_message: str
+    ) -> None:
+        """Pass when a tool rejects invalid input with the expected message."""
+        self.attempted.add(name)
+        try:
+            result = await mcp.call_tool(name, arguments)
+        except Exception as exc:
+            error = str(exc)
+        else:
+            error = "; ".join(part.text for part in result.content if hasattr(part, "text"))
+            if not result.is_error:
+                error = "tool accepted invalid input"
+
+        if expected_message in error:
+            print(f"PASS {name} rejects invalid input: {error}")
+            self.passed += 1
+        else:
+            print(
+                f"FAIL {name}: expected error containing {expected_message!r}, got {error!r}",
+                file=sys.stderr,
+            )
+            self.failed += 1
+
+
+async def test_assignments(tester: ToolTester) -> None:
+    assignments = await tester.call(
+        "assignments_list", check=lambda value: isinstance(value, list)
+    )
+    await tester.call(
+        "assignments_upcoming",
+        {"days": 365},
+        check=lambda value: isinstance(value, list),
+    )
+
+    first_id = None
+    if assignments and isinstance(assignments[0], dict):
+        value = assignments[0].get("assignment_id")
+        if isinstance(value, int):
+            first_id = value
+
+    if first_id is not None:
+        await tester.call(
+            "assignments_get",
+            {"assignment_id": first_id},
+            check=lambda value: isinstance(value, dict)
+            and value.get("assignment_id") == first_id,
+        )
+    await tester.expect_error(
+        "assignments_get",
+        {"assignment_id": 0},
+        "assignment_id must be a positive integer",
+    )
+    await tester.expect_error(
+        "assignments_upcoming",
+        {"days": 0},
+        "days must be between 1 and 365",
+    )
+
 
 async def test_learning_resources(tester: ToolTester) -> None:
     resources = await tester.call(
@@ -95,6 +161,66 @@ async def test_learning_resources(tester: ToolTester) -> None:
         "learning_resources_by_tag",
         {"tag": tag},
         check=lambda value: isinstance(value, list),
+    )
+
+
+async def test_timetable(tester: ToolTester) -> None:
+    users = await tester.call(
+        "timetable_users_list", check=lambda value: isinstance(value, list)
+    )
+    username = users[0] if users else "__mcp_smoke_test_missing_user__"
+
+    week = await tester.call(
+        "timetable_entries_list",
+        {"username": username},
+        check=lambda value: isinstance(value, dict)
+        and isinstance(value.get("entries"), list),
+    )
+    entries = week["entries"] if week else []
+    entry = entries[0] if entries else {"timetable_id": 1, "date": date.today().isoformat()}
+
+    await tester.call(
+        "timetable_entry_get",
+        {"timetable_id": entry["timetable_id"]},
+        check=lambda value: isinstance(value, dict)
+        and value.get("timetable_id") == entry["timetable_id"],
+    )
+    await tester.call(
+        "timetable_free_time",
+        {"username": username, "on_date": entry["date"]},
+        check=lambda value: isinstance(value, dict)
+        and isinstance(value.get("free"), list),
+    )
+
+
+async def test_quizzes(tester: ToolTester) -> None:
+    is_list = lambda value: isinstance(value, list)
+    quizzes = await tester.call("quizzes_list", check=is_list)
+    await tester.call("quizzes_list", {"difficulty": "Easy"}, check=is_list)
+    quiz_id = quizzes[0]["quiz_id"] if quizzes else 1
+
+    await tester.call(
+        "quizzes_get",
+        {"quiz_id": quiz_id},
+        check=lambda value: isinstance(value, dict)
+        and value.get("quiz_id") == quiz_id
+        and isinstance(value.get("questions"), list),
+    )
+    await tester.call(
+        "quizzes_practice_question",
+        {"difficulty": "Easy"},
+        check=lambda value: isinstance(value, dict)
+        and value.get("difficulty") == "Easy"
+        and value.get("correct_answer") in value.get("answers", []),
+    )
+    await tester.call(
+        "quizzes_search_questions",
+        {"keyword": "phising"},
+        # A misspelling of the "phishing" quiz keyword, so the phishing question
+        # still comes first.
+        check=lambda value: isinstance(value, dict)
+        and bool(value.get("matches"))
+        and "phishing" in value["matches"][0]["question_text"].lower(),
     )
 
 
@@ -196,16 +322,25 @@ async def async_main(service: str | None) -> int:
     selected = (
         {SERVICE_ALIASES[service]}
         if service is not None
-        else {"subjects", "learning_resources"}
+        else {"subjects", "learning_resources", "timetable", "assignments", "quizzes"}
     )
     tester = ToolTester()
 
+    if "assignments" in selected:
+        print("\n== assignments ==", flush=True)
+        await test_assignments(tester)
     if "subjects" in selected:
         print("\n== subjects ==", flush=True)
         await test_subjects(tester)
     if "learning_resources" in selected:
         print("\n== learning_resources ==", flush=True)
         await test_learning_resources(tester)
+    if "timetable" in selected:
+        print("\n== timetable ==", flush=True)
+        await test_timetable(tester)
+    if "quizzes" in selected:
+        print("\n== quizzes ==", flush=True)
+        await test_quizzes(tester)
 
     registered = {tool.name for tool in await mcp.list_tools()}
     prefixes = tuple(f"{name}_" for name in selected)
@@ -225,11 +360,16 @@ async def async_main(service: str | None) -> int:
 
 
 def main() -> int:
+    # Windows consoles default to a legacy code page that cannot print some
+    # seed data (such as the arrows in quiz questions).
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         description="Smoke-test all MCP tools, optionally scoped to one service.",
         epilog=(
-            "Services: subjects, learning_resources (aliases include subject, "
-            "learning-resources, learning-resource-manager, resources). "
+            "Services: assignments, subjects, learning_resources, timetable, quizzes "
+            "(aliases include assignment, subject, learning-resources, "
+            "learning-resource-manager, resources, timetables, quiz). "
             "Backing containers must be running."
         ),
     )
@@ -242,7 +382,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.service is not None and args.service not in SERVICE_ALIASES:
         parser.error(
-            f"unknown service {args.service!r}; choose subjects or learning_resources"
+            f"unknown service {args.service!r}; "
+            "choose assignments, subjects, learning_resources, timetable or quizzes"
         )
     return asyncio.run(async_main(args.service))
 

@@ -1104,7 +1104,33 @@ function showRetrieveResults(output, result) {
 	output.replaceChildren(status, list);
 }
 
+// Frontend switches for the two integrations. While a mode is off, its cards
+// fail in the page and no request reaches the backend.
+let ragEnabled = true;
+let mcpEnabled = true;
+
+const ragSwitch = document.getElementById("rag-switch");
+ragSwitch.addEventListener("change", () => {
+	ragEnabled = ragSwitch.checked;
+});
+
+const mcpSwitch = document.getElementById("mcp-switch");
+mcpSwitch.addEventListener("change", () => {
+	mcpEnabled = mcpSwitch.checked;
+});
+
 async function callEndpoint(button, output, url, request = {}, show = showEndpointResult) {
+	// The RAG and MCP cards share this, so the URL says which switch applies.
+	const mode = url.startsWith("/api/mcp/") ? "MCP" : "RAG";
+	if ((mode === "MCP" && !mcpEnabled) || (mode === "RAG" && !ragEnabled)) {
+		show(output, {
+			ok: false,
+			summary: `${mode} mode is off`,
+			body: { error: `${mode} mode is disabled on this page.` },
+		});
+		return;
+	}
+
 	button.disabled = true;
 	output.replaceChildren(
 		Object.assign(document.createElement("p"), {
@@ -1333,6 +1359,12 @@ async function loadMcpStatus() {
 	if (!message) {
 		return;
 	}
+
+	// A click now fails in place rather than sending a request the backend
+	// would only reject; the switch reflects that it cannot be turned on here.
+	mcpEnabled = false;
+	mcpSwitch.checked = false;
+	mcpSwitch.disabled = true;
 	const notice = document.getElementById("mcp-status");
 	notice.textContent = message;
 	notice.hidden = false;

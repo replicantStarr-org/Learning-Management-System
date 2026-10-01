@@ -28,7 +28,7 @@ The feature reviews include the five microservices + the shared access microserv
 
 Start the server first with `../mcp/run.sh`, then run `./run.sh --area mcp --service subjects`.
 The selected service must be running as well, because the MCP collector exercises its tools through the MCP server.
-The collector currently has a subjects review and can be extended by adding another service review method to its service mapping.
+The collector has subjects, learning resources (`resources`), timetable and quizzes reviews, and can be extended by adding another service review method to its service mapping.
 
 ### Collectors
 

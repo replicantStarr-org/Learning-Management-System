@@ -149,7 +149,8 @@ without querying its service.
 In Release 1 the timetable is connected to the shared RAG server (see *Release 1: RAG* below).
 That integration runs the other way round - the RAG server reads timetable entries through this
 feature's database API - so the Release 0 AI plan and advice are unchanged and still built only
-from the student's own entries.
+from the student's own entries. The MCP integration (see *Release 1: MCP* below) also only reads,
+through four read-only tools on the shared MCP server.
 
 ### Backend/API Functions
 
@@ -169,6 +170,10 @@ from the student's own entries.
 - `GET /rag/health`, `POST /rag/retrieve`, `POST /rag/answer`, `POST /rag/ingest`,
   `POST /rag/clear` - relayed to the shared RAG server for the `timetable` service only (JSON, see
   *Release 1: RAG*); each returns 403 when RAG is disabled
+- `GET /mcp/status` - whether MCP integration is enabled (`MCP_ENABLED`); always answers
+- `POST /mcp/users`, `POST /mcp/entries`, `POST /mcp/entry`, `POST /mcp/free-time` - call the
+  matching timetable tool on the shared MCP server and return its structured result (JSON, see
+  *Release 1: MCP*); each returns 403 when MCP is disabled
 
 The **database service** exposes the equivalent REST resource directly (`GET/POST/PUT/DELETE
 /timetable/<id>`, plus `/timetable/plans*`, `/timetable/advice` and `/timetable/users`), matching the
@@ -345,6 +350,45 @@ the same host-network approach the backend already uses to reach Ollama, and `RA
 `/rag/status` then reports disabled and every other `/rag/*` route returns 403, which
 `timetable.yml` asserts. The integration stays in the code either way - only the switch changes.
 
+### Release 1: MCP
+
+Release 1 also registers four timetable tools on the shared, non-containerised MCP server (`mcp/`,
+`http://127.0.0.1:8000/mcp`, Streamable HTTP), which the MCP Tools page (`mcp.html`) runs through
+the backend.
+
+**Request flow:** Frontend (`mcp.html`) -> Backend/API (`/mcp/*`, `routes/mcp.py`) -> MCP client
+(`services/mcp_client.py`) -> MCP server -> timetable tool (`mcp/timetable_tools.py`) -> timetable
+database API -> back the same way. The backend checks the request (a username, a positive entry ID),
+calls exactly one tool, and returns `{status, tool, arguments, result}`; the page shows a readable
+view of `result` with the raw tool result folded beneath it.
+
+| Tool | Inputs | Result |
+| --- | --- | --- |
+| `timetable_users_list` | none | usernames that have entries |
+| `timetable_entries_list` | `username`, optional `week_of` (YYYY-MM-DD) | the Monday-Sunday week containing `week_of` (default this week) and its entries |
+| `timetable_entry_get` | `timetable_id` | one entry |
+| `timetable_free_time` | `username`, `on_date` (YYYY-MM-DD) | the day's busy entries and every free gap of 30+ minutes between 08:00 and 23:00 |
+
+**Tool boundaries:** every tool is read-only, so an MCP client can look at a timetable but never
+change one; adding, editing and deleting stay on the page, behind the backend's validation and clash
+rules. The tools read the database API rather than the backend because the backend's routes return
+HTML for the page. Bad input is refused with an MCP tool error rather than an empty result: an
+unknown username (so a typo is not reported as a free day), a malformed date, a non-positive ID and
+a missing entry. The backend turns a refused tool call into a 400 and an unreachable MCP server into
+a 503. The free-time window and 30-minute minimum match the AI weekly plan's, and all-day due dates
+take up no time.
+
+**Validation:** `mcp/test_tools.py timetable` calls every timetable tool in-process, and the shared
+agentic loop's MCP mode (`--area mcp --service timetable`) cross-checks the tools against each other
+over the running server: the entries belong to the user and week asked for, `timetable_entry_get`
+matches the listed entry, the free gaps never overlap that day's entries, each bad input above is
+refused, and no write tool is advertised.
+
+**Configuration:** `MCP_SERVER_URL` in `docker-compose.yml` (`http://127.0.0.1:8000/mcp`) and
+`MCP_ENABLED` (default `true`), the same switch the subjects feature uses. CI runs with
+`MCP_ENABLED=false`; `/mcp/status` then reports disabled and `/mcp/free-time` returns 403, which
+`timetable.yml` asserts.
+
 ### Known Limitations
 
 - The AI weekly plan and the balance calculation always operate on the *current* week (relative to
@@ -369,13 +413,15 @@ the same host-network approach the backend already uses to reach Ollama, and `RA
 - RAG retrieval matches words, not meaning, and nothing in the index knows today's date - "what do I
   have tomorrow?" or "lecture" when the entry says "class" will not match. Questions work best by
   student, activity and day name.
-- The RAG server, Ollama and the MCP server run on the host, not in Docker, so RAG only works when
-  the RAG server has been started separately (`rag-server/run.ps1` or `run.sh`).
+- The RAG server, Ollama and the MCP server run on the host, not in Docker, so RAG and MCP only work
+  when their servers have been started separately (`rag-server/run.ps1` or `run.sh`, and
+  `mcp/run.ps1` or `run.sh`).
+- The MCP tools are read-only by design, so no MCP client can create, edit or delete an entry.
 
 ### Additional Notes
 
 The timetable feature has a CI workflow (`timetable.yml`) mirroring the pattern described in
 [the app design](../design.md): build images, smoke-check each container (database, backend,
 frontend, in that order), and upload evidence reports. In Release 1 it also starts the stack with
-`RAG_ENABLED=false`, probes the new `/timetable/users` endpoint and RAG page, and verifies that RAG is
-reported disabled and refused with 403.
+`MCP_ENABLED=false` and `RAG_ENABLED=false`, probes the new `/timetable/users` endpoint and the MCP
+and RAG pages, and verifies that both MCP and RAG are reported disabled and refused with 403.

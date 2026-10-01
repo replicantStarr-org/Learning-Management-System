@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MCP Tools | Learning Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/assets/theme.css" rel="stylesheet">
+    <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+    <style>
+        .mcp-output {
+            min-height: 4rem;
+            max-height: 28rem;
+            overflow: auto;
+        }
+
+        .mcp-output pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .mcp-tool {
+            color: var(--color-brand-strong, #315ca8);
+            background: #eef4ff;
+        }
+
+        .mcp-items {
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+            margin: 0 0 .75rem;
+            padding: 0;
+            list-style: none;
+        }
+
+        .mcp-item {
+            padding: .75rem;
+            background: #fff;
+            border-radius: .5rem;
+        }
+
+        .mcp-item-heading {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: .5rem;
+            margin-bottom: .35rem;
+        }
+
+        .mcp-item-title {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .mcp-item-meta {
+            color: var(--bs-secondary-color);
+            font-size: .75rem;
+            white-space: nowrap;
+        }
+
+        .mcp-item-text {
+            margin: 0;
+            color: var(--bs-secondary-color);
+            font-size: .875rem;
+        }
+
+        .mcp-summary {
+            margin-bottom: .75rem;
+            padding: .9rem 1rem;
+            background: #fff;
+            border-left: .25rem solid var(--bs-primary);
+            border-radius: .5rem;
+        }
+
+        .mcp-raw summary {
+            color: var(--bs-secondary-color);
+            font-size: .8125rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body data-mcp-page>
+    <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
+
+    <main class="container page-shell">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-5">
+            <div>
+                <p class="text-primary fw-semibold mb-2">Quizzes</p>
+                <h1 class="display-6 fw-bold">MCP Tools</h1>
+                <p class="lead text-secondary mb-0">Study with the read-only quiz tools on the shared MCP server: find quizzes, revise a topic, or practise one question at a time.</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i> Back to quizzes</a>
+        </div>
+
+        <section class="card border-0 shadow-sm mb-4" aria-labelledby="mode-heading">
+            <div class="card-body p-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between gap-3 align-items-sm-center">
+                    <div>
+                        <h2 id="mode-heading" class="h5 mb-1">MCP mode</h2>
+                        <p id="mode-help" class="text-secondary mb-0">Checking MCP availability…</p>
+                    </div>
+                    <div class="form-check form-switch fs-5">
+                        <input class="form-check-input" type="checkbox" role="switch" id="mcp-toggle" checked>
+                        <label class="form-check-label fs-6" for="mcp-toggle">Enabled</label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="mcp-alert" class="alert alert-warning" role="alert" hidden></div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="quizzes-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="quizzes-heading" class="h5">Quiz list</h2>
+                            <code class="mcp-tool px-2 py-1">quizzes_list</code>
+                        </div>
+                        <p class="text-secondary">List quizzes, optionally by subject and difficulty. Pick one to look
+                            it up.</p>
+                        <form data-mcp-form="quizzes">
+                            <div class="row g-3 mb-3">
+                                <div class="col-sm-7">
+                                    <label class="form-label" for="quizzes-subject">Subject</label>
+                                    <select class="form-select" id="quizzes-subject" name="subject" data-mcp-subjects>
+                                        <option value="">Any subject</option>
+                                    </select>
+                                </div>
+                                <div class="col-sm-5">
+                                    <label class="form-label" for="quizzes-difficulty">Difficulty</label>
+                                    <select class="form-select" id="quizzes-difficulty" name="difficulty">
+                                        <option value="">Any</option>
+                                        <option>Easy</option>
+                                        <option>Medium</option>
+                                        <option>Hard</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" type="submit">Run MCP tool</button>
+                        </form>
+                        <div id="quizzes-output" class="mcp-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-lg-6">
+                <section class="card feature-card shadow-sm h-100" aria-labelledby="quiz-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="quiz-heading" class="h5">Quiz lookup</h2>
+                            <code class="mcp-tool px-2 py-1">quizzes_get</code>
+                        </div>
+                        <p class="text-secondary">Get one quiz, with every question, by its name or ID. Answers stay
+                            hidden until you reveal them.</p>
+                        <form data-mcp-form="quiz">
+                            <label class="form-label" for="quiz-query">Find a quiz</label>
+                            <div class="input-group">
+                                <select class="form-select flex-grow-0 w-auto" id="quiz-mode" aria-label="Look up by">
+                                    <option value="name">Name</option>
+                                    <option value="id">ID</option>
+                                </select>
+                                <input class="form-control" id="quiz-query" required maxlength="100"
+                                    list="quiz-titles" autocomplete="off" placeholder="e.g. Agile and Scrum Practices">
+                                <button class="btn btn-primary" type="submit">Run MCP tool</button>
+                            </div>
+                            <datalist id="quiz-titles"></datalist>
+                            <input type="hidden" name="quiz_id">
+                        </form>
+                        <div id="quiz-output" class="mcp-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12">
+                <section class="card feature-card shadow-sm" aria-labelledby="practice-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="practice-heading" class="h5">Practice question</h2>
+                            <code class="mcp-tool px-2 py-1">quizzes_practice_question</code>
+                        </div>
+                        <p class="text-secondary">Draw one random question to test yourself, optionally from one
+                            subject or difficulty. Pick an answer, then check it. MCP-only: the quiz pages only run
+                            whole quizzes.</p>
+                        <form data-mcp-form="practice">
+                            <div class="row g-3 mb-3">
+                                <div class="col-sm-7">
+                                    <label class="form-label" for="practice-subject">Subject</label>
+                                    <select class="form-select" id="practice-subject" name="subject" data-mcp-subjects>
+                                        <option value="">Any subject</option>
+                                    </select>
+                                </div>
+                                <div class="col-sm-5">
+                                    <label class="form-label" for="practice-difficulty">Difficulty</label>
+                                    <select class="form-select" id="practice-difficulty" name="difficulty">
+                                        <option value="">Any</option>
+                                        <option>Easy</option>
+                                        <option>Medium</option>
+                                        <option>Hard</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" type="submit">Draw a question</button>
+                        </form>
+                        <div id="practice-output" class="mcp-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12">
+                <section class="card feature-card shadow-sm" aria-labelledby="search-heading">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 id="search-heading" class="h5">Question search</h2>
+                            <code class="mcp-tool px-2 py-1">quizzes_search_questions</code>
+                        </div>
+                        <p class="text-secondary">Find questions on a topic in any quiz, best matches first. Related
+                            words and small typos still match: "containers" finds the Docker questions. MCP-only: the
+                            quiz pages have no question search.</p>
+                        <form data-mcp-form="search">
+                            <label class="form-label" for="search-keyword">Keyword</label>
+                            <div class="input-group">
+                                <input class="form-control" id="search-keyword" name="keyword" required
+                                    maxlength="100" placeholder="e.g. containers">
+                                <button class="btn btn-primary" type="submit">Run MCP tool</button>
+                            </div>
+                        </form>
+                        <div id="search-output" class="mcp-output bg-light rounded p-3 mt-3" aria-live="polite">Not
+                            called yet.</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>

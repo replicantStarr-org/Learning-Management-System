@@ -24,7 +24,6 @@ from pathlib import Path
 
 import chromadb
 from chromadb.errors import NotFoundError
-
 from pipeline.common import resolve_path, settings
 from pipeline.querying import retrieve_context
 from pipeline.vectors import embedding_signature
@@ -85,6 +84,36 @@ BENCHMARKS = [
             "timetable:timetable_entry:11:",
             "timetable:timetable_entry:16:",
         ],
+    },
+    {
+        "query": "What is the correct answer to what is a primary key?",
+        "relevant": ["quizzes:quiz_question:9:"],
+    },
+    {
+        "query": "What does velocity measure in Scrum?",
+        "relevant": ["quizzes:quiz_question:8:"],
+    },
+    {
+        # Matched through the explanation: the question asks about storing, not "why".
+        "query": "Why should passwords be hashed?",
+        "relevant": ["quizzes:quiz_question:36:"],
+    },
+    {
+        "query": "How do I defend against SQL injection?",
+        "relevant": ["quizzes:quiz_question:23:"],
+    },
+    {
+        # The quiz that covers the topic and the question that teaches it.
+        "query": "Which quiz covers SQL joins?",
+        "relevant": ["quizzes:quiz:4:", "quizzes:quiz_question:14:"],
+    },
+    {
+        "query": "I want to drop out, what does the Release 0 Technical Report need to include?",
+        "relevant": ["assignments:assignment:1:"],
+    },
+    {
+        "query": "Which checks must the CI workflow run for the assignment services?",
+        "relevant": ["assignments:assignment:3:"],
     },
 ]
 
