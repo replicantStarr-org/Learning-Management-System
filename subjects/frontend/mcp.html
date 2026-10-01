@@ -89,7 +89,7 @@
         <section class="card border-0 shadow-sm mt-4" aria-labelledby="result-heading">
             <div class="card-body p-4">
                 <h2 id="result-heading" class="h5">Tool response</h2>
-                <pre id="mcp-result" class="bg-light rounded p-3 mb-0" aria-live="polite">Responses from MCP tools will appear here.</pre>
+                <div id="mcp-result" class="bg-light rounded p-3 mb-0" aria-live="polite">Responses from MCP tools will appear here.</div>
             </div>
         </section>
     </main>
@@ -149,25 +149,13 @@
                     headers: { "Content-Type": "application/json", "X-MCP-Mode": "on" },
                     body: JSON.stringify(data),
                 });
-                const body = await response.json();
-                if (!response.ok) throw new Error(body.error || "The MCP tool request failed.");
-                // Some MCP servers expose a JSON payload as a text result.
-                // Decode that once so the UI does not show escaped quotes.
-                let displayBody = body;
-                if (typeof displayBody === "string") {
-                    try { displayBody = JSON.parse(displayBody); } catch { /* plain text result */ }
-                }
-                if (displayBody && typeof displayBody === "object"
-                    && Object.keys(displayBody).length === 1
-                    && typeof displayBody.result === "string") {
-                    try { displayBody = JSON.parse(displayBody.result); } catch { /* plain text result */ }
-                }
-                result.textContent = typeof displayBody === "string"
-                    ? displayBody
-                    : JSON.stringify(displayBody, null, 2);
-            } catch (error) {
+                // MCP endpoints return ready-to-render HTML fragments. Insert the
+                // fragment directly so its heading and formatted JSON are kept.
+                result.innerHTML = await response.text();
+                if (!response.ok) showMessage("The MCP tool request failed.", "danger");
+            } catch {
                 result.textContent = "No tool response.";
-                showMessage(error.message, "danger");
+                showMessage("The MCP backend could not be reached.", "danger");
             }
         }
 
