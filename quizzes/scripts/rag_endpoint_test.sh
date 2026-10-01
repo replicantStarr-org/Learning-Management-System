@@ -21,7 +21,7 @@ RESPONSE="$(mktemp)"
 FAILURES=0
 trap 'rm -f "$RESPONSE"' EXIT
 
-GROUNDED_QUESTION="What score did Daniel Kim get on Web Security Essentials?"
+GROUNDED_QUESTION="How do I defend against SQL injection?"
 UNSUPPORTED_QUESTION="What is the capital city of France?"
 
 [[ -z "$LOG_FILE" ]] || : > "$LOG_FILE"
@@ -86,9 +86,9 @@ check GET "$BACKEND_URL/rag/status" -- '"enabled": ?true' '"service": ?"quizzes"
 check GET "$BACKEND_URL/rag/health" -- '"status": ?"ok"'
 check POST "$BACKEND_URL/rag/ingest" -- '"status": ?"success"'
 check POST "$BACKEND_URL/rag/retrieve" '{"query": "primary key"}' -- '"results"' '"service": ?"quizzes"'
-# Grounded answer: cites the attempt record and carries a confidence category.
+# Grounded answer: cites the question that teaches it and carries a confidence category.
 check POST "$BACKEND_URL/rag/answer" "{\"query\": \"$GROUNDED_QUESTION\"}" \
-    -- 'quizzes:quiz_attempt:8:' '"confidence_category": ?"(High|Medium|Low)"'
+    -- 'quizzes:quiz_question:23:' '"confidence_category": ?"(High|Medium|Low)"'
 # Insufficient context: nothing relevant is indexed, so no answer is invented.
 check POST "$BACKEND_URL/rag/answer" "{\"query\": \"$UNSUPPORTED_QUESTION\"}" \
     -- '"answer": ?"Insufficient evidence."' '"confidence_category": ?"None"' '"citations": ?\[\]'

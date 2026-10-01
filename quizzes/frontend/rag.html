@@ -114,7 +114,7 @@
             <div>
                 <p class="text-primary fw-semibold mb-2">Quizzes</p>
                 <h1 class="display-6 fw-bold">RAG Tools</h1>
-                <p class="lead text-secondary mb-0">Index and ask questions about quizzes, their questions and students' attempt results.</p>
+                <p class="lead text-secondary mb-0">Study with answers grounded in the quiz material: ask what a term means, why an answer is right, or which quiz covers a topic.</p>
             </div>
             <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i> Back to quizzes</a>
         </div>
@@ -160,7 +160,7 @@
                             <h2 id="index-heading" class="h5">Quiz index</h2>
                             <code class="rag-route px-2 py-1">POST /ingest · /clear</code>
                         </div>
-                        <p class="text-secondary">Ingest reads the current quizzes, questions and attempts and rebuilds their search
+                        <p class="text-secondary">Ingest reads the current quizzes and their questions and rebuilds their search
                             index; run it again after adding or changing quizzes. AI-generated quizzes are not indexed. Clear removes them from the index.</p>
                         <div class="d-flex flex-wrap gap-2">
                             <button class="btn btn-primary" type="button" data-rag-button="ingest"
@@ -187,7 +187,7 @@
                             <label class="form-label" for="retrieve-query">Query</label>
                             <div class="input-group">
                                 <input class="form-control" id="retrieve-query" required maxlength="500"
-                                    placeholder="e.g. primary key">
+                                    placeholder="e.g. SQL joins">
                                 <button class="btn btn-primary" type="submit">Retrieve information</button>
                             </div>
                             <div class="mt-2" style="max-width: 10rem">
@@ -209,13 +209,13 @@
                             <h2 id="answer-heading" class="h5">Ask a question</h2>
                             <code class="rag-route px-2 py-1">POST /answer</code>
                         </div>
-                        <p class="text-secondary">Ask a question and receive an answer grounded in indexed quiz
-                            records, with its sources and a confidence category.</p>
+                        <p class="text-secondary">Ask a study question and receive an answer grounded in the indexed
+                            quiz questions and explanations, with its sources and a confidence category.</p>
                         <form data-rag-form="answer">
                             <label class="form-label" for="answer-query">Question</label>
                             <div class="input-group">
                                 <input class="form-control" id="answer-query" required maxlength="500"
-                                    placeholder="e.g. What score did Daniel Kim get on Web Security Essentials?">
+                                    placeholder="e.g. How do I defend against SQL injection?">
                                 <button class="btn btn-primary" type="submit">Ask question</button>
                             </div>
                             <div class="mt-2" style="max-width: 10rem">

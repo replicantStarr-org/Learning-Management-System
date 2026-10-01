@@ -95,13 +95,18 @@ BENCHMARKS = [
         "relevant": ["quizzes:quiz_question:8:"],
     },
     {
-        "query": "What score did Daniel Kim get on Web Security Essentials?",
-        "relevant": ["quizzes:quiz_attempt:8:"],
+        # Matched through the explanation: the question asks about storing, not "why".
+        "query": "Why should passwords be hashed?",
+        "relevant": ["quizzes:quiz_question:36:"],
     },
     {
-        # Both attempts at the quiz are needed to say who did and did not.
-        "query": "Who got full marks on Relational Database Basics?",
-        "relevant": ["quizzes:quiz_attempt:4:", "quizzes:quiz_attempt:5:"],
+        "query": "How do I defend against SQL injection?",
+        "relevant": ["quizzes:quiz_question:23:"],
+    },
+    {
+        # The quiz that covers the topic and the question that teaches it.
+        "query": "Which quiz covers SQL joins?",
+        "relevant": ["quizzes:quiz:4:", "quizzes:quiz_question:14:"],
     },
 ]
 
