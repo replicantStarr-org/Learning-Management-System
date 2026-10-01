@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Assignment MCP and RAG | Learning Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/assets/theme.css" rel="stylesheet">
+</head>
+<body>
+    <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
+    <main class="container page-shell py-4">
+        <a href="/" class="small">Back to assignments</a>
+        <h1 class="h2 mt-3">Assignment tools and search</h1>
+        <p class="text-secondary">Both modes call the shared local services through the assignments backend.</p>
+        <div class="row g-4">
+            <section class="col-lg-6" aria-labelledby="mcp-heading">
+                <h2 id="mcp-heading" class="h4">MCP</h2>
+                <p id="mcp-state" class="small text-secondary">Checking availability...</p>
+                <label class="form-label" for="mcp-action">Tool</label>
+                <select class="form-select mb-2" id="mcp-action">
+                    <option value="list">List assignments</option>
+                    <option value="upcoming">Upcoming assignments</option>
+                </select>
+                <label class="form-label" for="mcp-days">Days ahead</label>
+                <input class="form-control mb-2" type="number" id="mcp-days" min="1" max="365" value="7">
+                <button class="btn btn-primary" id="mcp-run" type="button">Run tool</button>
+                <pre class="border rounded p-3 mt-3 overflow-auto" id="mcp-result" aria-live="polite">No tool run yet.</pre>
+            </section>
+            <section class="col-lg-6" aria-labelledby="rag-heading">
+                <h2 id="rag-heading" class="h4">RAG</h2>
+                <p id="rag-state" class="small text-secondary">Checking availability...</p>
+                <form id="rag-form">
+                    <label class="form-label" for="rag-query">Question</label>
+                    <input class="form-control mb-2" id="rag-query" required maxlength="500" placeholder="What must the release report include?">
+                    <button class="btn btn-primary" type="submit">Ask from assignment records</button>
+                </form>
+                <button class="btn btn-outline-secondary btn-sm mt-2" id="rag-ingest" type="button">Refresh indexed assignments</button>
+                <div class="border rounded p-3 mt-3" id="rag-result" aria-live="polite">No question asked yet.</div>
+            </section>
+        </div>
+    </main>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/integration.js"></script>
+</body>
+</html>

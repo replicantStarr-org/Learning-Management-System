@@ -1,10 +1,27 @@
-"""Connector for the assignments service. Not implemented yet.
+"""Connector for the assignments service."""
 
-Read AGENTS.md in this folder before writing it; learning_resources.py is a
-working example. Until an entity function is registered, ingestion skips this
-service.
-"""
-
-from ..connector import Connector
+from ..connector import Connector, Record, pick
 
 connector = Connector("assignments", "http://localhost:6003")
+
+
+@connector.entity
+def assignments(get):
+	"""Index assignment source fields without AI summaries or reminders."""
+	for row in get("/assignments"):
+		yield Record(
+			entity="assignment",
+			id=row["assignment_id"],
+			title=f"{row['subject_name']}: {row['title']}",
+			fields=pick(
+				row,
+				"subject_name",
+				"title",
+				"description",
+				"requirements",
+				"due_at",
+				"status",
+				"priority",
+				"weighting",
+			),
+		)

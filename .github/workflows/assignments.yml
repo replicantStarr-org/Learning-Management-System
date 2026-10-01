@@ -11,6 +11,7 @@ permissions:
   contents: read
 
 env:
+  MCP_ENABLED: "false"
   RAG_ENABLED: "false"
 
 jobs:
@@ -69,6 +70,25 @@ jobs:
           probe "Assignment database" "http://localhost:6003/"
           probe "Assignment backend" "http://localhost:5003/"
           probe "Assignment frontend" "http://localhost:3003/"
+          probe "Assignment integration page" "http://localhost:3003/integration.html"
+
+      - name: Verify MCP and RAG integrations are disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          for mode in mcp rag; do
+            curl --silent --show-error --fail "http://localhost:5003/integration/$mode/status" \
+              | jq -e '.enabled == false'
+          done
+          for route in mcp/assignments rag/answer; do
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              --request POST --header 'Content-Type: application/json' \
+              --data '{}' "http://localhost:5003/integration/$route")"
+            if [[ "$status" != "403" ]]; then
+              echo "::error::$route returned HTTP $status with integration disabled; expected 403."
+              exit 1
+            fi
+          done
 
       - name: Validate the assignment REST API
         shell: bash
