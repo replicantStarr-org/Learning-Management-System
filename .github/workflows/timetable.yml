@@ -18,6 +18,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RAG_ENABLED: "false"
+
 jobs:
   build-images:
     name: Build Images

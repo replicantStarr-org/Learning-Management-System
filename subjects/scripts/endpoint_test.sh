@@ -56,7 +56,8 @@ for entry in \
     "create page|$FRONTEND/create.html|Create a subject" \
     "edit page|$FRONTEND/edit.html|Edit subject" \
     "subject page|$FRONTEND/subject.html|Subject details" \
-    "MCP tools page|$FRONTEND/mcp|MCP Tools"; do
+    "MCP tools page|$FRONTEND/mcp|MCP Tools" \
+    "RAG tools page|$FRONTEND/rag|RAG Tools"; do
     IFS='|' read -r name url marker <<< "$entry"
     body="$TMP_DIR/${name// /-}"
     status_code="$(get_status_body "$body" "$url")" \

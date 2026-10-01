@@ -52,6 +52,18 @@ BENCHMARKS = [
         ],
     },
     {
+        "query": "Who coordinates Database Systems?",
+        "relevant": ["subjects:subject:2:"],
+    },
+    {
+        "query": "What is Cybersecurity Fundamentals about?",
+        "relevant": ["subjects:subject:6:"],
+    },
+    {
+        "query": "Which semester is Advanced Software Development offered?",
+        "relevant": ["subjects:subject:1:"],
+    },
+    {
         "query": "When is priya.patel's Cybersecurity lab?",
         "relevant": ["timetable:timetable_entry:13:"],
     },

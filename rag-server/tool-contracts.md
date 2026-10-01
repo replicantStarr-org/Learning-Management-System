@@ -32,5 +32,13 @@ Exposed both as MCP tools (`server/mcp_server.py`) and HTTP endpoints (`server/h
 - Policy class: read + grounded response
 
 ## Other endpoints
-- `GET /health`
+- `GET /health` — answers even while disabled
+- `GET /status` — `enabled` and `rag_enabled` (booleans) and a `message`; answers even while disabled
 - `GET /services` — configured service names
+
+## Disabled mode — `RAG_ENABLED`
+- The `RAG_ENABLED` environment variable switches the server on or off, like `MCP_ENABLED` in the subjects service
+- On by default; `1`, `true`, `yes` or `on` keep it on, and any other value, such as `false`, turns it off
+- While off, every HTTP endpoint except `/health` and `/status` returns `403` with `status` (`error`), `error` (`RAG server is disabled.`) and `enabled` (`false`)
+- While off, every MCP tool returns that same body instead of running
+- Read on every request, but `./run.sh` passes it to the server when it starts, so restart the server to change it: `RAG_ENABLED=false ./run.sh`

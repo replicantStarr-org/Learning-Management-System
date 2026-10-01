@@ -1,5 +1,7 @@
-from mcp.server import MCPServer
+import asyncio
 from sys import stderr
+
+from mcp.server import MCPServer
 
 from subjects_tools import register_subject_tools
 from learning_resources_tools import register_learning_resource_tools
@@ -13,15 +15,16 @@ mcp = MCPServer("LMS MCP Server")
 register_subject_tools(mcp)
 register_learning_resource_tools(mcp)
 
-@mcp.tool()
-def echo(message: str) -> str:
-    return message
-
 
 # MCP server may use stdout for JSON-RPC messages
 def log(message):
     print(message, file=stderr)
 
 if __name__ == "__main__":
+    tools = asyncio.run(mcp.list_tools())
+    log(f"Available tools ({len(tools)}):")
+    for tool in tools:
+        log(f"  - {tool.name}")
+
     log(f"Starting LMS MCP Server on http://{MCP_HOST}:{MCP_PORT}/mcp...")
     mcp.run("streamable-http", host=MCP_HOST, port=MCP_PORT, streamable_http_path="/mcp")

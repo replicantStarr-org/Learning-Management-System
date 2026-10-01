@@ -3,6 +3,9 @@ name: Integration of all Services
 
 on: [push, workflow_dispatch]
 
+env:
+  RAG_ENABLED: "false"
+
 jobs:
   placeholder:
     runs-on: ubuntu-latest
