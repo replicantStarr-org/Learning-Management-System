@@ -333,11 +333,11 @@ function mcpStatusLine(status, text) {
     return line;
 }
 
-function mcpRawResult(body) {
+function mcpRawResult(body, label = "Raw tool result") {
     const details = document.createElement("details");
     details.className = "mcp-raw";
     const summary = document.createElement("summary");
-    summary.textContent = "Raw tool result";
+    summary.textContent = label;
     const pre = document.createElement("pre");
     pre.className = "small mt-2 mb-0";
     pre.textContent = JSON.stringify(body, null, 2);
@@ -391,6 +391,31 @@ function mcpAttemptItem(attempt) {
     );
 }
 
+let mcpAnswerCount = 0;
+
+// The correct answer and explanation start hidden behind a button, so the
+// lookup can be read as a quiz without giving the answers away.
+function mcpAnswerReveal(item, question) {
+    const answer = mcpElement("p", "mcp-item-text mcp-answer mt-2",
+        `Correct answer: ${question.correct_answer || "none set"}. ${question.explanation}`);
+    answer.id = `mcp-answer-${++mcpAnswerCount}`;
+    answer.hidden = true;
+
+    const button = mcpElement("button", "btn btn-sm btn-link px-0 mt-1", "Show answer");
+    button.type = "button";
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-controls", answer.id);
+    const setRevealed = (reveal) => {
+        answer.hidden = !reveal;
+        button.setAttribute("aria-expanded", String(reveal));
+        button.textContent = reveal ? "Hide answer" : "Show answer";
+    };
+    button.addEventListener("click", () => setRevealed(answer.hidden));
+
+    item.append(button, answer);
+    return setRevealed;
+}
+
 function fillQuizIds(quizId) {
     document.querySelectorAll("[data-mcp-quiz-id]").forEach((input) => { input.value = quizId; });
 }
@@ -416,11 +441,28 @@ const MCP_RENDERERS = {
     quiz(result) {
         const summary = mcpElement("p", "mcp-summary",
             `${result.title} · ${result.subject_name} · ${result.difficulty} · ${result.questions.length} questions. ${result.description}`);
-        return [summary, mcpList(result.questions.map((question) => mcpItem(
-            mcpElement("span", "mcp-item-title", `${question.number}. ${question.question_text}`),
-            `#${question.question_id}`,
-            `Correct answer: ${question.correct_answer || "none set"}. ${question.explanation}`,
-        )))];
+        const toggles = [];
+        const items = result.questions.map((question) => {
+            const item = mcpItem(
+                mcpElement("span", "mcp-item-title", `${question.number}. ${question.question_text}`),
+                `#${question.question_id}`,
+                `Options: ${question.answers.join(" · ")}`,
+            );
+            toggles.push(mcpAnswerReveal(item, question));
+            return item;
+        });
+
+        // One switch for checking a whole quiz at once; each question can still be toggled alone.
+        const all = mcpElement("button", "btn btn-sm btn-outline-secondary mb-3", "Show all answers");
+        all.type = "button";
+        all.setAttribute("aria-pressed", "false");
+        all.addEventListener("click", () => {
+            const reveal = all.getAttribute("aria-pressed") !== "true";
+            all.setAttribute("aria-pressed", String(reveal));
+            all.textContent = reveal ? "Hide all answers" : "Show all answers";
+            toggles.forEach((setRevealed) => setRevealed(reveal));
+        });
+        return [summary, all, mcpList(items)];
     },
     attempts(result) {
         if (!result.length) return [mcpElement("p", "text-secondary small", "No attempts match.")];
@@ -454,7 +496,7 @@ function showMcpResult(output, kind, status, body) {
     output.replaceChildren(
         mcpStatusLine(status, `${body.tool} returned a result`),
         ...MCP_RENDERERS[kind](body.result),
-        mcpRawResult(body.result),
+        mcpRawResult(body.result, kind === "quiz" ? "Raw tool result (includes answers)" : undefined),
     );
 }
 
