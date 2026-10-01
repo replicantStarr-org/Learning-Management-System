@@ -176,6 +176,10 @@ checked, showing whether it was right and the explanation. Buttons rather than h
 on touch screens and from the keyboard. The subject filters are dropdowns filled from
 `quizzes_list`, so they only offer subjects that have quizzes and a filter can never match nothing;
 a refused request (such as a quiz ID that does not exist) is shown as a plain note, not an error.
+The quiz lookup is a split search bar: choose Name or ID, then type. A name is matched against
+the `quizzes_list` result the page already loaded (an exact title, else the one title containing
+it, with the titles offered as suggestions) and sent to `quizzes_get` as its ID, so the tool's
+contract is unchanged; an unknown or ambiguous name gets a note naming the matches instead of a call.
 
 **Keyword gallery and search ranking:** each quiz's keywords include related terms its questions
 never spell out ("containers" and "kubernetes" on Cloud and DevOps, "big o" on Sorting and

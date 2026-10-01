@@ -177,14 +177,21 @@
                             <h2 id="quiz-heading" class="h5">Quiz lookup</h2>
                             <code class="mcp-tool px-2 py-1">quizzes_get</code>
                         </div>
-                        <p class="text-secondary">Get one quiz by its ID, with every question. Answers stay hidden until you reveal them.</p>
+                        <p class="text-secondary">Get one quiz, with every question, by its name or ID. Answers stay
+                            hidden until you reveal them.</p>
                         <form data-mcp-form="quiz">
-                            <label class="form-label" for="quiz-quiz-id">Quiz ID</label>
+                            <label class="form-label" for="quiz-query">Find a quiz</label>
                             <div class="input-group">
-                                <input class="form-control" id="quiz-quiz-id" name="quiz_id" type="number"
-                                    min="1" step="1" required data-mcp-quiz-id placeholder="e.g. 2">
+                                <select class="form-select flex-grow-0 w-auto" id="quiz-mode" aria-label="Look up by">
+                                    <option value="name">Name</option>
+                                    <option value="id">ID</option>
+                                </select>
+                                <input class="form-control" id="quiz-query" required maxlength="100"
+                                    list="quiz-titles" autocomplete="off" placeholder="e.g. Agile and Scrum Practices">
                                 <button class="btn btn-primary" type="submit">Run MCP tool</button>
                             </div>
+                            <datalist id="quiz-titles"></datalist>
+                            <input type="hidden" name="quiz_id">
                         </form>
                         <div id="quiz-output" class="mcp-output bg-light rounded p-3 mt-3" aria-live="polite">Not
                             called yet.</div>

@@ -340,8 +340,14 @@ async function loadMcpSubjects() {
             select.append(...subjects.map((name) => new Option(name, name)));
         });
         showMcpGallery(body.result);
+        mcpQuizzes = body.result;
+        document.querySelector("#quiz-titles").replaceChildren(...body.result.map((quiz) => {
+            const option = new Option(quiz.title);
+            option.label = `#${quiz.quiz_id} · ${quiz.subject_name}`;
+            return option;
+        }));
     } catch {
-        // Left as "Any subject" only, with no gallery; the tools still work without them.
+        // Left as "Any subject" only, with no gallery or quiz names; the tools still work without them.
     }
 }
 
@@ -455,11 +461,50 @@ function mcpAnswerReveal(item, question) {
 }
 
 // Fills the quiz lookup with this quiz and runs it, so a listed quiz can be opened in one click.
+// By ID, since two quizzes (such as AI-generated ones) can share a title.
 function lookUpQuiz(quizId) {
     const form = document.querySelector("[data-mcp-form=quiz]");
-    form.querySelector("[name=quiz_id]").value = quizId;
+    setQuizLookupMode("id");
+    form.querySelector("#quiz-query").value = quizId;
     form.requestSubmit();
     form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// The quiz names from quizzes_list, for looking a quiz up by name; empty if the list did not load.
+let mcpQuizzes = [];
+
+function setQuizLookupMode(mode) {
+    const query = document.querySelector("#quiz-query");
+    document.querySelector("#quiz-mode").value = mode;
+    query.value = "";
+    if (mode === "id") {
+        Object.assign(query, { type: "number", min: 1, step: 1, placeholder: "e.g. 2" });
+        query.removeAttribute("list");
+    } else {
+        Object.assign(query, { type: "text", placeholder: "e.g. Agile and Scrum Practices" });
+        query.removeAttribute("min");
+        query.removeAttribute("step");
+        query.setAttribute("list", "quiz-titles");
+    }
+}
+
+// quizzes_get takes an ID, so a name is matched against the quiz list first: an exact
+// title, else the one title containing it. Returns { quizId } or { error }.
+function resolveQuizLookup(form) {
+    const text = form.querySelector("#quiz-query").value.trim();
+    if (form.querySelector("#quiz-mode").value === "id") return { quizId: text };
+    if (!mcpQuizzes.length) return { error: "Quiz names could not be loaded. Look the quiz up by ID instead." };
+
+    const needle = text.toLowerCase();
+    const exact = mcpQuizzes.filter((quiz) => quiz.title.toLowerCase() === needle);
+    const matches = exact.length ? exact : mcpQuizzes.filter((quiz) => quiz.title.toLowerCase().includes(needle));
+    if (matches.length === 1) return { quizId: String(matches[0].quiz_id) };
+    if (!matches.length) return { error: `No quiz is called "${text}". Pick one from the suggestions.` };
+    return {
+        error: `${matches.length} quizzes match "${text}": `
+            + matches.map((quiz) => `${quiz.title} (#${quiz.quiz_id})`).join(", ")
+            + ". Type more of the name, or look it up by ID.",
+    };
 }
 
 // One question to answer before seeing whether it was right, with the explanation.
@@ -606,6 +651,14 @@ async function runMcpTool(event) {
         return;
     }
     if (!form.reportValidity()) return;
+    if (kind === "quiz") {
+        const lookup = resolveQuizLookup(form);
+        if (lookup.error) {
+            output.replaceChildren(mcpElement("p", "text-secondary mb-0", lookup.error));
+            return;
+        }
+        form.querySelector("[name=quiz_id]").value = lookup.quizId;
+    }
 
     const button = form.querySelector("button[type=submit]");
     button.disabled = true;
@@ -635,5 +688,9 @@ if (document.querySelector("[data-mcp-page]")) {
     });
 
     document.querySelectorAll("[data-mcp-form]").forEach((form) => form.addEventListener("submit", runMcpTool));
+    document.querySelector("#quiz-mode").addEventListener("change", (event) => {
+        setQuizLookupMode(event.target.value);
+        document.querySelector("#quiz-query").focus();
+    });
     loadMcpStatus();
 }
