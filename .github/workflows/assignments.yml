@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "assignments/**"
+      - "mcp/**"
       - "shared/**"
       - ".github/workflows/assignments.yml"
 

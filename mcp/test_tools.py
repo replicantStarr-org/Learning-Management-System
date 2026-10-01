@@ -20,6 +20,8 @@ from server import mcp
 
 
 SERVICE_ALIASES = {
+    "assignments": "assignments",
+    "assignment": "assignments",
     "subjects": "subjects",
     "subject": "subjects",
     "learning_resources": "learning_resources",
@@ -72,6 +74,65 @@ class ToolTester:
             await mcp.call_tool(name, arguments)
         except Exception:
             pass
+
+    async def expect_error(
+        self, name: str, arguments: dict[str, Any], expected_message: str
+    ) -> None:
+        """Pass when a tool rejects invalid input with the expected message."""
+        self.attempted.add(name)
+        try:
+            result = await mcp.call_tool(name, arguments)
+        except Exception as exc:
+            error = str(exc)
+        else:
+            error = "; ".join(part.text for part in result.content if hasattr(part, "text"))
+            if not result.is_error:
+                error = "tool accepted invalid input"
+
+        if expected_message in error:
+            print(f"PASS {name} rejects invalid input: {error}")
+            self.passed += 1
+        else:
+            print(
+                f"FAIL {name}: expected error containing {expected_message!r}, got {error!r}",
+                file=sys.stderr,
+            )
+            self.failed += 1
+
+
+async def test_assignments(tester: ToolTester) -> None:
+    assignments = await tester.call(
+        "assignments_list", check=lambda value: isinstance(value, list)
+    )
+    await tester.call(
+        "assignments_upcoming",
+        {"days": 365},
+        check=lambda value: isinstance(value, list),
+    )
+
+    first_id = None
+    if assignments and isinstance(assignments[0], dict):
+        value = assignments[0].get("assignment_id")
+        if isinstance(value, int):
+            first_id = value
+
+    if first_id is not None:
+        await tester.call(
+            "assignments_get",
+            {"assignment_id": first_id},
+            check=lambda value: isinstance(value, dict)
+            and value.get("assignment_id") == first_id,
+        )
+    await tester.expect_error(
+        "assignments_get",
+        {"assignment_id": 0},
+        "assignment_id must be a positive integer",
+    )
+    await tester.expect_error(
+        "assignments_upcoming",
+        {"days": 0},
+        "days must be between 1 and 365",
+    )
 
 
 async def test_learning_resources(tester: ToolTester) -> None:
@@ -228,10 +289,13 @@ async def async_main(service: str | None) -> int:
     selected = (
         {SERVICE_ALIASES[service]}
         if service is not None
-        else {"subjects", "learning_resources", "timetable"}
+        else {"subjects", "learning_resources", "timetable", "assignments"}
     )
     tester = ToolTester()
 
+    if "assignments" in selected:
+        print("\n== assignments ==", flush=True)
+        await test_assignments(tester)
     if "subjects" in selected:
         print("\n== subjects ==", flush=True)
         await test_subjects(tester)
@@ -263,9 +327,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Smoke-test all MCP tools, optionally scoped to one service.",
         epilog=(
-            "Services: subjects, learning_resources, timetable (aliases include "
-            "subject, learning-resources, learning-resource-manager, resources, "
-            "timetables). "
+            "Services: assignments, subjects, learning_resources, timetable "
+            "(aliases include assignment, subject, learning-resources, "
+            "learning-resource-manager, resources, timetables). "
             "Backing containers must be running."
         ),
     )
@@ -279,7 +343,7 @@ def main() -> int:
     if args.service is not None and args.service not in SERVICE_ALIASES:
         parser.error(
             f"unknown service {args.service!r}; "
-            "choose subjects, learning_resources or timetable"
+            "choose assignments, subjects, learning_resources or timetable"
         )
     return asyncio.run(async_main(args.service))
 
