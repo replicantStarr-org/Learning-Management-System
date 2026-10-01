@@ -328,8 +328,12 @@ date (the date never contains the word "Monday"), and the username in both the t
 **Grounded responses:** each answer carries `citations` (the chunk IDs and titles it was drawn from)
 and a `confidence_category` from how close the best chunk was (`High` <= 0.6, `Medium` <= 0.75,
 `Low` <= 0.9 cosine distance). When nothing is within the cut-off the model is never called and
-the page shows *Insufficient evidence.* with confidence `None`. The page also offers "Retrieve
-sources only", which shows the matched chunks and their distances without asking the model.
+the page says the indexed entries do not contain enough information, with a `None match` badge.
+The page follows the subjects RAG page's layout: a RAG mode switch, one card per route (Health
+check, Timetable index with Ingest and Clear together, Retrieve, Ask a question), each showing its
+HTTP status, and
+answers with their sources linked to the entries they came from. "Retrieve" shows the matched
+chunks and their distances without asking the model.
 
 **Validation:** three benchmarks in `rag-server/eval.py` (a single entry, a student's day, and a
 lecture shared by three students) must PASS at P@5 ceiling and R@5 = 1.0, and the shared agentic
@@ -359,7 +363,7 @@ the same host-network approach the backend already uses to reach Ollama, and `RA
   `PLAN_MAX_AGE_HOURS` and whether entries changed since the plan was last built, per *AI weekly
   plan design* above). `force` exists for a future "regenerate now" control, not a currently
   reachable one.
-- RAG answers come from a snapshot: entries added or edited after the last "Re-index timetable" are
+- RAG answers come from a snapshot: entries added or edited after the last "Ingest timetable" are
   not found until it is run again, and the seed data's dates move to the current week whenever the
   database image is rebuilt.
 - RAG retrieval matches words, not meaning, and nothing in the index knows today's date - "what do I
