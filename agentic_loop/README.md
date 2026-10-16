@@ -4,12 +4,14 @@ The agentic loop takes artifiacts, code and prompts from the repository.
 It suggests improvements by first running inputs through an implementation model and
 then refining, rejecting and filtering them with a review model.
 
-The agentic loop supports review of five different areas:
+The agentic loop supports review of seven different areas:
 - Database
 - Endpoint Implementation
 - Application Architecture
 - DevOps Pipeline
 - MCP Server (the running server in `../mcp`)
+- RAG Connector
+- Multi-Agent Coordination
 
 To keep reviews focused, choose which microservice the review is for for every review area, including MCP.
 An MCP review targets `../mcp` and the selected service's MCP tool area.

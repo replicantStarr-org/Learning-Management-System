@@ -26,7 +26,7 @@ def _choose(title: str, options: dict) -> object | None:
 
 
 def _arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Review one area of an ASD microservice or the MCP server.")
+    parser = argparse.ArgumentParser(description="Review one area of an ASD microservice or its shared AI integrations.")
     parser.add_argument("--area", choices=MODES, help="review area (omit for the interactive menu)")
     parser.add_argument("--service", choices=SERVICES, help="microservice (omit for the interactive menu)")
     args = parser.parse_args()
