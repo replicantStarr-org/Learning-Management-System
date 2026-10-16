@@ -1,0 +1,38 @@
+# Release 2 local security scans. They run on `git commit` once installed:
+#   pip install pre-commit && pre-commit install
+# Run them by hand with: pre-commit run --all-files
+#
+# This file is shared by the whole repository. Each service adds its own Ruff settings
+# (a pyproject.toml in its folder) and extends the `files:` pattern below.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1
+    hooks:
+      - id: ruff-check
+        name: ruff security rules (flake8-bandit)
+        # Ruff reads the nearest pyproject.toml, so quizzes/pyproject.toml selects the S rules.
+        files: ^quizzes/.*\.py$
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+
+  - repo: local
+    hooks:
+      - id: pip-audit
+        name: pip-audit (known vulnerabilities in pinned dependencies)
+        language: python
+        additional_dependencies: ["pip-audit==2.10.1"]
+        entry: pip-audit
+        args:
+          - --requirement
+          - quizzes/backend/requirements.txt
+          - --requirement
+          - quizzes/database/requirements.txt
+          - --requirement
+          - quizzes/tests/requirements.txt
+        files: ^quizzes/.*requirements\.txt$
+        pass_filenames: false
