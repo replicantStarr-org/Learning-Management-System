@@ -219,3 +219,7 @@ __marimo__/
 
 # CI reports, these should not be checked in, they are downloaded on-demand for the agentic loop
 reports/
+
+# Local multi-agent evidence 
+multi-agent-server/workflow_history.jsonl
+multi-agent-server/coordination_audit.jsonl
