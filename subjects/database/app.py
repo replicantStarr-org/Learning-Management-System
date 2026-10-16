@@ -159,7 +159,7 @@ def query_subjects_by_field():
             FROM subjects
             WHERE {field} LIKE ? COLLATE NOCASE ESCAPE '\\'
             ORDER BY subject_id
-            """,
+            """,  # noqa: S608 - field validated against QUERY_FIELDS; value parameterized
             (pattern,),
         ).fetchall()
         return jsonify([subject_dict(row, conn) for row in subjects])
@@ -330,7 +330,7 @@ def replace_subject_tags(subject_id):
         if tag_ids:
             placeholders = ",".join("?" for _ in tag_ids)
             found = conn.execute(
-                f"SELECT tag_id FROM tags WHERE tag_id IN ({placeholders})", tag_ids
+                f"SELECT tag_id FROM tags WHERE tag_id IN ({placeholders})", tag_ids  # noqa: S608 - only generated placeholders interpolated
             ).fetchall()
             if len(found) != len(tag_ids):
                 return jsonify({"error": "One or more tags were not found"}), 400
@@ -417,7 +417,7 @@ def update_subject(subject_id):
         assignments = ", ".join(f"{field} = ?" for field in fields)
         values = [body[field] for field in fields] + [subject_id]
         conn.execute(
-            f"UPDATE subjects SET {assignments} WHERE subject_id = ?", values
+            f"UPDATE subjects SET {assignments} WHERE subject_id = ?", values  # noqa: S608 - columns from SUBJECT_FIELDS; values parameterized
         )
         conn.commit()
         return subject_response(get_subject(subject_id, conn))
@@ -527,4 +527,4 @@ def delete_summary(summary_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=6001, debug=True)
+    app.run(host="0.0.0.0", port=6001)  # noqa: S104 - container ingress

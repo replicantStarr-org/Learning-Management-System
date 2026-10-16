@@ -74,8 +74,8 @@ class ToolTester:
         """Best-effort cleanup after an interrupted CRUD test."""
         try:
             await mcp.call_tool(name, arguments)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING cleanup {name}: {exc}", file=sys.stderr)
 
     async def expect_error(
         self, name: str, arguments: dict[str, Any], expected_message: str

@@ -178,7 +178,7 @@ def update_entry(timetable_id):
         assignments = ", ".join(f"{field} = ?" for field in fields)
         values = [body[field] for field in fields] + [timetable_id]
         conn.execute(
-            f"UPDATE timetable_entries SET {assignments} WHERE timetable_id = ?", values
+            f"UPDATE timetable_entries SET {assignments} WHERE timetable_id = ?", values  # noqa: S608 - columns from ENTRY_FIELDS; values parameterized
         )
         conn.commit()
         return entry_response(get_entry(timetable_id, conn))
@@ -342,4 +342,4 @@ def create_advice():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=6005, debug=True)
+    app.run(host="0.0.0.0", port=6005)  # noqa: S104 - container ingress

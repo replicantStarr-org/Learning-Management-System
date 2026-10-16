@@ -296,7 +296,7 @@ def _run_in_rag_server(rag_server_dir: Path, arguments: list[str]) -> tuple[dict
     if not python.exists():
         return None, f"{RAG_SERVER_DIR} is not initialised (run {RAG_SERVER_DIR}/init.sh)"
 
-    completed = subprocess.run(
+    completed = subprocess.run(  # noqa: S603 - local venv and fixed preview script; arguments passed without shell
         [str(python), *arguments],
         cwd=rag_server_dir, capture_output=True, text=True, timeout=PREVIEW_TIMEOUT_SECONDS,
     )
