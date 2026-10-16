@@ -656,3 +656,26 @@ if (document.querySelector("[data-mcp-page]")) {
     });
     loadMcpStatus();
 }
+
+
+// AI-Mode: hide the AI entry points and explain why when the backend reports it disabled.
+const AI_MODE_URL = "http://localhost:5004/ai-mode";
+
+async function applyAiMode() {
+    try {
+        const response = await fetch(`${AI_MODE_URL}/status`);
+        const status = await response.json();
+        if (status.enabled) return;
+    } catch (error) {
+        return;
+    }
+    document.querySelectorAll("[data-ai-feature]").forEach((element) => {
+        element.hidden = true;
+    });
+    const notice = document.querySelector("#ai-mode-notice");
+    const card = document.querySelector("#generate-card");
+    if (notice) notice.hidden = false;
+    if (card) card.hidden = true;
+}
+
+applyAiMode();

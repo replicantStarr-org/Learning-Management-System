@@ -36,6 +36,8 @@ services:
       OLLAMA_MODEL: llama3.1:8b
       # MCP and RAG are enabled by default for local application use. CI
       # passes MCP_ENABLED=false and RAG_ENABLED=false on the compose command line.
+      # AI-Mode (quiz generation and AI feedback) is also on locally and off in CI and the cloud.
+      AI_MODE_ENABLED: "${AI_MODE_ENABLED:-true}"
       MCP_ENABLED: "${MCP_ENABLED:-true}"
       MCP_SERVER_URL: http://127.0.0.1:8000/mcp
       RAG_ENABLED: "${RAG_ENABLED:-true}"
