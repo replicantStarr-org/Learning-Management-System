@@ -1,0 +1,10 @@
+Review {{MULTI_AGENT_PATH}} coordination for {{SERVICE_NAME}} ({{SERVICE_PATH}}) using only supplied evidence.
+Check planner -> worker -> independent reviewer sequencing,
+plan propagation, authoritative service-scoped evidence, source references,
+missing/truncated evidence, model timeouts and failure reporting, API validation, backend mode gates,
+read-only boundaries, persisted workflow/audit records and explicit human decision gating.
+Model recommendations must never count as human approval.
+Failed workflows must not be accepted.
+Distinguish source-code checks from observed runtime behaviour: file presence alone proves neither correct output nor successful execution.
+Identify concrete gaps, corrections and retests; never invent live runs or approvals.
+Consider feature adapter extensibility without coupling other features into the Subjects integration.
