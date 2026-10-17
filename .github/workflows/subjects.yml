@@ -31,7 +31,7 @@ env:
 
 jobs:
   post-commit-tests:
-    name: Subjects API — two endpoint tests
+    name: Subjects API - Two endpoint tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
