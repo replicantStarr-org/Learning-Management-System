@@ -34,6 +34,7 @@ services:
       OLLAMA_BASE_URL: http://localhost:11434/v1
       OLLAMA_MODEL: qwen2.5:0.5b
       SUMMARY_MAX_AGE_HOURS: 168
+      JWT_SECRET: "${JWT_SECRET:-}"
       # Integrations are enabled by default for local application use. CI
       # disables external integrations on the compose command line.
       MCP_ENABLED: "${MCP_ENABLED:-true}"

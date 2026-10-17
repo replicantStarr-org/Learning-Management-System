@@ -2,17 +2,21 @@ from flask import Flask
 from flask_cors import CORS
 
 from routes.api import api_bp
+from routes.auth import auth_bp
 from routes.mcp import mcp_bp
 from routes.rag import rag_bp
 from routes.multi_agent import multi_agent_bp
 from routes.subjects import subjects_bp
+from services.token_secret import load_jwt_secret
 
 
 def create_app():
     app = Flask(__name__)
+    app.config["JWT_SECRET"] = load_jwt_secret(app.instance_path)
     CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
     app.register_blueprint(subjects_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(mcp_bp)
     app.register_blueprint(rag_bp)
     app.register_blueprint(multi_agent_bp)

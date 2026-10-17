@@ -6,9 +6,9 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-BACKEND="http://localhost:5001"
-DATABASE="http://localhost:6001"
-FRONTEND="http://localhost:3001"
+BACKEND="${SUBJECT_BACKEND_URL:-http://localhost:5001}"
+DATABASE="${SUBJECT_DATABASE_URL:-http://localhost:6001}"
+FRONTEND="${SUBJECT_FRONTEND_URL:-http://localhost:3001}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-10}"
 # Flask's development server and SQLite are intentionally exercised with a
 # small worker pool so the latency assertion is stable on shared CI runners.

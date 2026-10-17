@@ -3,3 +3,10 @@ extend-exclude = [".venv*", "venv", "env", "ENV"]
 
 [tool.ruff.lint]
 select = ["S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/subjects"]
+addopts = "-ra"
