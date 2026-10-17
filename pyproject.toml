@@ -1,0 +1,5 @@
+[tool.ruff]
+extend-exclude = [".venv*", "venv", "env", "ENV"]
+
+[tool.ruff.lint]
+select = ["S"]

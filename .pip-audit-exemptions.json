@@ -1,0 +1,15 @@
+[
+  {
+    "requirements": "rag-server/requirements.txt",
+    "package": "chromadb",
+    "version": "1.5.9",
+    "vulnerabilities": [
+      "PYSEC-2026-311",
+      "PYSEC-2026-3813",
+      "PYSEC-2026-3814",
+      "PYSEC-2026-3815"
+    ],
+    "reason": "RAG uses embedded PersistentClient with local feature-hashing embeddings. It does not expose Chroma HTTP collection-management APIs, accept remote model repositories, or use Chroma server multi-tenant authorization. These server-side advisories have no published fixed release. Reassess before exposing Chroma as a server or changing this architecture.",
+    "expires": "2027-01-14"
+  }
+]
