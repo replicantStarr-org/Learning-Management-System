@@ -1,4 +1,4 @@
-name: Subjects Post-Commit Tests
+name: Subjects Management CI
 
 on:
   pull_request:
