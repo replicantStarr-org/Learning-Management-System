@@ -3,3 +3,4 @@ flask-cors==6.0.5
 openai==1.99.9
 requests==2.34.2
 mcp==2.3.0
+PyJWT==2.15.1
