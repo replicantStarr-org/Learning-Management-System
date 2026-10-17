@@ -48,7 +48,10 @@ for name in access subjects resources assignments quizzes timetable; do
   # Applying identical config to a stopped app may not create a revision; reactivate it explicitly.
   # TODO: check this is required at all
   REVISION="$(az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" --query properties.latestRevisionName -o tsv)"
-  az containerapp revision activate -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" -o none
+  ACTIVE="$(az containerapp revision show -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" --query properties.active -o tsv)"
+  if [[ "$ACTIVE" != true ]]; then
+    az containerapp revision activate -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" -o none
+  fi
  done
 
 # update the report with the current state of container apps
