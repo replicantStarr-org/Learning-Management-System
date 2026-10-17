@@ -16,10 +16,12 @@ STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
 
 # Apply exclusions even when a backend uses a subdirectory as its build context.
+# common.sh uses umask 077 for secrets; preserve source modes during extraction
+# so nginx workers can still read the staged HTML/assets copied into images.
 tar --exclude='.git' --exclude='.cloud' --exclude='reports' --exclude='.venv*' \
   --exclude='__pycache__' --exclude='.env' --exclude='.env.*' --exclude='*.db' \
   --exclude='*.sqlite*' --exclude='*.jsonl' --exclude='chroma' --exclude='content' \
-  --exclude='.pytest_cache' --exclude='.ruff_cache' -cf - . | tar -xf - -C "$STAGING"
+  --exclude='.pytest_cache' --exclude='.ruff_cache' -cf - . | tar --no-same-owner --same-permissions -xf - -C "$STAGING"
 
 MANIFEST="$STATE_DIR/images.json"
 printf '{}\n' > "$MANIFEST"
