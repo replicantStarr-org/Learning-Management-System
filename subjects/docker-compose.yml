@@ -42,7 +42,7 @@ services:
       RAG_ENABLED: "${RAG_ENABLED:-true}"
       RAG_SERVER_URL: http://localhost:5010
       MULTI_AGENT_ENABLED: "${MULTI_AGENT_ENABLED:-true}"
-      MULTI_AGENT_SERVICE_URL: http://localhost:5004
+      MULTI_AGENT_SERVICE_URL: http://localhost:15004
       MULTI_AGENT_WORKFLOW_TIMEOUT_SECONDS: 180
     depends_on:
       subject-database:
