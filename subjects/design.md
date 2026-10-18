@@ -49,6 +49,17 @@ For a quick local run, use `bash scripts/endpoint_test_local.sh` from the `subje
 
 Replace `1` with an ID returned by the list endpoint if the local database does not contain that seed ID. Expected: browser flows display the relevant page, loading state, success state, or user-facing error. API checks return the documented HTTP status and response body.
 
+### AI mode configuration
+
+`AI_MODE_ENABLED` defaults to `true` and is passed through `docker-compose.yml`, like
+MCP and RAG. Run `AI_MODE_ENABLED=false docker compose up -d` from `subjects` to
+disable model-backed summaries and questions. `GET /ai-mode/status` always returns
+`enabled`, `ai_mode_enabled`, and a message; `/config` exposes the same AI flag.
+Disabled AI routes return HTTP 403 with an HTML error fragment and `HX-Error: true`
+without calling the model. The subject page renders a disabled message, no automatic
+summary request or spinner, and disabled question controls. Ordinary subject CRUD
+and the independently configured MCP, RAG, and multi-agent integrations remain available.
+
 ### Non-functional requirements (NFRs)
 
 The following requirements apply to the running subject frontend/backend/database compose. Unless stated otherwise, performance tests should be run after the containers have started and a warm-up request has completed.
