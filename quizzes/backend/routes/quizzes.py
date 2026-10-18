@@ -3,6 +3,7 @@ from functools import wraps
 import requests
 from flask import Blueprint, make_response, request
 
+from routes.ai_mode import ai_mode_required
 from services.ollama_client import OllamaError
 from services.quiz_service import (
     ServiceError,
@@ -237,6 +238,7 @@ def stored_attempt_feedback(attempt_id):
 
 
 @quizzes_bp.post("/attempts/<int:attempt_id>/feedback")
+@ai_mode_required
 @handle_errors
 def attempt_feedback(attempt_id):
     # Feedback generation is a POST because it may create the cached
@@ -257,6 +259,7 @@ def _generate(subject_id):
 
 
 @quizzes_bp.post("/quiz-generations")
+@ai_mode_required
 @handle_errors
 def create_quiz_generation():
     """Create a generated quiz from the quiz-generation resource."""
@@ -267,6 +270,7 @@ def create_quiz_generation():
 
 
 @quizzes_bp.post("/subjects/<int:subject_id>/quiz-generations")
+@ai_mode_required
 @handle_errors
 def create_subject_quiz_generation(subject_id):
     """Nested REST form for generating a quiz for one subject."""

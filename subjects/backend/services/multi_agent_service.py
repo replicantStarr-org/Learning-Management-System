@@ -2,7 +2,7 @@ import os
 import requests
 
 SERVICE = "subjects"
-MULTI_AGENT_SERVICE_URL = os.getenv("MULTI_AGENT_SERVICE_URL", "http://localhost:5004").rstrip("/")
+MULTI_AGENT_SERVICE_URL = os.getenv("MULTI_AGENT_SERVICE_URL", "http://localhost:5020").rstrip("/")
 REQUEST_TIMEOUT = float(os.getenv("MULTI_AGENT_REQUEST_TIMEOUT_SECONDS", "10"))
 WORKFLOW_TIMEOUT = float(os.getenv("MULTI_AGENT_WORKFLOW_TIMEOUT_SECONDS", "180"))
 

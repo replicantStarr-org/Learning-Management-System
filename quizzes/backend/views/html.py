@@ -1,5 +1,7 @@
 from html import escape
 
+from services.ai_mode import DISABLED_MESSAGE, ai_mode_is_enabled
+
 BACKEND_BASE = "http://localhost:5004"
 FRONTEND_BASE = "http://localhost:3004"
 
@@ -58,11 +60,17 @@ def _source_badge(quiz):
 
 def quiz_list(quizzes):
     if not quizzes:
+        if ai_mode_is_enabled():
+            hint = "Generate one with AI or create one manually to get started."
+            action = '<a class="btn btn-primary" href="/generate.html">Generate with AI</a>'
+        else:
+            hint = "Create one manually to get started."
+            action = '<a class="btn btn-primary" href="/create.html">Create manually</a>'
         return (
             '<div class="text-center py-5">'
             '<h2 class="h4">No quizzes yet</h2>'
-            '<p class="text-secondary">Generate one with AI or create one manually to get started.</p>'
-            f'<a class="btn btn-primary" href="/generate.html">Generate with AI</a>'
+            f'<p class="text-secondary">{hint}</p>'
+            f'{action}'
             '</div>'
         )
 
@@ -169,6 +177,20 @@ def quiz_detail(quiz):
     """
 
 
+def feedback_controls(attempt):
+    if not ai_mode_is_enabled():
+        return f'<p class="text-secondary mb-0"><i class="bi bi-stars me-1" aria-hidden="true"></i>AI feedback is unavailable. {escaped(DISABLED_MESSAGE)}</p>'
+    return f"""
+            <button class="btn btn-primary" type="button"
+                    hx-post="{BACKEND_BASE}/attempts/{attempt['attempt_id']}/feedback"
+                    hx-target="#ai-feedback-result" hx-indicator="#feedback-loading">
+                <i class="bi bi-stars me-1"></i> Get AI feedback on my mistakes
+            </button>
+            <span class="htmx-indicator ms-2" id="feedback-loading" role="status"><span class="spinner-border spinner-border-sm"></span> Thinking…</span>
+            <div id="ai-feedback-result" aria-live="polite"></div>
+    """
+
+
 def attempt_result(attempt):
     rows = "".join(
         f"""
@@ -190,13 +212,7 @@ def attempt_result(attempt):
         <div class="card-body p-4">
             <h1 class="h4">Your score: {attempt['score']} / {attempt['total_questions']}</h1>
             <ul class="list-group list-group-flush my-3">{rows}</ul>
-            <button class="btn btn-primary" type="button"
-                    hx-post="{BACKEND_BASE}/attempts/{attempt['attempt_id']}/feedback"
-                    hx-target="#ai-feedback-result" hx-indicator="#feedback-loading">
-                <i class="bi bi-stars me-1"></i> Get AI feedback on my mistakes
-            </button>
-            <span class="htmx-indicator ms-2" id="feedback-loading" role="status"><span class="spinner-border spinner-border-sm"></span> Thinking…</span>
-            <div id="ai-feedback-result" aria-live="polite"></div>
+            {feedback_controls(attempt)}
         </div>
     </section>
     <a class="btn btn-outline-secondary" href="/">Back to all quizzes</a>
