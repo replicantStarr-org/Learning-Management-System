@@ -1,0 +1,8 @@
+Review shared Azure deployment with focus on {{SERVICE_NAME}} using only supplied source and sanitized cloud artifacts.
+Evaluate Container Apps/ACR provisioning,
+user-assigned managed identity and AcrPull, registry authentication without admin credentials, release/image consistency,
+deployment order, service wiring, resource sizing, scaling, HTTPS and authentication at the public edge, and isolation of backend/database ports within each app.
+Assess the application's user-assigned identity and per-app edge/sidecar topology on their own security properties; do not assume a different identity or ingress architecture is required.
+Check actual cloud verification results, deployment outcomes, and release metadata. Missing verification coverage, stale runs, failed checks, or missing artifacts must not become a successful release claim.
+Implementation agent: identify evidence-based strengths, risks, and recommendations in at most 60 words.
+Review agent: validate the assessment against evidence and identify identity, ingress isolation, or deployment-validation risks in at most 40 words.

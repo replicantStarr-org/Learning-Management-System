@@ -4,7 +4,7 @@ The agentic loop takes artifiacts, code and prompts from the repository.
 It suggests improvements by first running inputs through an implementation model and
 then refining, rejecting and filtering them with a review model.
 
-The agentic loop supports review of seven different areas:
+The agentic loop supports review of ten different areas:
 - Database
 - Endpoint Implementation
 - Application Architecture
@@ -12,6 +12,9 @@ The agentic loop supports review of seven different areas:
 - MCP Server (the running server in `../mcp`)
 - RAG Connector
 - Multi-Agent Coordination
+- Pre-Test Review
+- CI/CD Test Review
+- Deployment Review
 
 To keep reviews focused, choose which microservice the review is for for every review area, including MCP.
 An MCP review targets `../mcp` and the selected service's MCP tool area.
@@ -102,6 +105,26 @@ Otherwise for each directory there should be two files, one `*report.json` and a
 The `JSON` file should be checked for keys that contain the following substrings: `name`, `id`, `commit`, `branch` and `timestamp`.
 Finally, the workflow file should be returned to the model for review.
 
+### Testing and deployment reviews
+
+The interactive area menu includes options 8–10. The same modes are available from the CLI:
+
+```bash
+./run.sh --area pre_test --service subjects
+./run.sh --area cicd_test --service subjects
+./run.sh --area deployment --service subjects
+```
+
+These use the existing collector → implementation model → review model flow and shared agent/area/service prompt composition; no separate pipeline modules are needed.
+
+- **Pre-Test:** validates the repository's `ruff-security`, `detect-secrets`, and `pip-audit` hook wiring and supplies `.pre-commit-config.yaml`, `scripts/pre_commit.py`, Ruff configuration, and dependency exemption policy. This is repository-wide implementation review, not a scan run or proof hooks are installed.
+- **CI/CD Test:** collects the selected service's workflow, Python tests or service test scripts, and downloaded evidence under `reports/<mapped service>/`. Supports Markdown test results, JSON reports, JSONL audits, and JUnit XML using the selected service's existing artifact names. Missing tests or artifacts, empty files, and malformed structured evidence stop observation.
+- **Deployment:** collects the shared cloud workflow, provisioning/build/deploy scripts, manifest renderer, edge configuration, and verification code. Requires downloaded `reports/cloud/**/cloud-verification.json` with nonempty checks and includes available sanitized companion artifacts. Reviews this application's user-assigned identity and per-app edge/sidecar topology. Never reads private `.cloud` state or raw container logs.
+
+Choose a service for all three modes; shared checks retain that service as their review focus. Multiple artifact runs remain explicitly labelled so models can compare release/commit metadata. A successful observation means evidence is available, **not** that tests or deployment passed. Failed test/deployment outcomes are supplied to both models for review, not silently converted to PASS. Download CI/cloud artifacts first when observation reports missing evidence.
+
+Results are printed only. Copy the three runs into a review summary manually if needed; these modes do not execute scans, run tests, deploy resources, or write release approvals.
+
 ### Prompts
 
 Each area + microservice will also have prompts which serve as instructions for the models alongside the evidence provided by the collectors.
@@ -122,6 +145,11 @@ The following format will be used:
     - `architecture_prompt.txt`
     - `devops_prompt.txt`
     - `mcp_prompt.txt`
+    - `rag_prompt.txt`
+    - `multi_agent_prompt.txt`
+    - `pre_test_prompt.txt`
+    - `cicd_test_prompt.txt`
+    - `deployment_prompt.txt`
 - `services/`
     - `access_prompt.txt`
     - `subjects_prompt.txt`
