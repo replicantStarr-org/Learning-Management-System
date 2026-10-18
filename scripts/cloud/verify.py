@@ -54,6 +54,13 @@ def main():
         challenge = requests.get(url + "/", timeout=30)
         check(app["name"] + " authentication enforced", challenge.status_code == 401)
 
+        # check that the access correctly redirects to the login page
+        # without changing origin (e.g. changing to port 3000 like the local deployment)
+        if app["name"] == "lh-access":
+            redirect = session.get(url + "/", allow_redirects=False, timeout=30)
+            check("Access same-origin login redirect", redirect.status_code == 302
+                  and redirect.headers.get("Location") == "/login")
+
         if app["name"] == "lh-subjects":
             subjects_url = url
 
