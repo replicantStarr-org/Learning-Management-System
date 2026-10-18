@@ -1,6 +1,7 @@
 name: Access Management CI
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - "access/**"

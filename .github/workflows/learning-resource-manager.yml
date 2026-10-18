@@ -17,6 +17,7 @@ on:
       - "shared/assets/**"
       - ".github/workflows/learning-resource-manager.yml"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
