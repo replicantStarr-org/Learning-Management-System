@@ -103,7 +103,7 @@ def add_subject():
     return subjects_changed(
         message(f"{subject['code']} was created."),
         201,
-        f"http://localhost:3001/subject.html?id={subject['subject_id']}",
+        f"/subject.html?id={subject['subject_id']}",
     )
 
 
@@ -117,7 +117,7 @@ def edit_subject():
     subject = update_subject(int(subject_id), data)
     return subjects_changed(
         message(f"{subject['code']} was updated."),
-        redirect=f"http://localhost:3001/subject.html?id={subject['subject_id']}",
+        redirect=f"/subject.html?id={subject['subject_id']}",
     )
 
 
@@ -129,7 +129,7 @@ def remove_subject():
         raise ServiceError("A valid subject ID is required")
     delete_subject(int(subject_id))
     return subjects_changed(
-        "", redirect="http://localhost:3001/?message=Subject%20deleted."
+        "", redirect="/?message=Subject%20deleted."
     )
 
 
