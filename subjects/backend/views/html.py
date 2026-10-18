@@ -1,5 +1,7 @@
 from html import escape
 
+from services.ai_mode import DISABLED_MESSAGE, ai_mode_is_enabled
+
 
 def escaped(value):
     return escape(str(value), quote=True)
@@ -157,6 +159,20 @@ def tag_manager(subject, tags):
 
 def subject_detail(subject, tags):
     subject_id = escaped(subject["subject_id"])
+    ai_enabled = ai_mode_is_enabled()
+    summary_attributes = (
+        f'hx-post="/subjects/{subject_id}/summary" hx-trigger="load" hx-swap="innerHTML"'
+        if ai_enabled else ""
+    )
+    summary_content = '''
+        <div class="d-flex align-items-center gap-2 py-3 text-secondary" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span>Loading AI summary…</span>
+        </div>
+    ''' if ai_enabled else f'<p class="text-secondary" role="status">{escaped(DISABLED_MESSAGE)}</p>'
+    question_description = (
+        "Ask a question using the information in this subject." if ai_enabled else DISABLED_MESSAGE
+    )
     return f"""
     <article>
         <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
@@ -195,12 +211,8 @@ def subject_detail(subject, tags):
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-stars text-primary" aria-hidden="true"></i> AI summary</h2>
                         <div id="summary-result" aria-live="polite"
-                             hx-post="/subjects/{subject_id}/summary"
-                             hx-trigger="load" hx-swap="innerHTML">
-                            <div class="d-flex align-items-center gap-2 py-3 text-secondary" role="status">
-                                <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
-                                <span>Loading AI summary…</span>
-                            </div>
+                             {summary_attributes}>
+                            {summary_content}
                         </div>
                     </div>
                 </section>
@@ -209,13 +221,15 @@ def subject_detail(subject, tags):
                 <section class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-chat-dots text-primary" aria-hidden="true"></i> Ask about this subject</h2>
-                        <p class="text-secondary">Ask a question using the information in this subject.</p>
+                        <p class="text-secondary">{escaped(question_description)}</p>
                         <form hx-post="/subjects/questions" hx-target="#question-result" hx-indicator="#question-loading">
+                            <fieldset {'' if ai_enabled else 'disabled'}>
                             <input type="hidden" name="subject_id" value="{subject_id}">
                             <label class="form-label" for="question">Question</label>
                             <textarea class="form-control mb-3" id="question" name="question" rows="3" maxlength="1000" required></textarea>
                             <button class="btn btn-primary" type="submit">Ask AI</button>
                             <span class="htmx-indicator ms-2" id="question-loading" role="status"><span class="spinner-border spinner-border-sm"></span> Thinking…</span>
+                            </fieldset>
                         </form>
                         <div id="question-result" aria-live="polite"></div>
                     </div>

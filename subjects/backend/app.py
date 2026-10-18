@@ -1,16 +1,17 @@
 import os
-import re
 from urllib.parse import urlsplit
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+from routes.ai_mode import ai_mode_bp
 from routes.api import api_bp
 from routes.auth import auth_bp
 from routes.mcp import mcp_bp
 from routes.rag import rag_bp
 from routes.multi_agent import multi_agent_bp
 from routes.subjects import subjects_bp
+from services.ai_mode import ai_mode_is_enabled
 from services.token_secret import load_jwt_secret
 
 
@@ -29,20 +30,17 @@ def create_app():
                 origin and (urlsplit(origin).scheme != "https" or urlsplit(origin).netloc != request.host)
             ):
                 return jsonify(error="Cross-origin mutations are not allowed."), 403
-        ai_request = request.path == "/subjects/questions" or re.fullmatch(r"/subjects/\d+/summary", request.path)
-        if ai_request and os.getenv("AI_MODE_ENABLED", "true").lower() not in {"true", "1", "yes", "on"}:
-            response = jsonify(error="AI mode is disabled in this deployment.", enabled=False)
-            response.headers["HX-Error"] = "true"
-            return response, 403
 
     @app.get("/config")
     def runtime_config():
         flags = {name: os.getenv(name, "true").lower() in {"true", "1", "yes", "on"}
-                 for name in ("AI_MODE_ENABLED", "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED")}
+                 for name in ("MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED")}
+        flags["AI_MODE_ENABLED"] = ai_mode_is_enabled()
         return jsonify(profile=os.getenv("DEPLOYMENT_PROFILE", "local"), flags=flags,
                        navigation={name: os.getenv(f"{name.upper()}_FRONTEND_URL", f"http://localhost:{port}")
                                    for name, port in (("access", 3000), ("resources", 3002),
                                                       ("assignments", 3003), ("quizzes", 3004), ("timetable", 3005))})
+    app.register_blueprint(ai_mode_bp)
     app.register_blueprint(subjects_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(auth_bp)

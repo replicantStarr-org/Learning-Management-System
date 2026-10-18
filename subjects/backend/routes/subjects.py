@@ -3,6 +3,7 @@ from functools import wraps
 import requests
 from flask import Blueprint, make_response, request
 
+from routes.ai_mode import ai_mode_required
 from services.ollama_client import OllamaError
 from services.subject_service import (
     ServiceError,
@@ -198,12 +199,14 @@ def edit_subject_tags(subject_id):
 
 
 @subjects_bp.post("/subjects/<int:subject_id>/summary")
+@ai_mode_required
 @handle_errors
 def subject_summary(subject_id):
     return summary_result(get_or_create_summary(subject_id))
 
 
 @subjects_bp.post("/subjects/questions")
+@ai_mode_required
 @handle_errors
 def subject_question():
     subject_id = request.form.get("subject_id", "")
