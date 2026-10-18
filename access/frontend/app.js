@@ -1,4 +1,4 @@
-const apiUrl = "http://localhost:5000";
+const apiUrl = "/api";
 
 function showMessage(text, kind = "danger") {
     const message = document.querySelector("#form-message");
