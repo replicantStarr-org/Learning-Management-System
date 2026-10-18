@@ -4,7 +4,7 @@ server {
     server_tokens off;
     access_log /dev/stdout safe;
     client_max_body_size 64m;
-    auth_basic "Learning Hub cloud demo";
+    auth_basic "Learning Hub";
     auth_basic_user_file /etc/nginx/htpasswd;
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options SAMEORIGIN always;
