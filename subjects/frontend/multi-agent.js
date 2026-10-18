@@ -1,4 +1,4 @@
-const backend = "http://localhost:5001/multi-agent";
+const backend = "/multi-agent";
 const toggle = document.querySelector("#mode-toggle");
 const message = document.querySelector("#message");
 const output = document.querySelector("#output");

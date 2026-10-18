@@ -51,7 +51,7 @@ async function loadSubject() {
     const suffix = subjectView.dataset.subjectView === "edit" ? "/edit" : "";
     try {
         const response = await fetch(
-            `http://localhost:5001/subjects/${subjectId}${suffix}`
+            `/subjects/${subjectId}${suffix}`
         );
         if (!response.ok) throw new Error("Subject request failed");
 
