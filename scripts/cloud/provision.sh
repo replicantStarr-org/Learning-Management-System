@@ -20,7 +20,7 @@ done
 
 # create Azure Resource Group
 if ! az group show -n "$RESOURCE_GROUP" >/dev/null 2>&1; then
-  EXPIRES="$(date -u -d '+14 days' +%FT%TZ)"
+  EXPIRES="$(date -u -d '+42 days' +%FT%TZ)"
   az group create -n "$RESOURCE_GROUP" -l "$LOCATION" --tags purpose=learning-hub-demo expiresAt="$EXPIRES" -o none
 fi
 
