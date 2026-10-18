@@ -1,0 +1,4 @@
+Review pre-commit scan implementation for {{SERVICE_NAME}} using the supplied repository-wide configuration, scan runner, Ruff policy, and dependency exemptions.
+Evaluate Ruff security coverage, secret detection, requirements discovery, assertion/error handling, nonzero exit propagation, independence, and commit-blocking behavior. Focus on implementation quality, not assumed scan results. Configuration alone does not prove hooks are installed.
+Implementation agent: identify evidence-based strengths, weaknesses, and recommendations in at most 60 words.
+Review agent: validate the assessment against actual evidence and identify missed coverage or commit-blocking risks in at most 40 words.

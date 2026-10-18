@@ -2,4 +2,5 @@ dotenv
 openai
 requests
 PyYAML
+defusedxml>=0.7.1
 mcp
