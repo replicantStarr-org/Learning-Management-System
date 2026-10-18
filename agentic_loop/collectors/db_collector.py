@@ -89,7 +89,7 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
         try:
             for table in table_names:
                 try:
-                    count = connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
+                    count = connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]  # noqa: S608 - identifier restricted by CREATE_TABLE regex
                 except sqlite3.Error as exc:
                     failures.append(f"{table}: query failed ({exc})")
                     continue

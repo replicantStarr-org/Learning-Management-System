@@ -1,144 +1,114 @@
-name: Subject Management CI
+name: Subjects Management CI
 
 on:
   pull_request:
     paths:
       - "subjects/**"
       - "shared/**"
+      - "tests/subjects/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
       - ".github/workflows/subjects.yml"
+  push:
+    paths:
+      - "subjects/**"
+      - "shared/**"
+      - "tests/subjects/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
+      - ".github/workflows/subjects.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
+  MCP_ENABLED: "false"
   RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
+  COMPOSE_PROJECT_NAME: subjects-ci
+  REPORT_DIR: reports/subjects
 
 jobs:
-  build-images:
-    name: Build Images
+  post-commit-tests:
+    name: Subjects API - Two endpoint tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Build subject service images
-        working-directory: subjects
-        run: docker compose build
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
 
-  smoke-check:
-    name: Smoke Check
-    runs-on: ubuntu-latest
-    needs: build-images
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Build and start Subjects services
+        run: docker compose --project-directory subjects up --detach --build
 
-      - name: Start subject services with MCP and RAG disabled
-        working-directory: subjects
-        run: MCP_ENABLED=false RAG_ENABLED=false docker compose up --detach --build
-
-      - name: Probe subject services
+      - name: Test GET and POST /api/v1/subjects
+        id: tests
         shell: bash
         run: |
-          set -euo pipefail
-
-          probe() {
-            local service="$1"
-            local url="$2"
-
-            for attempt in {1..8}; do
-              status="$(curl --silent --show-error --output /dev/null \
-                --connect-timeout 2 --max-time 5 \
-                --write-out '%{http_code}' "$url" || true)"
-
-              if [[ "$status" == "200" ]]; then
-                echo "$service responded with HTTP 200."
-                return 0
-              fi
-
-              echo "$service probe attempt $attempt/8 returned HTTP ${status:-000}."
-              if [[ "$attempt" -lt 8 ]]; then
-                sleep 2
-              fi
-            done
-
-            echo "::error::$service did not respond with HTTP 200 after 8 attempts."
-            return 1
-          }
-
-          probe "Subject database" "http://localhost:6001/"
-          probe "Subject backend" "http://localhost:5001/"
-          probe "Subject frontend" "http://localhost:3001/"
-
-      - name: Verify MCP integration is disabled
-        shell: bash
-        run: |
-          set -euo pipefail
-          response="$(curl --silent --show-error --fail http://localhost:5001/mcp/status)"
-          echo "$response"
-          jq -e '.enabled == false and .mcp_enabled == false' <<< "$response"
-
-      - name: Verify RAG integration is disabled
-        shell: bash
-        run: |
-          set -euo pipefail
-          response="$(curl --silent --show-error --fail http://localhost:5001/rag/status)"
-          echo "$response"
-          jq -e '.enabled == false and .rag_enabled == false' <<< "$response"
+          mkdir -p "$REPORT_DIR"
+          python -m pytest tests/subjects/test_subjects_api.py -v --color=no 2>&1 | tee "$REPORT_DIR/pytest.log"
 
       - name: Test scriptable non-functional requirements
-        working-directory: subjects
-        run: bash scripts/nfr_validation.sh
+        id: nfr
+        shell: bash
+        run: bash subjects/scripts/nfr_validation.sh 2>&1 | tee "$REPORT_DIR/nfr-results.log"
 
-      - name: Stop subject services
+      - name: Capture service logs
         if: always()
-        working-directory: subjects
-        run: docker compose down --volumes
-
-  evidence-upload:
-    name: Evidence Upload
-    runs-on: ubuntu-latest
-    needs: smoke-check
-    steps:
-      - name: Create evidence reports
-        env:
-          WORKFLOW_NAME: ${{ github.workflow }}
-          RUN_ID: ${{ github.run_id }}
-          COMMIT_SHA: ${{ github.sha }}
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          timestamp="$(date --utc +'%Y-%m-%dT%H:%M:%SZ')"
-          mkdir -p evidence
+          mkdir -p "$REPORT_DIR"
+          docker compose --project-directory subjects logs --no-color > "$REPORT_DIR/compose.log" 2>&1
 
-          jq --null-input \
-            --arg workflow_name "$WORKFLOW_NAME" \
-            --arg run_id "$RUN_ID" \
-            --arg commit_sha "$COMMIT_SHA" \
-            --arg branch "$BRANCH" \
-            --arg timestamp "$timestamp" \
-            '{
-              workflow_name: $workflow_name,
-              run_id: $run_id,
-              commit_sha: $commit_sha,
-              branch: $branch,
-              timestamp: $timestamp
-            }' > evidence/subjects-report.json
+      - name: Stop services and delete test data
+        if: always()
+        run: docker compose --project-directory subjects down --volumes
 
-          cat > evidence/subjects-report.md <<EOF
-          # Subject Management CI Evidence
+      - name: Publish screenshot-friendly testing report
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+          NFR_OUTCOME: ${{ steps.nfr.outcome }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          {
+            echo '# Subjects — Post-Commit CI/CD Testing Report'
+            echo
+            echo "- Workflow: \`.github/workflows/subjects.yml\`"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Branch: \`$GITHUB_REF_NAME\`"
+            echo "- Trigger: \`$GITHUB_EVENT_NAME\`"
+            echo "- Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (attempt $GITHUB_RUN_ATTEMPT)"
+            echo "- Two-endpoint pytest step: **$TEST_OUTCOME**"
+            echo "- Existing NFR checks: **$NFR_OUTCOME**"
+            echo "- Job status before publishing: **$JOB_STATUS**"
+            echo
+            echo '| Backend endpoint function | Expected result |'
+            echo '| --- | --- |'
+            echo '| GET /api/v1/subjects — api_list_subjects | HTTP 200 and a JSON list of subjects |'
+            echo '| POST /api/v1/subjects — api_create_subject | HTTP 201 and the submitted fields with a new subject ID |'
+            echo
+            echo '## Automated pytest results'
+            echo '```text'
+            if [[ -f "$REPORT_DIR/pytest.log" ]]; then
+              cat "$REPORT_DIR/pytest.log"
+            else
+              echo 'Tests did not run. See the failed setup/startup step and compose.log.'
+            fi
+            echo '```'
+          } > "$REPORT_DIR/test-results.md"
+          cat "$REPORT_DIR/test-results.md" >> "$GITHUB_STEP_SUMMARY"
 
-          - **Workflow:** $WORKFLOW_NAME
-          - **Run ID:** $RUN_ID
-          - **Commit SHA:** $COMMIT_SHA
-          - **Branch:** $BRANCH
-          - **Timestamp:** $timestamp
-          - **GitHub Actions run:** $RUN_URL
-          EOF
-
-      - name: Upload evidence reports
+      - name: Upload testing evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: subjects-ci-evidence-${{ github.run_id }}
-          path: evidence/
+          name: subjects-post-commit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_DIR }}/
           if-no-files-found: error

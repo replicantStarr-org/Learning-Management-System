@@ -1,4 +1,5 @@
 import os
+import re
 
 import requests
 
@@ -45,7 +46,9 @@ def fetch(sql, params=()):
 # Query shapes live in database/construct_db.sql as views, so the only SQL here
 # is the name of the view to read.
 def query(view):
-    return fetch(f"SELECT * FROM {view}")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", view):
+        raise DatabaseError("Invalid database view name.")
+    return fetch(f"SELECT * FROM {view}")  # noqa: S608 - identifier validated above
 
 def execute(sql, params=()):
     """Run one write, returning its 'last_row_id' and 'row_count'."""

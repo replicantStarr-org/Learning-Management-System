@@ -24,7 +24,7 @@ def register_blueprints(app):
 app = create_app()
 
 def main():
-   app.run(host='0.0.0.0', port=5002, threaded=True)
+   app.run(host='0.0.0.0', port=5002, threaded=True)  # noqa: S104 - container ingress
 
 if __name__ == "__main__":
     main()

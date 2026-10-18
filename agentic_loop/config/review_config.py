@@ -25,6 +25,7 @@ MODES = {
     "devops": ModeConfig("devops", "DevOps Pipeline", "devops_prompt.txt"),
     "mcp": ModeConfig("mcp", "MCP Server", "mcp_prompt.txt"),
     "rag": ModeConfig("rag", "RAG Connector", "rag_prompt.txt"),
+    "multi_agent": ModeConfig("multi_agent", "Multi-Agent Coordination", "multi_agent_prompt.txt"),
 }
 
 SERVICES = {

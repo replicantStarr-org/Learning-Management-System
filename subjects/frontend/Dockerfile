@@ -7,6 +7,8 @@ COPY subjects/frontend/create.html /usr/share/nginx/html/create.html
 COPY subjects/frontend/edit.html /usr/share/nginx/html/edit.html
 COPY subjects/frontend/mcp.html /usr/share/nginx/html/mcp.html
 COPY subjects/frontend/rag.html /usr/share/nginx/html/rag.html
+COPY subjects/frontend/multi-agent.html /usr/share/nginx/html/multi-agent.html
+COPY subjects/frontend/multi-agent.js /usr/share/nginx/html/multi-agent.js
 COPY subjects/frontend/app.js /usr/share/nginx/html/app.js
 COPY subjects/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY shared/assets /usr/share/nginx/html/assets

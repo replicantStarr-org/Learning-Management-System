@@ -27,7 +27,8 @@ class PromptRegistry:
             "{{SERVICE_NAME}}": service.label,
             "{{SERVICE_PATH}}": service.directory,
             "{{MCP_PATH}}": "mcp",
-            "{{RAG_PATH}}": "rag-server"
+            "{{RAG_PATH}}": "rag-server",
+            "{{MULTI_AGENT_PATH}}": "multi-agent-server"
         }
         combined = "\n\n".join(fragments)
         for placeholder, value in values.items():

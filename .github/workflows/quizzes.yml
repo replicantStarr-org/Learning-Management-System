@@ -5,10 +5,16 @@ on:
   push:
     paths:
       - "quizzes/**"
+      - "tests/quizzes/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
       - ".github/workflows/quizzes.yml"
   pull_request:
     paths:
       - "quizzes/**"
+      - "tests/quizzes/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
       - ".github/workflows/quizzes.yml"
   workflow_dispatch:
 
@@ -155,7 +161,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install test dependencies
-        run: pip install --requirement quizzes/tests/requirements.txt
+        run: python -m pip install --requirement requirements-dev.txt
 
       - name: Start quiz services
         working-directory: quizzes
@@ -176,10 +182,9 @@ jobs:
           exit 1
 
       - name: Run endpoint tests (POST /quizzes and POST /quizzes/{id}/attempts)
-        working-directory: quizzes
         run: |
-          mkdir -p ../test-results
-          python -m pytest --verbose --junitxml=../test-results/quizzes-endpoint-tests.xml
+          mkdir -p test-results
+          python -m pytest tests/quizzes --verbose --junitxml=test-results/quizzes-endpoint-tests.xml
 
       - name: Upload endpoint test results
         if: always()

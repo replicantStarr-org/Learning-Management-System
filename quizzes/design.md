@@ -298,17 +298,15 @@ and `POST /attempts/{id}/feedback` with HTTP 403, `GET /ai-mode/status` reports 
 the frontend hides the Generate links and shows an explanation. CRUD and quiz-taking are unaffected.
 CI and the cloud deployment run with it off.
 
-**Post-commit endpoint tests.** `quizzes/tests/test_quiz_endpoints.py` tests two backend endpoint
+**Post-commit endpoint tests.** `tests/quizzes/test_quiz_endpoints.py` (same `tests/<service>/` layout as Subjects) tests two backend endpoint
 functions against the running stack: `POST /quizzes` (create, plus rejection of a missing title and an
 unknown difficulty) and `POST /quizzes/{id}/attempts` (grading: full marks, one wrong answer, missing
 student name). `quizzes.yml` runs them in the `endpoint-tests` job on every push and pull request that
-touches `quizzes/`, uploads the JUnit XML, and folds the counts into the evidence report. Validation
+touches `quizzes/` or `tests/quizzes/`, uploads the JUnit XML, and folds the counts into the evidence report. Validation
 failures reach the browser as an HTML alert with the `HX-Error` header and HTTP 200, so the tests assert
-those. Run locally with `pip install -r tests/requirements.txt && pytest` from `quizzes/` while the
+those. Run locally from the repository root with `pip install -r requirements-dev.txt && pytest tests/quizzes` while the
 services are up (`QUIZ_BACKEND_URL` overrides `http://localhost:5004`).
 
-**Pre-commit security scans.** `.pre-commit-config.yaml` (repository root) runs Ruff security rules
-(`quizzes/pyproject.toml`, rule set `S`), detect-secrets (`.secrets.baseline`) and pip-audit on commit.
-Install with `pip install pre-commit && pre-commit install`. `scripts/precommit_report.sh` runs the three
-hooks and writes `evidence/precommit-report.md`. The first scan found vulnerable pins (flask, flask-cors,
-requests, pytest), now upgraded, and three documented Ruff findings; see the report.
+**Pre-commit security scans.** These are the shared repository checks (root `.pre-commit-config.yaml`,
+`pyproject.toml`, `scripts/pre_commit.py`, `.pip-audit-exemptions.json`; see the root README). Quizzes only carries
+inline `# noqa` suppressions with reasons where Ruff flags the container bind addresses and the allow-listed UPDATE column names.

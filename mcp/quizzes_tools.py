@@ -354,11 +354,11 @@ def register_quiz_tools(mcp):
         ]
         if not quizzes:
             raise ToolError("No quizzes with questions match that subject and difficulty.")
-        quiz = client.request(f"/quizzes/{random.choice(quizzes)['quiz_id']}")
+        quiz = client.request(f"/quizzes/{random.choice(quizzes)['quiz_id']}")  # noqa: S311 - practice selection, not security
         if not quiz["questions"]:
             # question_count is stored on the quiz, so it can briefly disagree with its questions.
             raise ToolError("That quiz has no questions yet. Try again.")
-        number, question = random.choice(list(enumerate(quiz["questions"], start=1)))
+        number, question = random.choice(list(enumerate(quiz["questions"], start=1)))  # noqa: S311 - practice selection, not security
         return json.dumps(
             {
                 "quiz_id": quiz["quiz_id"],

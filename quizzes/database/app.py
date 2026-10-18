@@ -229,7 +229,7 @@ def update_quiz(quiz_id):
 
         assignments = ", ".join(f"{field} = ?" for field in fields)
         values = [body[field] for field in fields] + [quiz_id]
-        conn.execute(f"UPDATE quizzes SET {assignments} WHERE quiz_id = ?", values)  # noqa: S608 - column names come from the fixed QUIZ_FIELDS list, values are bound parameters
+        conn.execute(f"UPDATE quizzes SET {assignments} WHERE quiz_id = ?", values)  # noqa: S608 - columns from QUIZ_FIELDS; values parameterized
         conn.commit()
         return jsonify(dict(get_quiz(quiz_id, conn)))
     except sqlite3.IntegrityError as exc:
@@ -554,4 +554,4 @@ def store_attempt_feedback(attempt_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=6004)  # noqa: S104 - must listen on all interfaces inside the container
+    app.run(host="0.0.0.0", port=6004)  # noqa: S104 - container ingress

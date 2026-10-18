@@ -44,7 +44,7 @@ def get_assignment(assignment_id, conn=None):
     owns_connection = conn is None
     conn = conn or get_db_connection()
     row = conn.execute(
-        f"SELECT {ASSIGNMENT_COLUMNS} FROM assignments WHERE assignment_id = ?",
+        f"SELECT {ASSIGNMENT_COLUMNS} FROM assignments WHERE assignment_id = ?",  # noqa: S608 - constant columns; ID parameterized
         (assignment_id,),
     ).fetchone()
     if owns_connection:
@@ -85,7 +85,7 @@ def health():
 @app.get("/assignments")
 def list_assignments():
     """List assignments, optionally filtered. All filters are combined with AND."""
-    query = f"SELECT {ASSIGNMENT_COLUMNS} FROM assignments WHERE 1 = 1"
+    query = f"SELECT {ASSIGNMENT_COLUMNS} FROM assignments WHERE 1 = 1"  # noqa: S608 - constant columns; filters parameterized
     params = []
 
     if request.args.get("subject_id"):
@@ -129,7 +129,7 @@ def list_upcoming():
               AND due_at <= datetime('now', 'localtime', ?)
               AND status NOT IN ('Submitted', 'Graded')
             ORDER BY due_at, assignment_id
-            """,
+            """,  # noqa: S608 - constant columns; days parameterized
             (f"+{int(days)} days",),
         ).fetchall()
         return jsonify([dict(row) for row in rows])
@@ -205,7 +205,7 @@ def update_assignment(assignment_id):
 
         assignments = ", ".join(f"{field} = ?" for field in fields)
         values = [body[field] for field in fields] + [assignment_id]
-        conn.execute(f"UPDATE assignments SET {assignments} WHERE assignment_id = ?", values)
+        conn.execute(f"UPDATE assignments SET {assignments} WHERE assignment_id = ?", values)  # noqa: S608 - columns from ASSIGNMENT_FIELDS; values parameterized
         conn.commit()
         return jsonify(dict(get_assignment(assignment_id, conn)))
     except sqlite3.IntegrityError as exc:
@@ -345,4 +345,4 @@ def acknowledge_reminder(reminder_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=6003)
+    app.run(host="0.0.0.0", port=6003)  # noqa: S104 - container ingress
