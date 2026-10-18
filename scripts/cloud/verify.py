@@ -27,6 +27,8 @@ def wait(url, session, expected=200):
             response = session.get(url, timeout=30)
             if response.status_code == expected:
                 return response
+            else:
+                raise RuntimeError(f"Unexpected status code {response.status_code} from {url}")
         except requests.RequestException:
             pass
         time.sleep(5)
