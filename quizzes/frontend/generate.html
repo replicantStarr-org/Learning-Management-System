@@ -10,6 +10,7 @@
     <link href="/assets/theme.css" rel="stylesheet">
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/assets/runtime.js" defer></script>
 </head>
 
 <body>
@@ -21,20 +22,19 @@
                 <p class="text-primary fw-semibold mb-2">Quiz catalogue</p>
                 <h1 class="display-6 fw-bold"><i class="bi bi-stars text-primary" aria-hidden="true"></i> Generate an AI
                     practice quiz</h1>
-                <p class="text-secondary mb-4">Pick a subject, difficulty, and number of questions - the AI will write
+                <p class="text-secondary mb-4" data-ai-description>Pick a subject, difficulty, and number of questions - the AI will write
                     the quiz for you.</p>
-                <div id="ai-mode-notice" class="alert alert-secondary" role="status" hidden>AI-Mode is disabled, so
-                    quizzes cannot be generated here. <a class="alert-link" href="/create.html">Create a quiz
-                        manually</a> instead.</div>
                 <section class="card border-0 shadow-sm" id="generate-card">
                     <div class="card-body p-4 p-md-5">
-                        <form hx-post="http://localhost:5004/quiz-generations" hx-target="#form-result"
+                        <p class="text-secondary" role="status" data-ai-disabled hidden>AI quiz generation is disabled in this deployment. You can still <a href="/create.html">create a quiz manually</a> or practise with an existing quiz.</p>
+                        <form hx-post="/quiz-generations" hx-target="#form-result"
                             hx-indicator="#generate-loading">
+                            <fieldset data-ai-controls disabled>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label" for="subject_id">Subject</label>
                                     <select class="form-select" id="subject_id" name="subject_id" required autofocus
-                                        hx-get="http://localhost:5004/subjects" hx-trigger="load" hx-target="this"
+                                        hx-get="/subjects" hx-trigger="load" hx-target="this"
                                         hx-swap="innerHTML">
                                         <option value="" disabled selected>Loading subjects…</option>
                                     </select>
@@ -61,11 +61,12 @@
                             <div class="d-flex gap-2 align-items-center flex-wrap">
                                 <button class="btn btn-primary" type="submit"><i class="bi bi-stars me-1"></i> Generate
                                     quiz</button>
-                                <a class="btn btn-outline-secondary" href="/">Cancel</a>
                                 <span class="htmx-indicator" id="generate-loading" role="status"><span
                                         class="spinner-border spinner-border-sm"></span> Generating… this can take up to
                                     a minute.</span>
                             </div>
+                            </fieldset>
+                            <a class="btn btn-outline-secondary mt-3" href="/">Back to quizzes</a>
                             <div id="form-result" aria-live="polite"></div>
                         </form>
                     </div>

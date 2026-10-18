@@ -2,8 +2,8 @@ from html import escape
 
 from services.ai_mode import DISABLED_MESSAGE, ai_mode_is_enabled
 
-BACKEND_BASE = "http://localhost:5004"
-FRONTEND_BASE = "http://localhost:3004"
+BACKEND_BASE = ""
+FRONTEND_BASE = ""
 
 
 def escaped(value):

@@ -9,6 +9,7 @@
     <link href="/assets/theme.css" rel="stylesheet">
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/assets/runtime.js" defer></script>
 </head>
 
 <body>
@@ -23,12 +24,12 @@
                 </p>
                 <section class="card border-0 shadow-sm">
                     <div class="card-body p-4 p-md-5">
-                        <form hx-post="http://localhost:5004/quizzes" hx-target="#form-result">
+                        <form hx-post="/quizzes" hx-target="#form-result">
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label" for="subject_id">Subject</label>
                                     <select class="form-select" id="subject_id" name="subject_id" required autofocus
-                                        hx-get="http://localhost:5004/subjects" hx-trigger="load" hx-target="this"
+                                        hx-get="/subjects" hx-trigger="load" hx-target="this"
                                         hx-swap="innerHTML"
                                         onchange="document.getElementById('subject_name').value = this.options[this.selectedIndex].text">
                                         <option value="" disabled selected>Loading subjects…</option>

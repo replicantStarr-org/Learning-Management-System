@@ -5,15 +5,15 @@ import re
 from openai import OpenAI, OpenAIError
 
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1").rstrip("/")
+OLLAMA_BASE_URL = os.getenv("OPENAI_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")).rstrip("/")
 # Quiz generation needs reliable structured JSON output, which qwen2.5:0.5b (used by the
 # lighter-weight subject Q&A/summary features) is too small to produce consistently. Llama
 # 3.1 8B is an approved model that follows the JSON schema instructions far more reliably.
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
-TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "90"))
+OLLAMA_MODEL = os.getenv("OPENAI_MODEL", os.getenv("OLLAMA_MODEL", "llama3.1:8b"))
+TIMEOUT = float(os.getenv("OPENAI_TIMEOUT_SECONDS", os.getenv("OLLAMA_TIMEOUT_SECONDS", "90")))
 BLOCKED_OUTPUT = "QUIZ_REQUEST_BLOCKED"
 
-client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama", timeout=TIMEOUT)
+client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=os.getenv("OPENAI_API_KEY", "ollama"), timeout=TIMEOUT)
 
 GENERATE_SYSTEM_PROMPT = f"""You write multiple-choice practice quizzes for a Learning Management System.
 Use only the supplied subject/topic context. Write a short, specific quiz title (under 80 characters, no quotes,

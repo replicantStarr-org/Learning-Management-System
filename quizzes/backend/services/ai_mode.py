@@ -13,4 +13,5 @@ DISABLED_MESSAGE = "AI-Mode is disabled."
 
 
 def ai_mode_is_enabled():
-    return os.getenv("AI_MODE_ENABLED", "true").strip().lower() in TRUE_VALUES
+    cloud = os.getenv("CLOUD_DEPLOYMENT", "false").strip().lower() in TRUE_VALUES
+    return os.getenv("AI_MODE_ENABLED", "false" if cloud else "true").strip().lower() in TRUE_VALUES
