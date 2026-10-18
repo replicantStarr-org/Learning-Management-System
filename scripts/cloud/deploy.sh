@@ -45,8 +45,9 @@ for name in access subjects resources assignments quizzes timetable; do
   else
     run_logged az containerapp create -n "lh-$name" -g "$RESOURCE_GROUP" --yaml "$STATE_DIR/manifests/$name.yaml" -o none
   fi
-  # Applying identical config to a stopped app may not create a revision; reactivate it explicitly.
-  # TODO: check this is required at all
+
+  # applying identical config to a stopped app may not create a revision
+  # reactivate it explicitly if required
   REVISION="$(az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" --query properties.latestRevisionName -o tsv)"
   ACTIVE="$(az containerapp revision show -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" --query properties.active -o tsv)"
   if [[ "$ACTIVE" != true ]]; then
