@@ -3,12 +3,12 @@ import os
 from openai import OpenAI, OpenAIError
 
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1").rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
+OLLAMA_BASE_URL = os.getenv("OPENAI_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")).rstrip("/")
+OLLAMA_MODEL = os.getenv("OPENAI_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b"))
 TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "90"))
 BLOCKED_OUTPUT = "SUBJECT_REQUEST_BLOCKED"
 
-client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama", timeout=TIMEOUT)
+client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=os.getenv("OPENAI_API_KEY", "ollama"), timeout=TIMEOUT, max_retries=1)
 
 SUMMARY_SYSTEM_PROMPT = f"""You summarise Learning Management System subjects for students.
 Use only the supplied subject record. Write one accurate, neutral paragraph of at most 120 words.
@@ -35,12 +35,13 @@ def _chat(system_prompt, user_prompt):
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
+            max_tokens=400,
         )
         answer = (response.choices[0].message.content or "").strip()
     except (OpenAIError, IndexError, AttributeError) as exc:
-        raise OllamaError("The local AI model is unavailable.") from exc
+        raise OllamaError("The AI model is unavailable.") from exc
     if not answer:
-        raise OllamaError("The local AI model returned an empty response.")
+        raise OllamaError("The AI model returned an empty response.")
     return answer
 
 
