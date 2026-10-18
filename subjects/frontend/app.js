@@ -3,6 +3,14 @@ const subjectId = queryParams.get("id");
 const subjectView = document.querySelector("[data-subject-view]");
 const pageMessage = document.querySelector("#page-message");
 
+// Render backend error fragments too (e.g. AI mode switched off after page load).
+document.addEventListener("htmx:beforeSwap", (event) => {
+    if (event.detail.xhr.getResponseHeader("HX-Error") === "true") {
+        event.detail.shouldSwap = true;
+        event.detail.isError = false;
+    }
+});
+
 function closeAllTagMenus() {
     document.querySelectorAll("#tag-manager details[open]").forEach((menu) => {
         menu.removeAttribute("open");

@@ -7,15 +7,6 @@ function applyRuntimeConfig() {
         const name = names[new URL(link.href).port];
         if (runtimeConfig.navigation[name]) link.href = runtimeConfig.navigation[name];
     });
-    if (!runtimeConfig.flags.AI_MODE_ENABLED) {
-        const summary = document.querySelector("#summary-result");
-        if (summary) {
-            summary.removeAttribute("hx-post");
-            summary.textContent = "AI mode is disabled in this deployment.";
-        }
-        document.querySelectorAll('form[hx-post="/subjects/questions"] button, form[hx-post="/subjects/questions"] textarea')
-            .forEach((control) => { control.disabled = true; });
-    }
     const nav = document.querySelector("nav .container");
     if (nav && !document.querySelector("#deployment-profile")) {
         const badge = document.createElement("span");
