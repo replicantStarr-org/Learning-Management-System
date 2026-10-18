@@ -1,0 +1,7 @@
+Review post-commit CI/CD tests and downloaded evidence for {{SERVICE_NAME}}.
+Evaluate actual test coverage (including authentication only where demonstrated), execution status, failure reporting, workflow test wiring, and report completeness.
+Inspect Markdown, JSON reports, JSONL audit entries, and JUnit XML when provided.
+Missing formats are evidence gaps, not proof of failure or success.
+Distinguish failed, skipped, and unexecuted tests from passing tests; compare run/commit metadata and never assume historical artifacts describe the current release.
+Implementation agent: identify evidence-based strengths, weaknesses, and recommendations in at most 60 words.
+Review agent: validate the assessment and identify test coverage or release-evidence gaps in at most 40 words.
