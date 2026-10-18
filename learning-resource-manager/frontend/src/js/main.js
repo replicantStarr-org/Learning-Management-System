@@ -1023,6 +1023,7 @@ function setMode(mode) {
 	document.getElementById(`mode-${mode}`).checked = true;
 	history.replaceState(null, "", mode === "library" ? location.pathname + location.search : `#${mode}`);
 
+	if (mode === "rag") loadRagStatus();
 	MODES[mode].focus?.focus();
 }
 
@@ -1104,15 +1105,54 @@ function showRetrieveResults(output, result) {
 	output.replaceChildren(status, list);
 }
 
-// Frontend switches for the two integrations. While a mode is off, its cards
-// fail in the page and no request reaches the backend.
-let ragEnabled = true;
+// Fail closed until the backend confirms that RAG is enabled.
+let ragEnabled = false;
+let ragAvailable = false;
 let mcpEnabled = true;
 
 const ragSwitch = document.getElementById("rag-switch");
-ragSwitch.addEventListener("change", () => {
-	ragEnabled = ragSwitch.checked;
-});
+const ragTools = document.getElementById("rag-tools");
+const ragModeStatus = document.getElementById("rag-mode-status");
+
+function updateRagMode(message) {
+	ragEnabled = ragAvailable && ragSwitch.checked;
+	ragSwitch.disabled = !ragAvailable;
+	ragTools.disabled = !ragEnabled;
+	ragModeStatus.textContent = message || (ragEnabled
+		? "RAG mode is on. Ask questions and manage the library’s RAG index below."
+		: "RAG mode is off. Turn it on to use the RAG tools.");
+}
+
+ragSwitch.addEventListener("change", () => updateRagMode());
+
+let ragStatusPending = false;
+
+async function loadRagStatus() {
+	if (ragStatusPending) return;
+	ragStatusPending = true;
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 10000);
+	try {
+		const response = await fetch("/api/rag/status", {
+			cache: "no-store",
+			signal: controller.signal,
+		});
+		if (!response.ok) throw new Error("RAG status request failed");
+		const status = await response.json();
+		if (typeof status.enabled !== "boolean") throw new Error("Invalid RAG status");
+		ragSwitch.checked = status.enabled && (!ragAvailable || ragSwitch.checked);
+		ragAvailable = status.enabled;
+		updateRagMode(ragAvailable ? undefined
+			: "RAG is disabled by the application configuration.");
+	} catch {
+		ragAvailable = false;
+		ragSwitch.checked = false;
+		updateRagMode("RAG availability could not be checked. Tools are locked until the backend is reachable; reopen RAG Mode to try again. The library is still available.");
+	} finally {
+		clearTimeout(timeout);
+		ragStatusPending = false;
+	}
+}
 
 const mcpSwitch = document.getElementById("mcp-switch");
 mcpSwitch.addEventListener("change", () => {
@@ -1144,6 +1184,11 @@ async function callEndpoint(button, output, url, request = {}, show = showEndpoi
 	try {
 		const response = await fetch(url, request);
 		const body = await response.json().catch(() => ({}));
+		if (mode === "RAG" && response.status === 403 && body.enabled === false) {
+			ragAvailable = false;
+			ragSwitch.checked = false;
+			updateRagMode("RAG is disabled by the application configuration.");
+		}
 		const elapsed = Math.round(performance.now() - started);
 		show(output, {
 			ok: response.ok,

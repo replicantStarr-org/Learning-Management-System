@@ -26,6 +26,7 @@ services:
       - AI_MODE_ENABLED=${AI_MODE_ENABLED:-true}
       # The RAG server (rag-server/), on server.port in its config.toml.
       - RAG_SERVER_URL=http://localhost:5010
+      - RAG_ENABLED=${RAG_ENABLED:-true}
       # The shared MCP server (mcp/). 127.0.0.1 rather than localhost, because
       # it listens on IPv4 loopback only.
       - MCP_SERVER_URL=http://127.0.0.1:8000/mcp
