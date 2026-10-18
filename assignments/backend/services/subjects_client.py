@@ -2,15 +2,14 @@ import os
 
 import requests
 
-# Cross-feature read: per the top-level design.md integration rule, other features may only be
-# queried through their database service's CRUD API, never by touching their database file.
-SUBJECTS_DATABASE_URL = os.getenv("SUBJECTS_DATABASE_SERVICE_URL", "http://localhost:6001").rstrip("/")
+# Cross-feature reads go through Subjects' read-only public frontend proxy.
+SUBJECTS_PUBLIC_URL = os.getenv("SUBJECTS_PUBLIC_SERVICE_URL", "http://localhost:3001/public").rstrip("/")
 TIMEOUT = float(os.getenv("SUBJECTS_DATABASE_TIMEOUT_SECONDS", "3"))
 
 
 def _get(path):
     try:
-        response = requests.get(f"{SUBJECTS_DATABASE_URL}{path}", timeout=TIMEOUT)
+        response = requests.get(f"{SUBJECTS_PUBLIC_URL}{path}", timeout=TIMEOUT)
     except requests.RequestException:
         return None
     if not response.ok:
