@@ -55,6 +55,15 @@ def health():
     return jsonify({"service": "access-backend", "status": "running"})
 
 
+@app.get("/config")
+def runtime_config():
+    return jsonify(navigation={
+        name: os.getenv(f"{name.upper()}_FRONTEND_URL", f"http://localhost:{port}")
+        for name, port in (("subjects", 3001), ("resources", 3002),
+                           ("assignments", 3003), ("quizzes", 3004), ("timetable", 3005))
+    })
+
+
 @app.get("/session")
 def session():
     username = valid_session()

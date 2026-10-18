@@ -7,6 +7,23 @@ function showMessage(text, kind = "danger") {
     message.textContent = text;
 }
 
+async function loadNavigation() {
+    const links = document.querySelectorAll("[data-service]");
+    if (!links.length) return;
+
+    try {
+        const response = await fetch(`${apiUrl}/config`);
+        if (!response.ok) throw new Error("Unable to load navigation");
+        const { navigation } = await response.json();
+        links.forEach((link) => {
+            const url = navigation[link.dataset.service];
+            if (url) link.href = url;
+        });
+    } catch (error) {
+        console.error("Service navigation is unavailable", error);
+    }
+}
+
 async function checkSession() {
     if (document.body.dataset.requiresAuth !== "true") return;
 
@@ -62,4 +79,5 @@ document.querySelector("#logout")?.addEventListener("click", async () => {
     window.location.assign("/login");
 });
 
+loadNavigation();
 checkSession();
