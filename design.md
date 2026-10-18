@@ -56,8 +56,10 @@ The list of features for this application is given below, where created path and
 
 
 Features are intended to be independent but are permitted to integrate with other features by querying the database service from other features.
-This querying must be done through the CRUD web API exposed by the database service, no direct querying is allowed.
+This querying must be done through a web API, never through another feature's database file. Existing integrations use database CRUD APIs; Assignments and Quizzes read Subjects through its frontend's read-only `/public/subjects` and `/public/subjects/<id>` proxy to the backend JSON API. Configure these clients with `SUBJECTS_PUBLIC_SERVICE_URL` (locally `http://localhost:3001/public`; in cloud, the Subjects HTTPS URL plus `/public`).
 Each database service exclusively owns its schema.
+
+Access cookies remain host-only for localhost development. Cloud deployment supplies `COOKIE_DOMAIN` as the shared Container Apps environment domain, and HTTPS `FRONTEND_URL` enables secure cookies. Login and logout use the same cookie scope. The username cookie remains JavaScript-readable for Timetable; sharing it does not provide per-user authorization, and all sibling apps in that environment must be trusted.
 
 Each feature should have a `.yml` workflow file under `.github/workflows`, e.g. `subjects.yml`.
 This workflow will be responsible for building and validating the microservice.
