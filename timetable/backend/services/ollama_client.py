@@ -5,13 +5,13 @@ import re
 from openai import OpenAI, OpenAIError
 
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1").rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
-TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "240"))
+OLLAMA_BASE_URL = os.getenv("OPENAI_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")).rstrip("/")
+OLLAMA_MODEL = os.getenv("OPENAI_MODEL", os.getenv("OLLAMA_MODEL", "llama3.1:8b"))
+TIMEOUT = float(os.getenv("OPENAI_TIMEOUT_SECONDS", os.getenv("OLLAMA_TIMEOUT_SECONDS", "240")))
 MAX_RETRIES = int(os.getenv("OLLAMA_MAX_RETRIES", "0"))
 BLOCKED_OUTPUT = "TIMETABLE_REQUEST_BLOCKED"
 
-client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama", timeout=TIMEOUT, max_retries=MAX_RETRIES)
+client = OpenAI(base_url=OLLAMA_BASE_URL, api_key=os.getenv("OPENAI_API_KEY", "ollama"), timeout=TIMEOUT, max_retries=MAX_RETRIES)
 
 PLAN_SYSTEM_PROMPT = f"""You are a scheduling assistant for a Learning Management System. You will
 be given a student's current timetable entries, plus sections already computed exactly in code:

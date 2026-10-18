@@ -10,6 +10,7 @@
     <link href="/calendar.css" rel="stylesheet">
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+    <script src="/assets/runtime.js" defer></script>
 </head>
 <body>
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
@@ -44,12 +45,15 @@
                 <section class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-stars text-primary" aria-hidden="true"></i> AI weekly plan</h2>
-                        <p class="text-secondary">Let AI review your current week and suggest an improved plan, shown on your calendar. Usually takes 1-2 minutes on this hardware (no GPU acceleration available) - please only click once and let it finish.</p>
-                        <form id="ai-plan-form" hx-post="http://localhost:5005/timetable/ai-plan" hx-target="#ai-plan-modal-body">
+                        <p class="text-secondary" data-ai-description>Let AI review your current week and suggest an improved plan, shown on your calendar. Usually takes 1-2 minutes on this hardware (no GPU acceleration available) - please only click once and let it finish.</p>
+                        <p class="text-secondary" role="status" data-ai-disabled hidden>AI planning is disabled in this deployment. You can still add entries manually or import your calendar.</p>
+                        <form id="ai-plan-form" hx-post="/timetable/ai-plan" hx-target="#ai-plan-modal-body">
+                            <fieldset data-ai-controls disabled>
                             <input type="hidden" name="username" data-username-field>
                             <button class="btn btn-primary" type="submit" data-bs-toggle="modal" data-bs-target="#ai-plan-modal">
                                 <i class="bi bi-stars me-1"></i> Generate optimised plan
                             </button>
+                            </fieldset>
                         </form>
                     </div>
                 </section>
@@ -58,13 +62,16 @@
                 <section class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-chat-dots text-primary" aria-hidden="true"></i> Time-management advice</h2>
-                        <p class="text-secondary">Ask AI for advice based on your current timetable, or just request general suggestions. Usually under 1.5 minutes on this hardware.</p>
-                        <form id="ai-advice-form" hx-post="http://localhost:5005/timetable/ai-advice" hx-target="#ai-advice-result" hx-indicator="#advice-loading">
+                        <p class="text-secondary" data-ai-description>Ask AI for advice based on your current timetable, or just request general suggestions. Usually under 1.5 minutes on this hardware.</p>
+                        <p class="text-secondary" role="status" data-ai-disabled hidden>AI advice is disabled in this deployment. Your timetable and manual planning tools are still available.</p>
+                        <form id="ai-advice-form" hx-post="/timetable/ai-advice" hx-target="#ai-advice-result" hx-indicator="#advice-loading">
                             <input type="hidden" name="username" data-username-field>
+                            <fieldset data-ai-controls disabled>
                             <label class="form-label" for="question">Question (optional)</label>
                             <textarea class="form-control mb-3" id="question" name="question" rows="3" maxlength="1000" placeholder="e.g. How can I fit in more study time this week?"></textarea>
                             <button class="btn btn-primary" type="submit">Get advice</button>
                             <span class="htmx-indicator ms-2" id="advice-loading" role="status"><span class="spinner-border spinner-border-sm"></span> Thinking… (<span id="advice-elapsed">0</span>s)</span>
+                            </fieldset>
                         </form>
                         <div id="ai-advice-result" aria-live="polite"></div>
                     </div>
@@ -111,7 +118,7 @@
                         this one), and anything that clashes with an entry you already have is skipped.
                         Assignment/quiz/exam due dates are imported too, shown as a small flag above the
                         calendar on the day they're due rather than as a timed block.</p>
-                    <form id="import-ical-form" hx-post="http://localhost:5005/timetable/import-ical"
+                    <form id="import-ical-form" hx-post="/timetable/import-ical"
                           hx-target="#import-ical-result" hx-indicator="#import-ical-loading">
                         <input type="hidden" name="username" data-username-field>
                         <div class="mb-3">

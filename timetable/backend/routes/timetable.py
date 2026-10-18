@@ -98,7 +98,7 @@ def edit_entry():
         raise ServiceError("A valid timetable entry ID is required")
     update_entry(int(timetable_id), data)
     return timetable_changed(
-        "", redirect="http://localhost:3005/?message=Timetable%20entry%20updated."
+        "", redirect="/?message=Timetable%20entry%20updated."
     )
 
 
