@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
-# One-time local privileged setup. Ordinary CI does not receive role-assignment rights.
+
 source "$(dirname "$0")/common.sh"
+
+# One-time local privileged setup. Ordinary CI does not receive role-assignment rights.
+
+# check gh is installed and authenticated
 command -v gh >/dev/null
 gh auth status >/dev/null
+
+# provision the cloud infrastructure first
+# this will also generate local secrets
+# if they do not already exist
 bash scripts/cloud/provision.sh
-REPO="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
-ENV_NAME=cloud
+
+# create identity for the deployment
 az identity create -n "$DEPLOY_IDENTITY" -g "$RESOURCE_GROUP" -l "$LOCATION" -o none
 CLIENT_ID="$(az identity show -n "$DEPLOY_IDENTITY" -g "$RESOURCE_GROUP" --query clientId -o tsv)"
 PRINCIPAL="$(az identity show -n "$DEPLOY_IDENTITY" -g "$RESOURCE_GROUP" --query principalId -o tsv)"
 GROUP_ID="$(az group show -n "$RESOURCE_GROUP" --query id -o tsv)"
 REGISTRY_ID="$(az acr show -n "$REGISTRY" --query id -o tsv)"
+
+# Assign necessary roles to the deployment identity
 for role in Contributor AcrPush; do
   SCOPE="$GROUP_ID"; [[ "$role" == AcrPush ]] && SCOPE="$REGISTRY_ID"
   if [[ -z "$(az role assignment list --assignee "$PRINCIPAL" --role "$role" --scope "$SCOPE" --query '[0].id' -o tsv)" ]]; then
@@ -19,12 +29,16 @@ for role in Contributor AcrPush; do
 done
 
 # Environment-scoped OIDC. If a repository customizes its subject, set OIDC_SUBJECT explicitly.
+# allows GitHub Actions to authenticate using OIDC to Azure
+REPO="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
+ENV_NAME=cloud
 OIDC_PREFIX="$(gh api "repos/$REPO/actions/oidc/customization/sub" --jq '.sub_claim_prefix // empty')"
 SUBJECT="${OIDC_SUBJECT:-${OIDC_PREFIX:-repo:$REPO}:environment:$ENV_NAME}"
 az identity federated-credential create -n github-cloud --identity-name "$DEPLOY_IDENTITY" -g "$RESOURCE_GROUP" \
   --issuer https://token.actions.githubusercontent.com --subject "$SUBJECT" --audiences api://AzureADTokenExchange -o none
 
-# Permit main and the current implementation branch; remove the latter after merge.
+# Permit main and the current implementation branch (remove the latter after merge)
+# to deploy to the newly created GitHub 'cloud' environment
 printf '%s' '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}' > "$STATE_DIR/github-environment.json"
 gh api --method PUT "repos/$REPO/environments/$ENV_NAME" --input "$STATE_DIR/github-environment.json" >/dev/null
 for branch in "$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)" "$(git branch --show-current)"; do

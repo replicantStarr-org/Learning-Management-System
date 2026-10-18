@@ -71,8 +71,8 @@ printf '%s' "$IDENTITY_ID" > "$STATE_DIR/runtime-identity"
 # write credentials to a local file
 # These are runtime credentials, never uploaded as evidence or put in source control.
 # if running locally and the credentials do not exist yet, create them on the fly
-# if already in the github runner, exit early,
-# these credentials must be set locally so they are retrieveable to developers
+# if already in the github runner, exit early
+# the local credentials must be uploaded to GitHub secrets first by the bootstrap script
 if [[ ! -f "$STATE_DIR/auth.json" ]]; then
   python3 - "$STATE_DIR/auth.json" <<'PY'
 import json, os, secrets, subprocess, sys
