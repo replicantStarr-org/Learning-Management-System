@@ -65,6 +65,12 @@ def render(state: Path, profile: str):
             "JWT_SECRET": "secret:jwt-secret"  # noqa: S105 - secret reference, not a credential
         }
 
+        if name in {"assignments", "quizzes"}:
+            backend_env["SUBJECTS_PUBLIC_SERVICE_URL"] = f"https://lh-subjects.{environment['domain']}/public"
+
+        if name == "access":
+            backend_env["COOKIE_DOMAIN"] = environment["domain"]
+
         if ai_services_enabled:
             backend_env.update({
                 "MCP_SERVER_URL": "http://127.0.0.1:8000/mcp",
