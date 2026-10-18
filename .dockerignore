@@ -10,6 +10,9 @@
 **/*.jsonl
 **/chroma
 **/content
+!learning-resource-manager/content/
+!learning-resource-manager/content/pdf/
+!learning-resource-manager/content/pdf/*.pdf
 reports
 .cloud
 .pytest_cache

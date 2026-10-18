@@ -120,9 +120,10 @@ def render(state: Path, profile: str):
 
         volumes = []
         if name == "resources":
-            # the resources services uses a shared volume for the resource content
-            # so that the frontend can serve it directly rather than going through the backend
-            # hence it requires a volume
+            # Seed the shared EmptyDir before nginx starts. Seeds live outside
+            # /content in the frontend image so the mount cannot hide them.
+            containers[1]["env"].append({"name": "SEED_CONTENT", "value": "true"})
+            # Both uploads and seeded PDFs are served directly by nginx.
             volumes.append({"name": "content", "storageType": "EmptyDir"})
             for c in containers:
                 if c["name"] in {"frontend", "backend"}:

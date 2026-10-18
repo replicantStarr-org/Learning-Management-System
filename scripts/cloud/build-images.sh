@@ -30,6 +30,11 @@ tar --exclude='.git' --exclude='.cloud' --exclude='reports' --exclude='.venv*' \
   --exclude='*.sqlite*' --exclude='*.jsonl' --exclude='chroma' --exclude='content' \
   --exclude='.pytest_cache' --exclude='.ruff_cache' -cf - . | tar --no-same-owner --same-permissions -xf - -C "$STAGING"
 
+# Restore only version-controlled seed PDFs, never developer uploads. The broad
+# content exclusion above still applies to every other file and service.
+git ls-files -z -- 'learning-resource-manager/content/pdf/*.pdf' |
+  tar --null -T - -cf - | tar --no-same-owner --same-permissions -xf - -C "$STAGING"
+
 MANIFEST="$STATE_DIR/images.json"
 printf '{}\n' > "$MANIFEST"
 
