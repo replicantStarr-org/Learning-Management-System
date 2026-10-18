@@ -26,6 +26,9 @@ MODES = {
     "mcp": ModeConfig("mcp", "MCP Server", "mcp_prompt.txt"),
     "rag": ModeConfig("rag", "RAG Connector", "rag_prompt.txt"),
     "multi_agent": ModeConfig("multi_agent", "Multi-Agent Coordination", "multi_agent_prompt.txt"),
+    "pre_test": ModeConfig("pre_test", "Pre-Test Review", "pre_test_prompt.txt"),
+    "cicd_test": ModeConfig("cicd_test", "CI/CD Test Review", "cicd_test_prompt.txt"),
+    "deployment": ModeConfig("deployment", "Deployment Review", "deployment_prompt.txt"),
 }
 
 SERVICES = {
