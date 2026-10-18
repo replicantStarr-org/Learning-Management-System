@@ -3,6 +3,9 @@
 # Sets up the common environment variables and directories for the cloud deployment.
 # Also defines some common functions
 # Source this file; never enable shell tracing while handling credentials.
+# most variables will reuse existing environment values if available
+# to allow safely re-running this script
+# (so each of the other scripts can explicitly invoke this common setup without duplicating it)
 set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
