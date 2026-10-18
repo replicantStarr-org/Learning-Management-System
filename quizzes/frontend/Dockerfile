@@ -8,8 +8,12 @@ COPY quizzes/frontend/generate.html /usr/share/nginx/html/generate.html
 COPY quizzes/frontend/edit.html /usr/share/nginx/html/edit.html
 COPY quizzes/frontend/rag.html /usr/share/nginx/html/rag.html
 COPY quizzes/frontend/mcp.html /usr/share/nginx/html/mcp.html
+COPY quizzes/frontend/multi-agent.html /usr/share/nginx/html/multi-agent.html
+COPY quizzes/frontend/multi-agent.js /usr/share/nginx/html/multi-agent.js
 COPY quizzes/frontend/app.js /usr/share/nginx/html/app.js
 COPY quizzes/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY shared/assets /usr/share/nginx/html/assets
+COPY quizzes/frontend/set-public-urls.sh /docker-entrypoint.d/40-set-public-urls.sh
+RUN chmod +x /docker-entrypoint.d/40-set-public-urls.sh
 
 EXPOSE 3004

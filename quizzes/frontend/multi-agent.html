@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Multi-Agent | Quizzes | Learning Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/assets/theme.css" rel="stylesheet">
+    <style>
+        pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .workflow-output {
+            max-height: 36rem;
+            overflow: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
+    <main class="container page-shell">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <p class="text-primary fw-semibold">Quizzes</p>
+                <h1>Multi-Agent Study Coach</h1>
+            </div>
+            <a class="btn btn-outline-secondary" href="/">Back to quizzes</a>
+        </div>
+        <p class="lead">Plan, generate and independently review study advice grounded in quiz content with planner,
+            worker and reviewer agents.</p>
+        <p class="text-secondary">Read-only: no quizzes are changed. The agents read quiz content only, never attempts or scores.
+            All outputs require a human decision.</p>
+        <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="mode-toggle" disabled>
+            <label class="form-check-label" for="mode-toggle">Multi-Agent enabled</label>
+            <span id="mode-state" class="badge text-bg-secondary ms-2" aria-live="polite">OFF</span>
+        </div>
+        <div id="message" role="status" class="alert alert-info">Checking availability…</div>
+        <section class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="h5">Run workflow</h2>
+                <form id="workflow-form">
+                    <label class="form-label" for="user-request">Task</label>
+                    <textarea id="user-request" class="form-control mb-3" rows="2" required
+                        maxlength="4000">Summarise the quizzes in the catalogue and suggest what to study first.</textarea>
+                    <label class="form-label" for="quiz-id">Quiz ID (optional)</label>
+                    <input id="quiz-id" class="form-control mb-3" type="number" min="1" step="1"
+                        placeholder="Leave empty to use the whole catalogue">
+                    <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Sample workflow requests">
+                        <button class="btn btn-outline-primary btn-sm" type="button"
+                            data-sample-request="Summarise the quizzes in the catalogue and suggest what to study first.">Catalogue
+                            summary</button>
+                        <button class="btn btn-outline-primary btn-sm" type="button"
+                            data-sample-request="Write a short study plan for this quiz. Group its questions into topics and say which topics to revise first.">Study
+                            plan (needs quiz ID)</button>
+                        <button class="btn btn-outline-primary btn-sm" type="button"
+                            data-sample-request="Review the supplied quiz evidence for unclear questions, missing explanations and gaps in topic coverage. Do not assume content that is not in the evidence.">Quiz
+                            gaps</button>
+                    </div>
+                    <p class="small text-secondary">Without a quiz ID the agents see quiz titles, descriptions and keywords.
+                        With a quiz ID they also see its questions, answer options and explanations.</p>
+                    <button class="btn btn-primary" id="run" type="submit">Run planner → worker → reviewer
+                        workflow</button>
+                </form>
+                <button id="status" class="btn btn-outline-primary mt-3" type="button">Get Latest Workflow
+                    Status</button>
+                <p class="small text-secondary mt-2">Returns history/audit record counts and the latest saved workflow.
+                    This is not live agent progress.</p>
+                <form id="lookup-form" class="mt-3">
+                    <label class="form-label" for="workflow-id">Load a workflow by ID</label>
+                    <div class="input-group"><input id="workflow-id" class="form-control" required
+                            pattern="[0-9a-fA-F-]{36}"><button class="btn btn-outline-primary"
+                            type="submit">Load</button></div>
+                </form>
+            </div>
+        </section>
+        <section class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 id="response-heading" class="h5">Multi-Agent API response</h2>
+                <p id="summary">No workflow loaded.</p>
+                <pre id="output" class="bg-light p-3 rounded workflow-output" aria-live="polite"></pre>
+            </div>
+        </section>
+        <section class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="h5">Human decision</h2>
+                <p class="text-secondary">Review the plan, raw evidence, output and reviewer assessment above before
+                    deciding. Failed workflows may only be rejected.</p>
+                <form id="decision-form">
+                    <fieldset id="decision-fields" disabled>
+                        <label class="form-label" for="decision">Decision</label>
+                        <select id="decision" class="form-select mb-3">
+                            <option>Accept</option>
+                            <option>Partially Accept</option>
+                            <option>Reject</option>
+                        </select>
+                        <label class="form-label" for="reviewer">Your name</label>
+                        <input id="reviewer" class="form-control mb-3" required maxlength="200">
+                        <label class="form-label" for="reason">Reason</label>
+                        <textarea id="reason" class="form-control mb-3" required maxlength="4000"></textarea>
+                        <label class="form-label" for="evidence-used">Evidence used (source references and
+                            fields)</label>
+                        <textarea id="evidence-used" class="form-control mb-3" required maxlength="4000"></textarea>
+                        <button class="btn btn-primary" type="submit">Record decision</button>
+                    </fieldset>
+                </form>
+            </div>
+        </section>
+    </main>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/multi-agent.js"></script>
+</body>
+
+</html>

@@ -1,9 +1,12 @@
+import os
 from html import escape
 
 from services.ai_mode import DISABLED_MESSAGE, ai_mode_is_enabled
 
-BACKEND_BASE = "http://localhost:5004"
-FRONTEND_BASE = "http://localhost:3004"
+# Public addresses of this service as the browser sees them. The defaults are the local ports;
+# the cloud deployment sets both variables.
+BACKEND_BASE = os.getenv("QUIZ_BACKEND_PUBLIC_URL", "http://localhost:5004").rstrip("/")
+FRONTEND_BASE = os.getenv("QUIZ_FRONTEND_PUBLIC_URL", "http://localhost:3004").rstrip("/")
 
 
 def escaped(value):
