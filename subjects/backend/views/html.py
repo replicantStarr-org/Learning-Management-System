@@ -95,7 +95,7 @@ def tag_options(subject, tags):
                 </summary>
                 <div class="position-absolute end-0 top-100 bg-white border rounded shadow-sm p-2"
                      style="z-index: 1050; min-width: 18rem;" onclick="event.stopPropagation();">
-                    <form hx-post="http://localhost:5001/tags/update" hx-target="#tag-manager" class="mb-2">
+                    <form hx-post="/tags/update" hx-target="#tag-manager" class="mb-2">
                         <input type="hidden" name="tag_id" value="{escaped(tag['tag_id'])}">
                         <input type="hidden" name="subject_id" value="{subject_id}">
                         <label class="visually-hidden" for="tag-name-{escaped(tag['tag_id'])}">Tag name</label>
@@ -105,7 +105,7 @@ def tag_options(subject, tags):
                         </div>
                     </form>
                     <button class="btn btn-sm btn-outline-danger w-100" type="button"
-                            hx-post="http://localhost:5001/tags/delete" hx-target="#tag-manager"
+                            hx-post="/tags/delete" hx-target="#tag-manager"
                             hx-vals='{{"tag_id": "{escaped(tag['tag_id'])}", "subject_id": "{subject_id}"}}'
                             {f'hx-confirm="This tag is used by {int(tag.get("subject_count", 0))} subject(s). Delete it and remove it from all subjects?"' if int(tag.get("subject_count", 0)) else ''}>Delete</button>
                 </div>
@@ -115,7 +115,7 @@ def tag_options(subject, tags):
         for tag in tags
     )
     add_form = f'''
-        <form hx-post="http://localhost:5001/tags" hx-target="#tag-options" class="border-top pt-2 mt-2">
+        <form hx-post="/tags" hx-target="#tag-options" class="border-top pt-2 mt-2">
             <input type="hidden" name="subject_id" value="{subject_id}">
             <label class="form-label small" for="new-tag-name">Add a tag</label>
             <div class="input-group input-group-sm">
@@ -125,7 +125,7 @@ def tag_options(subject, tags):
         </form>
     '''
     return f'''
-        <form id="{selection_form_id}" hx-post="http://localhost:5001/subjects/{subject_id}/tags" hx-target="#assigned-tags" hx-swap="outerHTML"></form>
+        <form id="{selection_form_id}" hx-post="/subjects/{subject_id}/tags" hx-target="#assigned-tags" hx-swap="outerHTML"></form>
         {controls or '<span class="text-secondary small">No tags available yet.</span>'}
         {add_form}
     '''
@@ -168,7 +168,7 @@ def subject_detail(subject, tags):
             <div class="d-flex align-items-start gap-2">
                 <a class="btn btn-outline-primary" href="/edit.html?id={subject_id}">Edit</a>
                 <button class="btn btn-outline-danger" type="button"
-                        hx-post="http://localhost:5001/subjects/delete"
+                        hx-post="/subjects/delete"
                         hx-vals='{{"subject_id": "{subject_id}"}}'
                         hx-confirm="Delete this subject permanently?">Delete</button>
             </div>
@@ -195,7 +195,7 @@ def subject_detail(subject, tags):
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-stars text-primary" aria-hidden="true"></i> AI summary</h2>
                         <div id="summary-result" aria-live="polite"
-                             hx-post="http://localhost:5001/subjects/{subject_id}/summary"
+                             hx-post="/subjects/{subject_id}/summary"
                              hx-trigger="load" hx-swap="innerHTML">
                             <div class="d-flex align-items-center gap-2 py-3 text-secondary" role="status">
                                 <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
@@ -210,7 +210,7 @@ def subject_detail(subject, tags):
                     <div class="card-body p-4">
                         <h2 class="h5"><i class="bi bi-chat-dots text-primary" aria-hidden="true"></i> Ask about this subject</h2>
                         <p class="text-secondary">Ask a question using the information in this subject.</p>
-                        <form hx-post="http://localhost:5001/subjects/questions" hx-target="#question-result" hx-indicator="#question-loading">
+                        <form hx-post="/subjects/questions" hx-target="#question-result" hx-indicator="#question-loading">
                             <input type="hidden" name="subject_id" value="{subject_id}">
                             <label class="form-label" for="question">Question</label>
                             <textarea class="form-control mb-3" id="question" name="question" rows="3" maxlength="1000" required></textarea>
@@ -228,7 +228,7 @@ def subject_detail(subject, tags):
 
 def subject_form(subject, tags):
     return f"""
-    <form hx-post="http://localhost:5001/subjects/update" hx-target="#form-result">
+    <form hx-post="/subjects/update" hx-target="#form-result">
         <input type="hidden" name="subject_id" value="{escaped(subject['subject_id'])}">
         {_subject_fields(subject)}
         <div class="d-flex gap-2">
