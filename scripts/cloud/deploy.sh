@@ -8,11 +8,7 @@ PROFILE="${PROFILE:-default}"
 export PROFILE
 
 # ensure the demo resource group has not expired
-EXPIRES="$(az group show -n "$RESOURCE_GROUP" --query tags.expiresAt -o tsv)"
-if [[ -z "$EXPIRES" ]] || (( $(date -u +%s) >= $(date -u -d "$EXPIRES" +%s) )); then
-  echo 'Demo resource group has expired or has no expiry; refusing activation.' >&2
-  exit 1
-fi
+bash scripts/cloud/check-expiry.sh
 
 # check if the image manifest exists before proceeding with deployment
 [[ -f "$STATE_DIR/images.json" ]] || { echo 'Run build-images.sh first' >&2; exit 1; }

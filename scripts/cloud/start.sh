@@ -4,10 +4,7 @@ source "$(dirname "$0")/common.sh"
 
 # Resume an already deployed release without rebuilding it. Profile stays unchanged.
 
-EXPIRES="$(az group show -n "$RESOURCE_GROUP" --query tags.expiresAt -o tsv)"
-if [[ -z "$EXPIRES" ]] || (( $(date -u +%s) >= $(date -u -d "$EXPIRES" +%s) )); then
-  echo 'Demo resources have exceded expiry date. Refusing to resume.' >&2; exit 1
-fi
+bash scripts/cloud/check-expiry.sh
 
 UNTIL="$(date -u -d '+1 hour' +%FT%TZ)"
 while IFS=$'\t' read -r name id revision; do

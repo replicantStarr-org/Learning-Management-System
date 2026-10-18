@@ -9,11 +9,13 @@ source "$(dirname "$0")/common.sh"
 
 if ! az group show -n "$RESOURCE_GROUP" >/dev/null 2>&1; then log 'Resource group no longer exists.'; exit 0; fi
 
-EXPIRES="$(az group show -n "$RESOURCE_GROUP" --query tags.expiresAt -o tsv)"
-if [[ -z "$EXPIRES" ]]; then echo 'Resource expiry is not set. Refusing indefinite operation' >&2; exit 1; fi
-
-if (( $(date -u +%s) >= $(date -u -d "$EXPIRES" +%s) )); then
-  CONFIRM_DELETE="$RESOURCE_GROUP" bash scripts/cloud/cleanup.sh
-else
+if bash scripts/cloud/check-expiry.sh; then
   bash scripts/cloud/stop.sh
+else
+  STATUS=$?
+  if [[ "$STATUS" -eq 1 ]]; then
+    CONFIRM_DELETE="$RESOURCE_GROUP" bash scripts/cloud/cleanup.sh
+  else
+    exit "$STATUS"
+  fi
 fi
