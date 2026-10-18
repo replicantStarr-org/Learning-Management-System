@@ -19,6 +19,7 @@ the shared microservice the following ports:
 - database: 6000
 
 Then each microservice uses the inclusive ranges 3001-3005, 5001-5005 and 6001-6005 respectively.
+The shared multi-agent server is not a microservice of this scheme. It uses port 5020, outside the service ranges, so it never clashes with a service backend (Quizzes uses 5004).
 Ports are assigned with the nginx config for frontend (see [subject frontend config](subjects/frontend/nginx.conf)) and directly in `app.py` for flask apps
 
 The containers communicate directly with each other through HTTP without any proxying.
