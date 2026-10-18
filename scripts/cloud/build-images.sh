@@ -9,11 +9,18 @@ RELEASE="${RELEASE:-$(git rev-parse --short=12 HEAD)-$(date -u +%Y%m%d%H%M%S)}"
 [[ "$RELEASE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,100}$ ]] || exit 2
 export RELEASE
 
+# Limit simultaneous builds to avoid exhausting Docker's memory/CPU.
+BUILD_JOBS="${BUILD_JOBS:-6}"
+[[ "$BUILD_JOBS" =~ ^[1-9][0-9]{0,2}$ ]] || { echo 'BUILD_JOBS must be an integer from 1 to 999' >&2; exit 2; }
+
 # login to the Azure Container Registry for docker
 az acr login -n "$REGISTRY" -o none
 
 STAGING="$(mktemp -d)"
-trap 'rm -rf "$STAGING"' EXIT
+DIGEST_DIR="$STAGING.digests"
+# Let any outstanding builds finish before removing their build contexts.
+trap 'wait; rm -rf "$STAGING" "$DIGEST_DIR"' EXIT
+mkdir -p "$DIGEST_DIR"
 
 # Apply exclusions even when a backend uses a subdirectory as its build context.
 # common.sh uses umask 077 for secrets; preserve source modes during extraction
@@ -42,40 +49,69 @@ build() {
   # record the image digest (image ID) in the manifest
   # the manifest is used to find the corresponding images
   # during the deployment (see deploy.sh)
-  python3 - "$MANIFEST" "$key" "$digest" <<'PY'
-import json, sys
-from pathlib import Path
-path = Path(sys.argv[1]); data = json.loads(path.read_text()); data[sys.argv[2]] = sys.argv[3]
-path.write_text(json.dumps(data, indent=2) + '\n')
-PY
+  # Each build writes its own file; merge only after all builds succeed.
+  printf '%s\n' "$digest" > "$DIGEST_DIR/$key"
+}
+
+BUILD_PIDS=()
+wait_for_builds() {
+  local pid failed=0
+  for pid in "${BUILD_PIDS[@]}"; do
+    if ! wait "$pid"; then
+      failed=1
+    fi
+  done
+  BUILD_PIDS=()
+  if (( failed )); then
+    log 'Image build/push failed; release will not be published.'
+    return 1
+  fi
+}
+
+queue_build() {
+  build "$@" &
+  BUILD_PIDS+=("$!")
+  # Use bounded batches, compatible with Bash versions without wait -n.
+  if (( ${#BUILD_PIDS[@]} >= BUILD_JOBS )); then
+    wait_for_builds
+  fi
 }
 
 # build frontend, backend and database images
 # for each service listed in services.json
 while IFS=$'\t' read -r name directory; do
-  build "$name-frontend" "$directory/frontend/Dockerfile" .
-  build "$name-backend" "$directory/backend/Dockerfile" "$directory/backend"
-  build "$name-database" "$directory/database/Dockerfile" "$directory/database"
+  queue_build "$name-frontend" "$directory/frontend/Dockerfile" .
+  queue_build "$name-backend" "$directory/backend/Dockerfile" "$directory/backend"
+  queue_build "$name-database" "$directory/database/Dockerfile" "$directory/database"
 done < <(python3 -c 'import json; [print(s["name"]+"\t"+s["directory"]) for s in json.load(open("cloud/services.json"))]')
 
 # build edge / ingress image
 # this image proxies to the real frontend
 # and adds the HTTP authentication check to nginx
-build edge cloud/edge/Dockerfile .
+queue_build edge cloud/edge/Dockerfile .
+
+# build additional images for AI-related services
+if [[ "$PROFILE" == bonus ]]; then
+  for service in mcp rag-server multi-agent-server; do
+    queue_build "$service" cloud/shared/Dockerfile . --build-arg "SERVICE=$service"
+  done
+fi
+
+# wait for all builds to end before creating the image manifest
+wait_for_builds
+
+python3 - "$MANIFEST" "$DIGEST_DIR" <<'PY'
+import json, sys
+from pathlib import Path
+images = {path.name: path.read_text().strip() for path in sorted(Path(sys.argv[2]).iterdir())}
+Path(sys.argv[1]).write_text(json.dumps(images, indent=2) + '\n')
+PY
 
 # run a basic test against a running Subjects docker container
 # this is not required for the build process or deployment itself
 # hence why it is only currently implemented for Subjects rather than all services
 SUBJECTS_IMAGE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["subjects-backend"])' "$MANIFEST")"
 run_logged docker run --rm -i "$SUBJECTS_IMAGE" python - < scripts/cloud/test-subjects-runtime.py
-
-# build additional images for AI-related services
-# if bonus profile is enabled
-if [[ "$PROFILE" == bonus ]]; then
-  for service in mcp rag-server multi-agent-server; do
-    build "$service" cloud/shared/Dockerfile . --build-arg "SERVICE=$service"
-  done
-fi
 
 # generate the release information file
 # used for a tag in the container app manifests
