@@ -113,7 +113,9 @@ def render(state: Path, profile: str):
             container("edge", "edge", {"FRONTEND_PORT": str(port), "AUTH_HTPASSWD": "secret:edge-auth"}, probe_port=8080),
             container("frontend", f"{name}-frontend", probe_port=port),
             container("backend", f"{name}-backend", backend_env, probe_port=5000 + index),
-            container("database", f"{name}-database", {"DATABASE_PATH": "/app/data", "DATABASE_NAME": "resources.db"}, probe_port=6000 + index),
+            container("database", f"{name}-database",
+                      {"DATABASE_PATH": "/app/data", "DATABASE_NAME": "resources.db"} if name == "resources" else {},
+                      probe_port=6000 + index),
         ]
 
         volumes = []
