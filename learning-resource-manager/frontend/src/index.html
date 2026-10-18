@@ -9,25 +9,26 @@
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 		<link rel="stylesheet" href="/assets/theme.css">
 		<link rel="stylesheet" href="./css/main.css">
-	</head>
+	    <script src="/assets/runtime.js" defer></script>
+</head>
 	<body>
 		<!-- The shell from the access service, so the hub and this page read as
 		     one application. The username and log out controls are left to the
 		     access service, which owns the session. -->
 		<nav class="navbar navbar-expand-lg bg-white border-bottom" aria-label="Main navigation">
 			<div class="container">
-				<a class="navbar-brand text-primary" href="http://localhost:3000">Learning Hub</a>
+				<a class="navbar-brand text-primary" href="#" data-service="access">Learning Hub</a>
 				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-nav" aria-controls="main-nav" aria-expanded="false" aria-label="Toggle navigation">
 					<span class="navbar-toggler-icon"></span>
 				</button>
 				<div class="collapse navbar-collapse" id="main-nav">
 					<ul class="navbar-nav me-auto">
-						<li class="nav-item"><a class="nav-link" href="http://localhost:3000">Home</a></li>
-						<li class="nav-item"><a class="nav-link" href="http://localhost:3001">Subjects</a></li>
+						<li class="nav-item"><a class="nav-link" href="#" data-service="access">Home</a></li>
+						<li class="nav-item"><a class="nav-link" href="#" data-service="subjects">Subjects</a></li>
 						<li class="nav-item"><a class="nav-link active" aria-current="page" href="/">Resources</a></li>
-						<li class="nav-item"><a class="nav-link" href="http://localhost:3003">Assignments</a></li>
-						<li class="nav-item"><a class="nav-link" href="http://localhost:3004">Quizzes</a></li>
-						<li class="nav-item"><a class="nav-link" href="http://localhost:3005">Timetable</a></li>
+						<li class="nav-item"><a class="nav-link" href="#" data-service="assignments">Assignments</a></li>
+						<li class="nav-item"><a class="nav-link" href="#" data-service="quizzes">Quizzes</a></li>
+						<li class="nav-item"><a class="nav-link" href="#" data-service="timetable">Timetable</a></li>
 					</ul>
 				</div>
 			</div>
@@ -453,7 +454,7 @@
 		</div>
 
 		<!-- Library assistant, opened by the floating button. -->
-		<button type="button" class="btn btn-primary chat-launcher" id="chat-launcher" data-bs-toggle="modal" data-bs-target="#chat-modal">
+		<button type="button" class="btn btn-primary chat-launcher" id="chat-launcher" data-ai-launcher data-bs-toggle="modal" data-bs-target="#chat-modal">
 			Ask the library
 		</button>
 
@@ -465,16 +466,19 @@
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 					</div>
 					<div class="modal-body chat-log" id="chat-log" role="log" aria-live="polite">
-						<p class="text-secondary small mb-0" id="chat-hint">
+						<p class="text-secondary small mb-0" role="status" data-ai-disabled hidden>The library assistant is disabled in this deployment. You can still browse resources, read PDFs, and save highlights. RAG and MCP have their own controls.</p>
+						<p class="text-secondary small mb-0" id="chat-hint" data-ai-description>
 							Ask for a resource and I will search the library by tag, for example
 							&ldquo;do you have anything about cosmology?&rdquo;
 						</p>
 					</div>
 					<div class="modal-footer">
-						<form class="chat-form" id="chat-form">
+						<form class="w-100" id="chat-form">
+							<fieldset class="chat-form" data-ai-controls disabled>
 							<input type="text" class="form-control" id="chat-input" autocomplete="off"
 							       placeholder="What are you looking for?" aria-label="Your question">
 							<button type="submit" class="btn btn-primary" id="chat-send">Send</button>
+							</fieldset>
 						</form>
 					</div>
 				</div>

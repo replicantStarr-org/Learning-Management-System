@@ -20,7 +20,10 @@ services:
       # Every statement goes to the database service over this address; the
       # backend never opens the database file itself.
       - DATABASE_SERVICE_URL=http://localhost:6002
-      - OLLAMA_URL=localhost
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://localhost:11434/v1}
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen2.5:0.5b}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-ollama}
+      - AI_MODE_ENABLED=${AI_MODE_ENABLED:-true}
       # The RAG server (rag-server/), on server.port in its config.toml.
       - RAG_SERVER_URL=http://localhost:5010
       # The shared MCP server (mcp/). 127.0.0.1 rather than localhost, because
@@ -38,6 +41,20 @@ services:
       # Writable here because uploads land in it; the frontend mounts it read
       # only because it just serves the files.
       - ./content:/content
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend
+          target: /app/backend
+          ignore:
+            - Dockerfile
+            - requirements.txt
+            - __pycache__/
+            - "*.pyc"
+        - action: rebuild
+          path: ./backend/requirements.txt
+        - action: rebuild
+          path: ./backend/Dockerfile
 
   # Owns the database file and runs the statements the backend sends it.
   database:
