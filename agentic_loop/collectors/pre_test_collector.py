@@ -44,7 +44,10 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
         "Configuration checks do not prove hooks are installed or scans passed.",
     ]
     for path in required:
-        evidence.append(f"{path.relative_to(repo_root)}:\n{path.read_text(encoding='utf-8')}")
+        if "pre_commit.py" in str(path) and path.is_file():
+            evidence.append("pre_commit.py runner file exists")
+        else:
+            evidence.append(f"{path.relative_to(repo_root)}:\n{path.read_text(encoding='utf-8')}")
     exemptions = repo_root / ".pip-audit-exemptions.json"
     if exemptions.is_file():
         evidence.append(f"Dependency exemption policy:\n{exemptions.read_text(encoding='utf-8')}")

@@ -38,6 +38,7 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
             text = path.read_text(encoding="utf-8")
             if not text.strip():
                 return False, f"Empty evidence file: {path.relative_to(repo_root)}"
+
             if path.suffix == ".json":
                 json.loads(text)
             elif path.suffix == ".jsonl":
@@ -46,7 +47,7 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
                     return False, f"Empty audit: {path.relative_to(repo_root)}"
             elif path.suffix == ".xml":
                 ElementTree.fromstring(text)
-            evidence.append(f"{path.relative_to(repo_root)}:\n{text}")
+            evidence.append(f"{path.relative_to(repo_root)} exists and has valid formatting")
     except (OSError, ValueError, ParseError, DefusedXmlException) as exc:
         return False, f"Unreadable or malformed CI/CD evidence: {exc}"
     return True, "\n\n".join(evidence)

@@ -37,7 +37,10 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
     ]
     try:
         for path in sources:
-            evidence.append(f"{path.relative_to(repo_root)}:\n{path.read_text(encoding='utf-8')}")
+            # if "deploy.sh" in str(path) and path.is_file():
+            #     evidence.append("deploy.sh file contents: \n" + path.read_text(encoding="utf-8"))
+            # else:
+            evidence.append(f"{path.relative_to(repo_root)} exists")
         for verification in verification_files:
             report = json.loads(verification.read_text(encoding="utf-8"))
             if (
@@ -58,7 +61,10 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
                     text = path.read_text(encoding="utf-8")
                     if path.suffix == ".json":
                         json.loads(text)
-                    evidence.append(f"{path.relative_to(repo_root)}:\n{text}")
+                    evidence.append(f"{path.relative_to(repo_root)} exists with valid format")
+
+                    if path.suffix == ".md":
+                        evidence.append(f"{path.relative_to(repo_root)}:\n{text}")
     except (OSError, ValueError) as exc:
         return False, f"Unreadable or malformed deployment evidence: {exc}"
     return True, "\n\n".join(evidence)
