@@ -32,8 +32,10 @@ PY
 # render ACA manifests for the current deployment
 python3 scripts/cloud/render.py
 
-# apply the rendered ACA manifests for each service
-for name in access subjects resources assignments quizzes timetable; do
+# Each app is independent; keep its update and revision activation in one worker.
+deploy_app() {
+  local name="$1" revision active
+  local started=$SECONDS
   log "Applying $name ($PROFILE)"
   # suppress resource output because it may contain configuration secrets
   if az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
@@ -44,12 +46,30 @@ for name in access subjects resources assignments quizzes timetable; do
 
   # applying identical config to a stopped app may not create a revision
   # reactivate it explicitly if required
-  REVISION="$(az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" --query properties.latestRevisionName -o tsv)"
-  ACTIVE="$(az containerapp revision show -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" --query properties.active -o tsv)"
-  if [[ "$ACTIVE" != true ]]; then
-    az containerapp revision activate -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" -o none
+  revision="$(az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" --query properties.latestRevisionName -o tsv)"
+  active="$(az containerapp revision show -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$revision" --query properties.active -o tsv)"
+  if [[ "$active" != true ]]; then
+    az containerapp revision activate -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$revision" -o none
   fi
- done
+  log "Applied $name in $((SECONDS - started))s"
+}
+
+names=(access subjects resources assignments quizzes timetable)
+pids=()
+for name in "${names[@]}"; do
+  deploy_app "$name" &
+  pids+=("$!")
+done
+
+# Wait for every worker, including after a failure. Never verify a partial deployment.
+failed=0
+for i in "${!pids[@]}"; do
+  if ! wait "${pids[$i]}"; then
+    log "Deployment failed for ${names[$i]}"
+    failed=1
+  fi
+done
+(( failed == 0 )) || exit 1
 
 # update the report with the current state of container apps
 az containerapp list -g "$RESOURCE_GROUP" --query '[].{name:name,fqdn:properties.configuration.ingress.fqdn,state:properties.provisioningState,profile:tags.profile,release:tags.release}' -o json > "$REPORT_DIR/apps.json"
