@@ -1,0 +1,32 @@
+[
+  {
+    "name": "access",
+    "directory": "access",
+    "port": 3000
+  },
+  {
+    "name": "subjects",
+    "directory": "subjects",
+    "port": 3001
+  },
+  {
+    "name": "resources",
+    "directory": "learning-resource-manager",
+    "port": 3002
+  },
+  {
+    "name": "assignments",
+    "directory": "assignments",
+    "port": 3003
+  },
+  {
+    "name": "quizzes",
+    "directory": "quizzes",
+    "port": 3004
+  },
+  {
+    "name": "timetable",
+    "directory": "timetable",
+    "port": 3005
+  }
+]
