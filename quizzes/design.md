@@ -288,3 +288,25 @@ probes the MCP and RAG pages, and verifies that both are reported disabled and r
    by `mcp/run.ps1`; `.venv/bin/python` on Linux/macOS).
 7. Agentic loop: `agentic_loop/run.ps1 --skip-report-download --area mcp --service quizzes`, and
    the same with `--area rag`.
+
+### Release 2: AI-Mode switch, endpoint tests and pre-commit security
+
+**AI-Mode switch.** Quiz generation and AI attempt feedback are the two features that call the local
+model. `AI_MODE_ENABLED` (default `true` locally, passed through `docker-compose.yml`) turns them off.
+When it is `false` the backend answers `POST /quiz-generations`, `POST /subjects/{id}/quiz-generations`
+and `POST /attempts/{id}/feedback` with HTTP 403, `GET /ai-mode/status` reports `enabled: false`, and
+the frontend hides the Generate links and shows an explanation. CRUD and quiz-taking are unaffected.
+CI and the cloud deployment run with it off.
+
+**Post-commit endpoint tests.** `tests/quizzes/test_quiz_endpoints.py` (same `tests/<service>/` layout as Subjects) tests two backend endpoint
+functions against the running stack: `POST /quizzes` (create, plus rejection of a missing title and an
+unknown difficulty) and `POST /quizzes/{id}/attempts` (grading: full marks, one wrong answer, missing
+student name). `quizzes.yml` runs them in the `endpoint-tests` job on every push and pull request that
+touches `quizzes/` or `tests/quizzes/`, uploads the JUnit XML, and folds the counts into the evidence report. Validation
+failures reach the browser as an HTML alert with the `HX-Error` header and HTTP 200, so the tests assert
+those. Run locally from the repository root with `pip install -r requirements-dev.txt && pytest tests/quizzes` while the
+services are up (`QUIZ_BACKEND_URL` overrides `http://localhost:5004`).
+
+**Pre-commit security scans.** These are the shared repository checks (root `.pre-commit-config.yaml`,
+`pyproject.toml`, `scripts/pre_commit.py`, `.pip-audit-exemptions.json`; see the root README). Quizzes only carries
+inline `# noqa` suppressions with reasons where Ruff flags the container bind addresses and the allow-listed UPDATE column names.
