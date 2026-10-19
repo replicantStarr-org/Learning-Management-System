@@ -1,7 +1,18 @@
 from pathlib import Path
 from typing import Callable
 
-from collectors import architecture_collector, db_collector, devops_collector, endpoints_collector, mcp_collector, multi_agent_collector, rag_collector
+from collectors import (
+    architecture_collector,
+    cicd_test_collector,
+    db_collector,
+    deployment_collector,
+    devops_collector,
+    endpoints_collector,
+    mcp_collector,
+    multi_agent_collector,
+    pre_test_collector,
+    rag_collector,
+)
 from config.review_config import ModeConfig, ServiceConfig
 from core.ai_runner import AIRunner
 from core.prompt_registry import PromptRegistry
@@ -16,6 +27,9 @@ COLLECTORS: dict[str, Collector] = {
     "mcp": mcp_collector.collect,
     "rag": rag_collector.collect,
     "multi_agent": multi_agent_collector.collect,
+    "pre_test": pre_test_collector.collect,
+    "cicd_test": cicd_test_collector.collect,
+    "deployment": deployment_collector.collect,
 }
 
 
