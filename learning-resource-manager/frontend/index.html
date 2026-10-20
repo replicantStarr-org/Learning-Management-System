@@ -49,7 +49,7 @@
 				</div>
 				<!-- Stacked, so Upload PDF sits below the mode switch, aligned to its right edge. -->
 				<div class="d-flex flex-column align-items-end gap-2 flex-shrink-0">
-					<!-- Switches between the library, Rag Mode and MCP Mode without leaving the page. -->
+					<!-- Switches between the library, Rag Mode, MCP Mode and Multi-Agent Mode without leaving the page. -->
 					<div class="btn-group" role="group" aria-label="Page mode">
 						<input type="radio" class="btn-check" name="page-mode" id="mode-library" value="library"
 							autocomplete="off" checked>
@@ -60,6 +60,9 @@
 						<input type="radio" class="btn-check" name="page-mode" id="mode-mcp" value="mcp"
 							autocomplete="off">
 						<label class="btn btn-outline-primary" for="mode-mcp">MCP Mode</label>
+						<input type="radio" class="btn-check" name="page-mode" id="mode-multi-agent" value="multi-agent"
+							autocomplete="off">
+						<label class="btn btn-outline-primary" for="mode-multi-agent">Multi-Agent</label>
 					</div>
 					<button type="button" class="btn btn-primary" id="upload-open" data-bs-toggle="modal"
 						data-bs-target="#upload-modal">
@@ -354,6 +357,10 @@
 					</div>
 				</div>
 			</section>
+
+			<!-- Multi-Agent Mode lives in multi-agent.html. nginx includes it here
+			     before the page is sent (ssi in nginx.conf), so this page is unchanged. -->
+			<!--# include virtual="/multi-agent.html" -->
 		</div>
 	</div>
 
@@ -513,7 +520,8 @@
 	</div>
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-	<script src="./js/main.js?v=3" type="module"></script>
+	<script src="./js/main.js?v=4" type="module"></script>
+	<script src="./multi-agent.js?v=2" type="module"></script>
 </body>
 
 </html>

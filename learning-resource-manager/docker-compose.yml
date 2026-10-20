@@ -33,6 +33,14 @@ services:
       # On for local use, like the subjects service. CI passes MCP_ENABLED=false
       # on the compose command line, so no run depends on the MCP server.
       - MCP_ENABLED=${MCP_ENABLED:-true}
+      # The shared multi-agent server (multi-agent-server/), outside the service
+      # port ranges. On for local use, like the subjects service. CI sets
+      # MULTI_AGENT_ENABLED=false, so no run depends on the multi-agent server.
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
+      - MULTI_AGENT_SERVICE_URL=http://localhost:15004
+      # Signs and verifies /api/auth tokens. Empty unless set, in which case the
+      # backend generates its own (services/token_secret.py). Cloud sets it.
+      - JWT_SECRET=${JWT_SECRET:-}
     # Nothing the backend serves works until the database service answers, so
     # wait for its health check rather than just for the container to start.
     depends_on:
@@ -95,11 +103,21 @@ services:
         - action: sync
           path: ./frontend/src
           target: /usr/share/nginx/html
+        # The pages at the frontend root, served beside src/ (see the Dockerfile).
+        - action: sync
+          path: ./frontend/index.html
+          target: /usr/share/nginx/html/index.html
+        - action: sync
+          path: ./frontend/multi-agent.html
+          target: /usr/share/nginx/html/multi-agent.html
+        - action: sync
+          path: ./frontend/multi-agent.js
+          target: /usr/share/nginx/html/multi-agent.js
         - action: sync
           path: ../shared/assets
           target: /usr/share/nginx/html/assets
         - action: sync+restart
-          path: ./frontend/nginx/default.conf
+          path: ./frontend/nginx.conf
           target: /etc/nginx/conf.d/default.conf
         - action: rebuild
           path: ./frontend/Dockerfile
