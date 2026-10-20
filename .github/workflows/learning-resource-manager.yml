@@ -8,7 +8,7 @@ on:
       - "learning-resource-manager/**"
       # The frontend image copies shared/assets into the nginx root.
       - "shared/assets/**"
-      - "tests/learning_resources/**"
+      - "tests/learning-resource-manager/**"
       - ".github/workflows/learning-resource-manager.yml"
   pull_request:
     branches:
@@ -16,7 +16,7 @@ on:
     paths:
       - "learning-resource-manager/**"
       - "shared/assets/**"
-      - "tests/learning_resources/**"
+      - "tests/learning-resource-manager/**"
       - ".github/workflows/learning-resource-manager.yml"
   workflow_dispatch:
   workflow_call:
@@ -244,7 +244,7 @@ jobs:
           path: evidence/
           if-no-files-found: error
 
-  # The endpoint tests in tests/learning_resources/, run against the real
+  # The endpoint tests in tests/learning-resource-manager/, run against the real
   # compose stack. Deployment is not done here: cloud-deployment.yml calls this
   # workflow and deploys only once every feature's CI has passed.
   # Report files follow the subjects workflow's post-commit-tests job.
@@ -300,7 +300,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$REPORT_DIR"
-          python -m pytest tests/learning_resources -v --color=no \
+          python -m pytest tests/learning-resource-manager -v --color=no \
             --junitxml="$REPORT_DIR/test-results.xml" 2>&1 | tee "$REPORT_DIR/pytest.log"
 
       - name: Capture service logs
