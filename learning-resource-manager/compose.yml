@@ -33,6 +33,11 @@ services:
       # On for local use, like the subjects service. CI passes MCP_ENABLED=false
       # on the compose command line, so no run depends on the MCP server.
       - MCP_ENABLED=${MCP_ENABLED:-true}
+      # The shared multi-agent server (multi-agent-server/), outside the service
+      # port ranges. On for local use, like the subjects service. CI sets
+      # MULTI_AGENT_ENABLED=false, so no run depends on the multi-agent server.
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
+      - MULTI_AGENT_SERVICE_URL=http://localhost:15004
     # Nothing the backend serves works until the database service answers, so
     # wait for its health check rather than just for the container to start.
     depends_on:

@@ -30,6 +30,9 @@ defaults:
 
 env:
   RAG_ENABLED: "false"
+  # No multi-agent server or language model runs on the runner, so multi-agent
+  # mode stays off for every job. compose.yml passes this to the backend.
+  MULTI_AGENT_ENABLED: "false"
 
 jobs:
   lint:
@@ -170,6 +173,17 @@ jobs:
             exit 1
           fi
           echo "/api/mcp/resources is refused with HTTP 403."
+
+      - name: Verify multi-agent mode is disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # The backend reports the flag it was started with, so this proves the
+          # workflow's MULTI_AGENT_ENABLED reached the container through compose.
+          response="$(curl --silent --show-error --fail http://localhost:5002/config)"
+          echo "$response"
+          jq -e '.flags.MULTI_AGENT_ENABLED == false' <<< "$response"
 
       - name: Dump service logs
         if: failure()
