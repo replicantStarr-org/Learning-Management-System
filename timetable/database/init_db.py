@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 DATA_DIR = "data"
 DATABASE_NAME = os.path.join(DATA_DIR, "timetable.db")
@@ -67,8 +67,12 @@ today = datetime.now().date()
 monday = today - timedelta(days=today.weekday())
 
 
-def on(day_offset):
-    return (monday + timedelta(days=day_offset)).isoformat()
+# Keep Alex's filled-out demo timetable on 19–25 October 2026.
+ALEX_DEMO_WEEK_START = date(2026, 10, 19)
+
+
+def on(day_offset, week_start=monday):
+    return (week_start + timedelta(days=day_offset)).isoformat()
 
 
 def weekday_name(day_offset):
@@ -97,7 +101,7 @@ entries = [
 seed_entries = [
     (
         username,
-        on(day_offset),
+        on(day_offset, ALEX_DEMO_WEEK_START if username == "alex.wong" else monday),
         weekday_name(day_offset),
         start,
         end,

@@ -44,7 +44,7 @@ def test_default_is_private_and_scales_to_zero(state):
         assert properties["configuration"]["ingress"]["targetPort"] == 8080
         assert properties["configuration"]["ingress"]["allowInsecure"] is False
         assert properties["configuration"]["activeRevisionsMode"] == "Single"
-        assert properties["template"]["scale"]["minReplicas"] == 0
+        assert properties["template"]["scale"]["minReplicas"] == 1
         assert properties["template"]["scale"]["maxReplicas"] == 1
         assert [c["name"] for c in properties["template"]["containers"]] == ["edge", "frontend", "backend", "database"]
         assert all("@sha256:" in c["image"] for c in properties["template"]["containers"])
@@ -65,8 +65,13 @@ def test_bonus_uses_nonconflicting_ports_and_secret_references(state):
         for env in c["env"]:
             if env["name"] == "OPENAI_API_KEY":
                 assert env == {"name": "OPENAI_API_KEY", "secretRef": "inference-key"}
-    for name in set(apps) - {"subjects"}:
-        assert len(apps[name]["properties"]["template"]["containers"]) == 4
+
+    # all deployments have seven containers
+    # edge, frontend, backend, database
+    # then 3 for the bonus profile
+    # MCP, RAG and multi-agent server
+    for name in set(apps):
+        assert len(apps[name]["properties"]["template"]["containers"]) == 7
 
 
 def test_resources_shares_only_temporary_content(state):
