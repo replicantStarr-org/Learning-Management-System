@@ -3,6 +3,7 @@ from functools import wraps
 import requests
 from flask import Blueprint, make_response, request
 
+from routes.ai_mode import ai_mode_required
 from services.ollama_client import OllamaError
 from services.subject_service import (
     ServiceError,
@@ -103,7 +104,7 @@ def add_subject():
     return subjects_changed(
         message(f"{subject['code']} was created."),
         201,
-        f"http://localhost:3001/subject.html?id={subject['subject_id']}",
+        f"/subject.html?id={subject['subject_id']}",
     )
 
 
@@ -117,7 +118,7 @@ def edit_subject():
     subject = update_subject(int(subject_id), data)
     return subjects_changed(
         message(f"{subject['code']} was updated."),
-        redirect=f"http://localhost:3001/subject.html?id={subject['subject_id']}",
+        redirect=f"/subject.html?id={subject['subject_id']}",
     )
 
 
@@ -129,7 +130,7 @@ def remove_subject():
         raise ServiceError("A valid subject ID is required")
     delete_subject(int(subject_id))
     return subjects_changed(
-        "", redirect="http://localhost:3001/?message=Subject%20deleted."
+        "", redirect="/?message=Subject%20deleted."
     )
 
 
@@ -198,12 +199,14 @@ def edit_subject_tags(subject_id):
 
 
 @subjects_bp.post("/subjects/<int:subject_id>/summary")
+@ai_mode_required
 @handle_errors
 def subject_summary(subject_id):
     return summary_result(get_or_create_summary(subject_id))
 
 
 @subjects_bp.post("/subjects/questions")
+@ai_mode_required
 @handle_errors
 def subject_question():
     subject_id = request.form.get("subject_id", "")

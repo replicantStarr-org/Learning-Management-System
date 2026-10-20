@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-from ollama import Client, ResponseError
+from openai import OpenAI, OpenAIError
 
 from services.highlight_service import list_highlight_catalogue
 from services.resource_service import list_resources_with_tags
@@ -15,10 +15,6 @@ PROMPT_SEPARATOR = "\n---\n"
 # Small enough to answer in a few seconds on a laptop with no GPU, which is what
 # the reader is waiting on. Overridden by LANGUAGE_MODEL.
 DEFAULT_MODEL = "qwen2.5:0.5b"
-
-# Either block runs to a few thousand tokens, which is more than Ollama's default
-# context window, so ask for one large enough to hold it plus the reply.
-CONTEXT_TOKENS = 8192
 
 # A broad question like "computer science" matches a third of the library, and
 # without a cap the model will describe every match. Generation is the slow part,
@@ -62,7 +58,12 @@ def _client():
     url = os.getenv("OLLAMA_URL", "localhost")
     port = os.getenv("OLLAMA_PORT", "11434")
 
-    return Client(host=f"http://{url}:{port}")
+    return OpenAI(
+        base_url=os.getenv("OPENAI_BASE_URL", f"http://{url}:{port}/v1"),
+        api_key=os.getenv("OPENAI_API_KEY", "ollama"),
+        timeout=float(os.getenv("OPENAI_TIMEOUT_SECONDS", "90")),
+        max_retries=1,
+    )
 
 def load_system_prompt(filename):
     """Everything after the first `---` in the named prompt file is the prompt."""
@@ -140,8 +141,8 @@ def send_message(message):
     prompt, data = _prompt_and_data_for(message)
 
     try:
-        response = _client().chat(
-            model=os.getenv("LANGUAGE_MODEL") or DEFAULT_MODEL,
+        response = _client().chat.completions.create(
+            model=os.getenv("OPENAI_MODEL") or os.getenv("LANGUAGE_MODEL") or DEFAULT_MODEL,
             messages=[
                 {"role": "system", "content": load_system_prompt(prompt)},
                 # The data and the question go in one message rather than two.
@@ -150,17 +151,13 @@ def send_message(message):
                 # from what it already knows.
                 {"role": "user", "content": f"{data}\n\nQUESTION: {message}"},
             ],
-            options={
-                "temperature": 0.2,
-                "num_ctx": CONTEXT_TOKENS,
-                "num_predict": REPLY_TOKEN_LIMIT,
-            },
+            temperature=0.2,
+            max_tokens=REPLY_TOKEN_LIMIT,
         )
-    except (ResponseError, ConnectionError, TimeoutError) as exc:
-        raise ChatError("The local language model is unavailable.") from exc
-
-    reply = (response.message.content or "").strip()
+        reply = (response.choices[0].message.content or "").strip()
+    except (OpenAIError, IndexError, AttributeError) as exc:
+        raise ChatError("The language model is unavailable.") from exc
     if not reply:
-        raise ChatError("The local language model returned an empty response.")
+        raise ChatError("The language model returned an empty response.")
 
     return reply

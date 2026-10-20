@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from html import escape
 
 
-BACKEND_BASE = "http://localhost:5005"
+BACKEND_BASE = ""
 
 CATEGORY_BADGES = {
     "Class": "text-bg-primary",

@@ -9,6 +9,7 @@
     <link href="/assets/theme.css" rel="stylesheet">
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/assets/runtime.js" defer></script>
 </head>
 <body>
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
@@ -20,7 +21,7 @@
             <div>
                 <p class="text-primary fw-semibold mb-2">Learning Management System</p>
                 <h1 class="display-5 fw-bold">Assignments</h1>
-                <p class="lead text-secondary mb-0">Track what is due, and let the AI break a brief down for you.</p>
+                <p class="lead text-secondary mb-0">Track what is due<span data-ai-description>, and let AI break a brief down for you</span>.</p>
             </div>
             <div class="d-flex gap-2">
                 <a class="btn btn-outline-secondary" href="/integration.html">MCP / RAG</a>
@@ -31,14 +32,14 @@
 
         <section class="mb-4" aria-label="Deadline notifications">
             <div id="notifications" aria-live="polite"
-                 hx-get="http://localhost:5003/reminders?within_days=14"
+                 hx-get="/reminders?within_days=14"
                  hx-trigger="load, every 60s, assignmentsChanged from:body"></div>
         </section>
 
         <section class="card border-0 shadow-sm mb-4" aria-label="Filters">
             <div class="card-body p-3">
                 <form id="filters" class="row g-2 align-items-end"
-                      hx-get="http://localhost:5003/assignments"
+                      hx-get="/assignments"
                       hx-target="#assignment-list"
                       hx-trigger="load, change, keyup changed delay:300ms from:#q, assignmentsChanged from:body">
                     <div class="col-md-4">
@@ -49,7 +50,7 @@
                     <div class="col-md-3">
                         <label class="form-label" for="subject_id">Subject</label>
                         <select class="form-select" id="subject_id" name="subject_id"
-                                hx-get="http://localhost:5003/subjects/options" hx-trigger="load"
+                                hx-get="/subjects/options" hx-trigger="load"
                                 hx-target="this" hx-swap="beforeend">
                             <option value="" selected>All subjects</option>
                         </select>

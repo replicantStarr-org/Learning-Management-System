@@ -9,12 +9,15 @@ PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 
 def call_model(role: str, context: dict) -> dict:
     model = os.getenv(
-        "OLLAMA_REVIEW_MODEL" if role == "reviewer" else "OLLAMA_MODEL",
-        "llama3.1:8b" if role == "reviewer" else "qwen2.5:0.5b",
+        "OPENAI_REVIEW_MODEL" if role == "reviewer" else "OPENAI_MODEL",
+        os.getenv(
+            "OLLAMA_REVIEW_MODEL" if role == "reviewer" else "OLLAMA_MODEL",
+            "llama3.1:8b" if role == "reviewer" else "qwen2.5:0.5b",
+        ),
     )
     with OpenAI(
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-        api_key="ollama",
+        base_url=os.getenv("OPENAI_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")),
+        api_key=os.getenv("OPENAI_API_KEY", "ollama"),
         timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45")),
         max_retries=0,
     ) as client:

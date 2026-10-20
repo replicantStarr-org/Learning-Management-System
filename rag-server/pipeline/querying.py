@@ -1,5 +1,6 @@
-"""Answers questions from the indexed chunks: embed, top-k search, then Ollama."""
+"""Answers questions from indexed chunks using OpenAI-compatible inference."""
 
+import os
 import time
 from typing import Any
 
@@ -83,10 +84,10 @@ def confidence_from_results(results: list[dict[str, Any]]) -> str:
     return "Low"
 
 
-def generate_with_ollama(query: str, context: str) -> str:
-    ollama = settings()["ollama"]
-    # The chat endpoint with the rules in a system message: given the same text
-    # as a single /api/generate prompt, qwen2.5:0.5b refused answerable questions.
+def generate_with_openai(query: str, context: str) -> str:
+    inference = settings()["openai"]
+    # Keep rules in a system message. Both local Ollama and Azure support this
+    # OpenAI-compatible chat API; there is no provider-specific /api/chat call.
     # Asking for sentences that name the record reads more naturally than "answer
     # briefly", and made it pick the right record more often. It is kept to these
     # two rules: asking the 0.5b model for anything more (restating the question,
@@ -99,21 +100,29 @@ def generate_with_ollama(query: str, context: str) -> str:
         f"records do not contain the answer, reply with only: {INSUFFICIENT_EVIDENCE}"
     )
     response = requests.post(
-        ollama["url"].rstrip("/") + "/api/chat",
+        os.getenv("OPENAI_BASE_URL", inference["base_url"]).rstrip("/") + "/chat/completions",
+        headers={"Authorization": "Bearer " + os.getenv("OPENAI_API_KEY", "ollama")},
         json={
-            "model": ollama["model"],
+            "model": os.getenv("OPENAI_MODEL", inference["model"]),
             "stream": False,
             # Temperature 0 keeps answers repeatable and stops the small model wandering.
-            "options": {"temperature": 0},
+            "temperature": 0,
+            "max_tokens": 400,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": f"Records:\n{context}\n\nQuestion: {query}"},
             ],
         },
-        timeout=ollama["timeout_seconds"],
+        timeout=inference["timeout_seconds"],
     )
     response.raise_for_status()
-    return response.json().get("message", {}).get("content", "").strip() or INSUFFICIENT_EVIDENCE
+    try:
+        content = response.json()["choices"][0]["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Empty model response")
+        return content.strip()
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise requests.RequestException("Invalid inference response") from exc
 
 
 def answer_question(query: str, k: int | None = None, service: str | None = None) -> dict[str, Any]:
@@ -133,9 +142,9 @@ def answer_question(query: str, k: int | None = None, service: str | None = None
     else:
         context = "\n\n".join(r["text"] for r in results)
         try:
-            answer = generate_with_ollama(query, context)
-        except requests.RequestException as exc:
-            output = {"status": "error", "query": query, "error": f"ollama unavailable: {exc}"}
+            answer = generate_with_openai(query, context)
+        except requests.RequestException:
+            output = {"status": "error", "query": query, "error": "Inference service unavailable."}
             append_audit("answer_question", tool_input, output, "generation_failed", start)
             return output
 

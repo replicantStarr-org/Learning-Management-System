@@ -9,6 +9,7 @@
     <link href="/assets/theme.css" rel="stylesheet">
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/assets/runtime.js" defer></script>
 </head>
 <body>
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
@@ -23,7 +24,7 @@
                 <p class="lead text-secondary mb-0">Unfinished work due inside your chosen window.</p>
             </div>
             <form class="d-flex align-items-end gap-2"
-                  hx-get="http://localhost:5003/assignments/upcoming"
+                  hx-get="/assignments/upcoming"
                   hx-target="#upcoming-list" hx-trigger="load, change">
                 <div>
                     <label class="form-label" for="days">Window</label>
@@ -40,7 +41,7 @@
         <section class="mb-4" aria-label="Deadline notifications">
             <h2 class="h5 mb-3">Notifications</h2>
             <div id="notifications" aria-live="polite"
-                 hx-get="http://localhost:5003/reminders?within_days=30"
+                 hx-get="/reminders?within_days=30"
                  hx-trigger="load, every 60s, assignmentsChanged from:body"></div>
         </section>
 

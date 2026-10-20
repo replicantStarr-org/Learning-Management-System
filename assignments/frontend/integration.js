@@ -1,4 +1,4 @@
-const backend = "http://127.0.0.1:5003/integration";
+const backend = "/integration";
 const mcpResult = document.querySelector("#mcp-result");
 const ragResult = document.querySelector("#rag-result");
 

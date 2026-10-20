@@ -2,9 +2,8 @@ import os
 
 import requests
 
-# Cross-feature read: per the top-level design.md integration rule, other features may only be
-# queried through their database service's CRUD API, never through direct DB access.
-SUBJECTS_DATABASE_URL = os.getenv("SUBJECTS_DATABASE_SERVICE_URL", "http://localhost:6001").rstrip("/")
+# Cross-feature reads go through Subjects' read-only public frontend proxy.
+SUBJECTS_PUBLIC_URL = os.getenv("SUBJECTS_PUBLIC_SERVICE_URL", "http://localhost:3001/public").rstrip("/")
 TIMEOUT = float(os.getenv("SUBJECTS_DATABASE_TIMEOUT_SECONDS", "3"))
 
 
@@ -15,7 +14,7 @@ def list_subjects():
     the quiz feature's create/generate forms still render without a working dropdown.
     """
     try:
-        response = requests.get(f"{SUBJECTS_DATABASE_URL}/subjects", timeout=TIMEOUT)
+        response = requests.get(f"{SUBJECTS_PUBLIC_URL}/subjects", timeout=TIMEOUT)
     except requests.RequestException:
         return []
     if not response.ok:
@@ -34,7 +33,7 @@ def fetch_subject(subject_id):
     subject does not exist, so quiz generation still works if that feature is offline.
     """
     try:
-        response = requests.get(f"{SUBJECTS_DATABASE_URL}/subjects/{subject_id}", timeout=TIMEOUT)
+        response = requests.get(f"{SUBJECTS_PUBLIC_URL}/subjects/{subject_id}", timeout=TIMEOUT)
     except requests.RequestException:
         return None
     if not response.ok:

@@ -1,0 +1,159 @@
+name: Cloud deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Deployment profile (AI services off by default)
+        type: choice
+        options: [default, bonus]
+        default: default
+      operation:
+        description: Deploy, resume the existing release, or stop all demo revisions
+        type: choice
+        options: [deploy, start, stop]
+        default: deploy
+  schedule:
+    # will stop any running demo revisions every hour
+    # to try and keep costs down and avoid exhausting credits
+    # TODO: disable prior to submission to prevent the workflow from stopping running demo revisions during evaluation
+    - cron: '0 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: learning-hub-cloud
+  cancel-in-progress: false
+
+jobs:
+  access-ci:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    uses: ./.github/workflows/access.yml
+  subjects-ci:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    uses: ./.github/workflows/subjects.yml
+  resources-ci:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    uses: ./.github/workflows/learning-resource-manager.yml
+  assignments-ci:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    uses: ./.github/workflows/assignments.yml
+  quizzes-ci:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    uses: ./.github/workflows/quizzes.yml
+  timetable-ci:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    uses: ./.github/workflows/timetable.yml
+  rag-ci:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    uses: ./.github/workflows/rag-server.yml
+  cloud-configuration:
+    if: github.event_name != 'schedule' && (inputs.operation == '' || inputs.operation == 'deploy')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/cloud/requirements.txt pytest
+      - run: python -m pytest tests/cloud -v
+      - name: Validate shell syntax
+        run: for script in scripts/cloud/*.sh; do bash -n "$script"; done
+
+  deploy:
+    needs: [access-ci, subjects-ci, resources-ci, assignments-ci, quizzes-ci, timetable-ci, rag-ci, cloud-configuration]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: cloud
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+      LOCATION: australiaeast
+      PROFILE: ${{ inputs.profile || 'default' }}
+      RELEASE: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      REPORT_DIR: reports/cloud/${{ github.run_id }}-${{ github.run_attempt }}
+      DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+      DEMO_HTPASSWD: ${{ secrets.DEMO_HTPASSWD }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/cloud/requirements.txt
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Install Container Apps CLI
+        run: az extension add --name containerapp --upgrade --only-show-errors
+      - name: Preflight and infrastructure
+        run: |
+          bash scripts/cloud/preflight.sh
+          bash scripts/cloud/provision.sh
+      - name: Build and push exact release
+        run: bash scripts/cloud/build-images.sh
+      - name: Refresh Azure authentication after image builds
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy and verify real cloud endpoints
+        run: bash scripts/cloud/deploy.sh
+      - name: Collect sanitized deployment evidence
+        if: always()
+        run: bash scripts/cloud/collect-logs.sh
+      - name: Publish report summary
+        if: always()
+        run: |
+          if [[ -f "$REPORT_DIR/deployment-summary.md" ]]; then
+            printf '\n**Workflow deployment outcome: %s**\n' '${{ job.status }}' >> "$REPORT_DIR/deployment-summary.md"
+            cat "$REPORT_DIR/deployment-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload report-ready logs, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-deployment-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_DIR }}/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Stop all revisions after a failed deployment
+        if: failure()
+        run: FORCE=true bash scripts/cloud/stop.sh
+
+  cost-guard:
+    if: github.event_name == 'schedule' || inputs.operation == 'stop' || inputs.operation == 'start'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: cloud
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+      FORCE: ${{ inputs.operation == 'stop' && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - run: az extension add --name containerapp --upgrade --only-show-errors
+      - name: Resume or stop the existing demo
+        run: |
+          if [[ '${{ inputs.operation }}' == start ]]; then
+            bash scripts/cloud/start.sh
+          else
+            bash scripts/cloud/guard.sh
+          fi

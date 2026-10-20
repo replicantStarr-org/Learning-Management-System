@@ -1,5 +1,6 @@
 from html import escape
 
+from services.deployment import enabled
 from views.responses import BACKEND_BASE
 
 
@@ -164,7 +165,15 @@ def summary_result(summary):
 
 def assignment_detail(assignment):
     assignment_id = escaped(assignment["assignment_id"])
-    summary = assignment.get("summary")
+    ai_enabled = enabled(
+        "AI_MODE_ENABLED", "false" if enabled("CLOUD_DEPLOYMENT", "false") else "true"
+    )
+    # Keep cached summaries stored, but do not render them while AI mode is off.
+    summary = assignment.get("summary") if ai_enabled else None
+    description = (
+        "Summarise what this brief is asking for." if ai_enabled else
+        "AI summaries are disabled in this deployment. You can still review the requirements above."
+    )
 
     return f"""
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
@@ -195,7 +204,8 @@ def assignment_detail(assignment):
     <section class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
             <h2 class="h5">AI assistance</h2>
-            <p class="text-secondary small">Summarise what this brief is asking for.</p>
+            <p class="text-secondary small" role="status">{description}</p>
+            <fieldset {'' if ai_enabled else 'disabled'}>
             <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-primary" type="button"
                         hx-post="{BACKEND_BASE}/assignments/{assignment_id}/summary{'?force=true' if summary else ''}"
@@ -204,6 +214,7 @@ def assignment_detail(assignment):
                 </button>
                 <span class="htmx-indicator" id="summary-loading" role="status"><span class="spinner-border spinner-border-sm"></span> Summarising…</span>
             </div>
+            </fieldset>
             <div id="summary-result" aria-live="polite">{summary_result(summary) if summary else ''}</div>
         </div>
     </section>

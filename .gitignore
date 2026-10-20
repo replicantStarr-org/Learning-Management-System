@@ -1,3 +1,7 @@
+# Private cloud state includes credentials and rendered secret manifests.
+.cloud/
+reports/cloud/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

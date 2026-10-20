@@ -1,8 +1,8 @@
 from flask import jsonify, make_response, request
 
 
-BACKEND_BASE = "http://localhost:5003"
-FRONTEND_BASE = "http://localhost:3003"
+BACKEND_BASE = ""
+FRONTEND_BASE = ""
 
 
 def wants_html():
