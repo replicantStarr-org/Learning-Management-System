@@ -1,12 +1,12 @@
 from flask import Flask
 
-from controllers.auth_controller import auth_bp
-from controllers.chat_controller import chat_bp
-from controllers.highlights_controller import highlights_bp
-from controllers.mcp_controller import mcp_bp
-from controllers.multi_agent_controller import multi_agent_bp
-from controllers.rag_controller import rag_bp
-from controllers.resources_controller import resources_bp
+from routes.auth import auth_bp
+from routes.chat import chat_bp
+from routes.highlights import highlights_bp
+from routes.mcp import mcp_bp
+from routes.multi_agent import multi_agent_bp
+from routes.rag import rag_bp
+from routes.resources import resources_bp
 from services.deployment import configure_deployment
 from services.token_secret import load_jwt_secret
 
