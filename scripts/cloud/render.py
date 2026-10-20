@@ -160,9 +160,7 @@ def render(state: Path, profile: str):
                     "registries": [{"server": registry_server, "identity": identity}],
                     "ingress": {"external": True, "targetPort": 8080, "transport": "http", "allowInsecure": False}},
                 "template": {"containers": containers, "volumes": volumes,
-                    # TODO: minReplicas = 1 before submission so the service is always instantly available
-                    # set to 0 during development to save costs
-                    "scale": {"minReplicas": 0, "maxReplicas": 1, "cooldownPeriod": 300,
+                    "scale": {"minReplicas": 1, "maxReplicas": 1, "cooldownPeriod": 300,
                               "rules": [{"name": "http", "http": {"metadata": {"concurrentRequests": "10"}}}]}},
             },
         }

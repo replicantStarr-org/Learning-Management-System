@@ -44,7 +44,7 @@ def test_default_is_private_and_scales_to_zero(state):
         assert properties["configuration"]["ingress"]["targetPort"] == 8080
         assert properties["configuration"]["ingress"]["allowInsecure"] is False
         assert properties["configuration"]["activeRevisionsMode"] == "Single"
-        assert properties["template"]["scale"]["minReplicas"] == 0
+        assert properties["template"]["scale"]["minReplicas"] == 1
         assert properties["template"]["scale"]["maxReplicas"] == 1
         assert [c["name"] for c in properties["template"]["containers"]] == ["edge", "frontend", "backend", "database"]
         assert all("@sha256:" in c["image"] for c in properties["template"]["containers"])
