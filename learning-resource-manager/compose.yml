@@ -38,6 +38,9 @@ services:
       # MULTI_AGENT_ENABLED=false, so no run depends on the multi-agent server.
       - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
       - MULTI_AGENT_SERVICE_URL=http://localhost:15004
+      # Signs and verifies /api/auth tokens. Empty unless set, in which case the
+      # backend generates its own (services/token_secret.py). Cloud sets it.
+      - JWT_SECRET=${JWT_SECRET:-}
     # Nothing the backend serves works until the database service answers, so
     # wait for its health check rather than just for the container to start.
     depends_on:
