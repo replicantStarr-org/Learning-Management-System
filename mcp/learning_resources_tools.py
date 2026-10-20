@@ -23,7 +23,7 @@ class LearningResourcesApiError(ToolError):
 
 class LearningResourcesApiClient:
     def __init__(self):
-        # The backend's port on the host (see learning-resource-manager/compose.yml).
+        # The backend's port on the host (see learning-resource-manager/docker-compose.yml).
         self.base_url = os.getenv(
             "LEARNING_RESOURCES_API_URL", "http://127.0.0.1:5002/api/resources"
         ).rstrip("/")

@@ -10,7 +10,8 @@ TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 def is_enabled():
-    return os.getenv("MULTI_AGENT_ENABLED", "true").strip().lower() in TRUE_VALUES
+    cloud = os.getenv("CLOUD_DEPLOYMENT", "false").strip().lower() in TRUE_VALUES
+    return os.getenv("MULTI_AGENT_ENABLED", "false" if cloud else "true").strip().lower() in TRUE_VALUES
 
 
 def required(view):

@@ -9,6 +9,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 DATABASE_SERVICE_URL = os.getenv("DATABASE_SERVICE_URL", "http://localhost:6000")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# Host-only cookies work across localhost ports. Cloud supplies the shared ACA
+# environment domain so sibling feature hosts can read the username cookie.
+COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
+COOKIE_SECURE = FRONTEND_URL.startswith("https://")
 SESSION_LENGTH = timedelta(hours=24)
 
 
@@ -49,6 +53,15 @@ CORS(app, supports_credentials=True)
 @app.get("/")
 def health():
     return jsonify({"service": "access-backend", "status": "running"})
+
+
+@app.get("/config")
+def runtime_config():
+    return jsonify(navigation={
+        name: os.getenv(f"{name.upper()}_FRONTEND_URL", f"http://localhost:{port}")
+        for name, port in (("subjects", 3001), ("resources", 3002),
+                           ("assignments", 3003), ("quizzes", 3004), ("timetable", 3005))
+    })
 
 
 @app.get("/session")
@@ -111,6 +124,8 @@ def login():
         "max_age": int(SESSION_LENGTH.total_seconds()),
         "samesite": "Lax",
         "path": "/",
+        "domain": COOKIE_DOMAIN,
+        "secure": COOKIE_SECURE,
     }
     result.set_cookie("username", username, **cookie_options)
     result.set_cookie("created_time", created_time, **cookie_options)
@@ -119,8 +134,8 @@ def login():
 @app.post("/logout")
 def logout():
     result = jsonify({"message": "Logged out"})
-    result.delete_cookie("username", path="/")
-    result.delete_cookie("created_time", path="/")
+    result.delete_cookie("username", path="/", domain=COOKIE_DOMAIN, secure=COOKIE_SECURE, samesite="Lax")
+    result.delete_cookie("created_time", path="/", domain=COOKIE_DOMAIN, secure=COOKIE_SECURE, samesite="Lax")
     return result
 
 if __name__ == "__main__":

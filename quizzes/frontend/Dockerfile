@@ -13,7 +13,5 @@ COPY quizzes/frontend/multi-agent.js /usr/share/nginx/html/multi-agent.js
 COPY quizzes/frontend/app.js /usr/share/nginx/html/app.js
 COPY quizzes/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY shared/assets /usr/share/nginx/html/assets
-COPY quizzes/frontend/set-public-urls.sh /docker-entrypoint.d/40-set-public-urls.sh
-RUN chmod +x /docker-entrypoint.d/40-set-public-urls.sh
 
 EXPOSE 3004

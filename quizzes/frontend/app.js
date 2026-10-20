@@ -39,7 +39,7 @@ async function loadQuiz() {
     const suffix = quizView.dataset.quizView === "edit" ? "?view=edit" : "";
     try {
         const response = await fetch(
-            `http://localhost:5004/quizzes/${quizId}${suffix}`
+            `/quizzes/${quizId}${suffix}`
         );
         if (!response.ok) throw new Error("Quiz request failed");
 
@@ -54,7 +54,7 @@ async function loadQuiz() {
 if (quizView) loadQuiz();
 document.body.addEventListener("htmx:afterSwap", fillStudentName);
 
-const RAG_URL = "http://localhost:5004/rag";
+const RAG_URL = "/rag";
 const INSUFFICIENT_EVIDENCE = "Insufficient evidence.";
 const CONFIDENCE_BADGES = {
     High: "text-bg-success",
@@ -281,7 +281,7 @@ if (document.querySelector("[data-rag-page]")) {
     loadRagStatus();
 }
 
-const MCP_URL = "http://localhost:5004/mcp";
+const MCP_URL = "/mcp";
 const MCP_ROUTES = {
     quizzes: "/quizzes",
     quiz: "/quiz",
@@ -658,24 +658,5 @@ if (document.querySelector("[data-mcp-page]")) {
 }
 
 
-// AI-Mode: hide the AI entry points and explain why when the backend reports it disabled.
-const AI_MODE_URL = "http://localhost:5004/ai-mode";
-
-async function applyAiMode() {
-    try {
-        const response = await fetch(`${AI_MODE_URL}/status`);
-        const status = await response.json();
-        if (status.enabled) return;
-    } catch (error) {
-        return;
-    }
-    document.querySelectorAll("[data-ai-feature]").forEach((element) => {
-        element.hidden = true;
-    });
-    const notice = document.querySelector("#ai-mode-notice");
-    const card = document.querySelector("#generate-card");
-    if (notice) notice.hidden = false;
-    if (card) card.hidden = true;
-}
-
-applyAiMode();
+// Runtime configuration renders inline AI availability states via /assets/runtime.js.
+// Feedback controls in HTMX fragments are rendered by the backend.

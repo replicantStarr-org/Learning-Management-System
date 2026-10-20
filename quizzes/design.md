@@ -314,7 +314,7 @@ inline `# noqa` suppressions with reasons where Ruff flags the container bind ad
 
 ### Release 2: Multi-Agent study coach and cloud settings
 
-**Multi-Agent study coach.** The shared multi-agent server (port 5020) runs planner, worker and reviewer
+**Multi-Agent study coach.** The shared multi-agent server (port 15004) runs planner, worker and reviewer
 agents, then waits for a human decision. Quizzes plugs in the same way as Subjects:
 
 - `multi-agent-server/connectors/quizzes.py` reads quiz content from the quiz database service
@@ -323,20 +323,14 @@ agents, then waits for a human decision. Quizzes plugs in the same way as Subjec
   options and explanations. It never reads attempts, scores or student names, so the feature stays self-study.
 - `backend/routes/multi_agent.py` and `backend/services/multi_agent_service.py` relay the workflow
   calls under `/multi-agent/...` and add `"service": "quizzes"`. `MULTI_AGENT_ENABLED` (default `true`
-  locally) turns the routes off: they then return HTTP 403 and `/multi-agent/status` reports `enabled: false`.
+  locally, `false` when `CLOUD_DEPLOYMENT` is set) turns the routes off: they then return HTTP 403 and `/multi-agent/status` reports `enabled: false`.
 - `frontend/multi-agent.html` and `multi-agent.js` show the workflow, the raw response and the human decision form.
   The Quiz ID field is optional.
 - CI and the cloud deployment set `MULTI_AGENT_ENABLED=false`. `quizzes.yml` checks that the route returns 403.
 
-**Cloud settings.** The pages and the backend no longer depend on fixed local addresses. Every variable below
-is optional; with none set, the local ports are used.
-
-| Variable | Used by | Replaces |
-| --- | --- | --- |
-| `QUIZ_BACKEND_URL` | frontend container | `http://localhost:5004` in the pages |
-| `HOME_URL`, `SUBJECTS_URL`, `RESOURCES_URL`, `ASSIGNMENTS_URL`, `TIMETABLE_URL` | frontend container | the navbar links to the other front ends |
-| `QUIZ_BACKEND_PUBLIC_URL`, `QUIZ_FRONTEND_PUBLIC_URL` | backend | the addresses in the HTML it returns and in redirects |
-| `AI_MODE_ENABLED`, `MCP_ENABLED`, `RAG_ENABLED`, `MULTI_AGENT_ENABLED` | backend | set all four to `false` in the cloud |
-
-The frontend container runs `set-public-urls.sh` at start-up (nginx `/docker-entrypoint.d/`). It rewrites the
-addresses in the static pages from the variables above.
+**Cloud settings.** The pages call the backend with relative URLs. The frontend nginx proxies `/quizzes`, `/subjects`,
+`/attempts`, `/quiz-generations`, `/ai-mode`, `/config`, `/multi-agent`, `/rag/` and `/mcp/` to the backend on port 5004,
+and `/config` returns the deployment profile, the four AI flags and the navigation links. The cloud profile sets
+`AI_MODE_ENABLED`, `MCP_ENABLED`, `RAG_ENABLED` and `MULTI_AGENT_ENABLED` to `false` by default and the bonus profile
+enables them (`scripts/cloud/render.py`). `MULTI_AGENT_SERVICE_URL` points the backend at the multi-agent server
+(default `http://localhost:15004`).

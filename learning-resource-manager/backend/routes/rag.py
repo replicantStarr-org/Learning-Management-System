@@ -1,9 +1,32 @@
+import os
+
 from flask import Blueprint, jsonify, request
 
 from services import rag_service
 from services.rag_service import RagError
 
 rag_bp = Blueprint('rag', __name__)
+
+
+def rag_is_enabled():
+    return os.getenv("RAG_ENABLED", "true").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+@rag_bp.before_request
+def require_rag():
+    if request.endpoint != "rag.status" and not rag_is_enabled():
+        return jsonify({
+            "error": "RAG integration is disabled by the application configuration.",
+            "enabled": False,
+        }), 403
+
+
+@rag_bp.get('/status')
+def status():
+    enabled = rag_is_enabled()
+    return jsonify({"enabled": enabled, "rag_enabled": enabled})
 
 def _relay(call):
     """Hand the RAG server's response to the page as it came, or a 503 when

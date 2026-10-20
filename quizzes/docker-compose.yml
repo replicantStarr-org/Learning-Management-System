@@ -31,9 +31,10 @@ services:
     network_mode: host
     environment:
       DATABASE_SERVICE_URL: http://localhost:6004
-      SUBJECTS_DATABASE_SERVICE_URL: http://localhost:6001
-      OLLAMA_BASE_URL: http://localhost:11434/v1
-      OLLAMA_MODEL: llama3.1:8b
+      SUBJECTS_PUBLIC_SERVICE_URL: http://localhost:3001/public
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-http://localhost:11434/v1}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-llama3.1:8b}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-ollama}"
       # MCP and RAG are enabled by default for local application use. CI
       # passes MCP_ENABLED=false and RAG_ENABLED=false on the compose command line.
       # AI-Mode (quiz generation and AI feedback) is also on locally and off in CI and the cloud.
@@ -44,7 +45,7 @@ services:
       RAG_SERVER_URL: http://localhost:5010
       # Multi-Agent follows the same rule: on locally, off in CI and the cloud.
       MULTI_AGENT_ENABLED: "${MULTI_AGENT_ENABLED:-true}"
-      MULTI_AGENT_SERVICE_URL: http://localhost:5020
+      MULTI_AGENT_SERVICE_URL: http://localhost:15004
       MULTI_AGENT_WORKFLOW_TIMEOUT_SECONDS: 180
     depends_on:
       quiz-database:

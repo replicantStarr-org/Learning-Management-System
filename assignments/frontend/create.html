@@ -9,6 +9,7 @@
     <link href="/assets/theme.css" rel="stylesheet">
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/assets/runtime.js" defer></script>
 </head>
 <body>
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
@@ -21,12 +22,12 @@
                 <p class="text-secondary mb-4">A reminder is scheduled automatically three days before the due date.</p>
                 <section class="card border-0 shadow-sm">
                     <div class="card-body p-4 p-md-5">
-                        <form hx-post="http://localhost:5003/assignments" hx-target="#form-result">
+                        <form hx-post="/assignments" hx-target="#form-result">
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label" for="subject_id">Subject</label>
                                     <select class="form-select" id="subject_id" name="subject_id" required autofocus
-                                            hx-get="http://localhost:5003/subjects/options" hx-trigger="load"
+                                            hx-get="/subjects/options" hx-trigger="load"
                                             hx-target="this" hx-swap="beforeend"
                                             onchange="document.getElementById('subject_name').value = this.options[this.selectedIndex].text">
                                         <option value="" disabled selected>Choose a subject…</option>

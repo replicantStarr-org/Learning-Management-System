@@ -6,6 +6,7 @@ on:
       - "rag-server/**"
       - ".github/workflows/rag-server.yml"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

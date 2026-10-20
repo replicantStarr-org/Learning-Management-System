@@ -7,7 +7,7 @@ line-length = 100
 # backend/ and database/ are the two Python roots; content/ is data.
 include = ["backend/**/*.py", "database/**/*.py"]
 # Each service is its own import root in its container (the backend runs from
-# /app/backend), so "services" and "controllers" are first party imports.
+# /app/backend), so "services" and "routes" are first party imports.
 src = ["backend", "database"]
 
 [tool.ruff.lint]

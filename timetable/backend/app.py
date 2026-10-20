@@ -4,11 +4,14 @@ from flask_cors import CORS
 from routes.mcp import mcp_bp
 from routes.rag import rag_bp
 from routes.timetable import timetable_bp
+from services.deployment import configure_deployment, enabled
 
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
+    if not enabled("CLOUD_DEPLOYMENT", "false"):
+        CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
+    configure_deployment(app, {"timetable.ai_plan", "timetable.ai_advice"})
     app.register_blueprint(timetable_bp)
     app.register_blueprint(rag_bp)
     app.register_blueprint(mcp_bp)

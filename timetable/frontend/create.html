@@ -8,6 +8,7 @@
     <link href="/assets/theme.css" rel="stylesheet">
     <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+    <script src="/assets/runtime.js" defer></script>
 </head>
 <body>
     <header hx-get="/navbar.html" hx-trigger="load" hx-swap="outerHTML"></header>
@@ -20,7 +21,7 @@
                 <p class="text-secondary mb-4">Block out a class, study session, or activity.</p>
                 <section class="card border-0 shadow-sm">
                     <div class="card-body p-4 p-md-5">
-                        <form hx-post="http://localhost:5005/timetable" hx-target="#form-result"
+                        <form hx-post="/timetable" hx-target="#form-result"
                               hx-on::after-request="if (event.detail.xhr.getResponseHeader('HX-Error') !== 'true') window.location.href = '/'">
                             <input type="hidden" name="username" data-username-field>
                             <div class="row g-3 mb-3">

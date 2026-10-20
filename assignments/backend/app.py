@@ -5,6 +5,7 @@ from routes.ai import ai_bp
 from routes.assignments import assignments_bp
 from routes.reminders import reminders_bp
 from routes.integration import integration_bp
+from services.deployment import configure_deployment, enabled
 from services.errors import ServiceError, UpstreamError
 from views.html import error
 from views.responses import respond_error
@@ -12,7 +13,9 @@ from views.responses import respond_error
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
+    if not enabled("CLOUD_DEPLOYMENT", "false"):
+        CORS(app, expose_headers=["HX-Error", "HX-Redirect", "HX-Trigger"])
+    configure_deployment(app, {"ai.generate_summary"})
 
     app.register_blueprint(assignments_bp)
     app.register_blueprint(ai_bp)

@@ -144,7 +144,7 @@ if (timetableGrid) {
         timetableGrid.innerHTML = htmxLoadError();
     } else {
         const weekStart = queryParams.get("week_start");
-        let url = `http://localhost:5005/timetable?username=${encodeURIComponent(username)}`;
+        let url = `/timetable?username=${encodeURIComponent(username)}`;
         if (weekStart) url += `&week_start=${encodeURIComponent(weekStart)}`;
         timetableGrid.setAttribute("hx-get", url);
         timetableGrid.setAttribute("hx-trigger", "load, timetableChanged from:body");
@@ -166,7 +166,7 @@ async function loadEntry() {
     }
 
     try {
-        const response = await fetch(`http://localhost:5005/timetable/${entryId}/edit`);
+        const response = await fetch(`/timetable/${entryId}/edit`);
         if (!response.ok) throw new Error("Timetable entry request failed");
 
         entryView.innerHTML = await response.text();
@@ -187,7 +187,7 @@ async function loadEntry() {
 
 if (entryView) loadEntry();
 
-const RAG_URL = "http://localhost:5005/rag";
+const RAG_URL = "/rag";
 const INSUFFICIENT_EVIDENCE = "Insufficient evidence.";
 const CONFIDENCE_BADGES = {
     High: "text-bg-success",
@@ -406,7 +406,7 @@ if (document.querySelector("[data-rag-page]")) {
     loadRagStatus();
 }
 
-const MCP_URL = "http://localhost:5005/mcp";
+const MCP_URL = "/mcp";
 const MCP_ROUTES = {
     users: "/users",
     entry: "/entry",

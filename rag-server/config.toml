@@ -18,7 +18,8 @@ max_words = 150
 k = 5
 max_distance = 0.9
 
-[ollama]
-url = "http://localhost:11434"
+[openai]
+# Ollama supports this API locally; cloud uses the same protocol with Azure.
+base_url = "http://localhost:11434/v1"
 model = "llama3.1:8b"
 timeout_seconds = 120
