@@ -49,7 +49,7 @@
 				</div>
 				<!-- Stacked, so Upload PDF sits below the mode switch, aligned to its right edge. -->
 				<div class="d-flex flex-column align-items-end gap-2 flex-shrink-0">
-					<!-- Switches between the library, Rag Mode and MCP Mode without leaving the page. -->
+					<!-- Switches between the library, Rag Mode, MCP Mode and Multi-Agent Mode without leaving the page. -->
 					<div class="btn-group" role="group" aria-label="Page mode">
 						<input type="radio" class="btn-check" name="page-mode" id="mode-library" value="library"
 							autocomplete="off" checked>
@@ -60,6 +60,9 @@
 						<input type="radio" class="btn-check" name="page-mode" id="mode-mcp" value="mcp"
 							autocomplete="off">
 						<label class="btn btn-outline-primary" for="mode-mcp">MCP Mode</label>
+						<input type="radio" class="btn-check" name="page-mode" id="mode-multi-agent" value="multi-agent"
+							autocomplete="off">
+						<label class="btn btn-outline-primary" for="mode-multi-agent">Multi-Agent</label>
 					</div>
 					<button type="button" class="btn btn-primary" id="upload-open" data-bs-toggle="modal"
 						data-bs-target="#upload-modal">
@@ -354,6 +357,155 @@
 					</div>
 				</div>
 			</section>
+
+			<!-- The shared multi-agent server's planner -> worker -> reviewer workflow,
+				     grounded in this service's catalogue. Read-only: no resource is changed,
+				     and nothing counts as approved until a person records a decision.
+				     Laid out like the subjects service's Multi-Agent page. -->
+			<section id="multi-agent-view" aria-label="Multi-Agent Mode" hidden>
+				<!-- Local control, available only when the backend enables multi-agent. -->
+				<div class="form-check form-switch mb-2">
+					<input class="form-check-input" type="checkbox" role="switch" id="ma-switch" disabled>
+					<label class="form-check-label" for="ma-switch">Multi-Agent mode enabled</label>
+					<span id="ma-mode-state" class="badge text-bg-secondary ms-2" aria-live="polite">OFF</span>
+				</div>
+				<p class="text-secondary small mb-3">
+					Plan, generate and independently review an answer grounded in the library's catalogue with
+					planner, worker and reviewer agents. Read-only: no learning resources are changed, and every
+					output needs a human decision.
+				</p>
+				<div class="alert alert-info" id="ma-message" role="status">Checking availability…</div>
+
+				<fieldset id="ma-tools" class="border-0 p-0 m-0 w-100" aria-label="Multi-Agent tools" disabled>
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+								<h3 class="h6 mb-0">Run workflow</h3>
+								<code class="rag-route">POST /api/multi-agent/workflow</code>
+							</div>
+							<p class="text-secondary small mb-3">
+								Agents see each resource's title, author, medium, description and tags, but not
+								what is inside the PDFs or anyone's highlights. They flag anything the catalogue
+								does not cover.
+							</p>
+							<form id="ma-workflow-form">
+								<label class="form-label small mb-1" for="ma-request">Task</label>
+								<textarea id="ma-request" class="form-control mb-2" rows="2" required
+									maxlength="4000">Summarise the learning resources in the library and identify any missing information.</textarea>
+								<div class="d-flex flex-wrap gap-2 mb-3" aria-label="Sample workflow requests">
+									<button class="btn btn-outline-primary btn-sm" type="button"
+										data-ma-sample="Summarise the learning resources in the library and identify any missing information.">Library
+										summary</button>
+									<button class="btn btn-outline-primary btn-sm" type="button"
+										data-ma-sample="Group the learning resources by their tags and suggest a reading order for a beginner. Flag missing evidence.">Reading
+										order</button>
+									<button class="btn btn-outline-primary btn-sm" type="button"
+										data-ma-sample="Review the supplied resource evidence for missing authors, descriptions or tags and recommend what a human should verify.">Evidence
+										gaps</button>
+								</div>
+								<label class="form-label small mb-1" for="ma-resource">Resource</label>
+								<select id="ma-resource" class="form-select form-select-sm mb-3">
+									<option value="">Whole library catalogue</option>
+								</select>
+								<button class="btn btn-primary" id="ma-run" type="submit">Run planner → worker → reviewer
+									workflow</button>
+							</form>
+						</div>
+					</div>
+
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="row g-4">
+								<div class="col-md-6">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Latest workflow status</h3>
+										<code class="rag-route">GET /api/multi-agent/workflow/status</code>
+									</div>
+									<p class="text-secondary small mb-3">
+										History and audit record counts and the latest saved workflow. This is not
+										live agent progress.
+									</p>
+									<button type="button" class="btn btn-primary btn-sm" id="ma-status">Get status</button>
+								</div>
+								<div class="col-md-6">
+									<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+										<h3 class="h6 mb-0">Load a workflow</h3>
+										<code class="rag-route">GET /api/multi-agent/workflow/&lt;id&gt;</code>
+									</div>
+									<p class="text-secondary small mb-3">A saved workflow for this service, by its ID.</p>
+									<form id="ma-lookup-form" class="input-group input-group-sm">
+										<input id="ma-workflow-id" class="form-control" required autocomplete="off"
+											pattern="[0-9a-fA-F\-]{36}" placeholder="Workflow ID" aria-label="Workflow ID">
+										<button class="btn btn-primary" type="submit">Load</button>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card rag-card mb-4">
+						<div class="card-body">
+							<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+								<h3 class="h6 mb-0">Workflow</h3>
+								<code class="rag-route" id="ma-route">No call yet</code>
+							</div>
+							<p class="text-secondary small mb-3" id="ma-summary">No workflow loaded.</p>
+							<div id="ma-result" aria-live="polite"></div>
+							<details class="mt-3">
+								<summary class="small text-secondary">Raw API response</summary>
+								<div class="rag-output mt-2">
+									<pre class="rag-output-body ma-raw" id="ma-output"></pre>
+								</div>
+							</details>
+						</div>
+					</div>
+
+					<div class="card rag-card">
+						<div class="card-body">
+							<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+								<h3 class="h6 mb-0">Human decision</h3>
+								<code class="rag-route">POST /api/multi-agent/workflow/&lt;id&gt;/decision</code>
+							</div>
+							<p class="text-secondary small mb-3">
+								Review the plan, evidence, output and reviewer assessment above before deciding. The
+								reviewer's recommendation is not an approval. A decision cannot be changed once
+								recorded, and failed workflows may only be rejected.
+							</p>
+							<form id="ma-decision-form">
+								<fieldset id="ma-decision-fields" disabled>
+									<div class="row g-3">
+										<div class="col-md-6">
+											<label class="form-label small mb-1" for="ma-decision">Decision</label>
+											<select id="ma-decision" class="form-select form-select-sm">
+												<option>Accept</option>
+												<option>Partially Accept</option>
+												<option>Reject</option>
+											</select>
+										</div>
+										<div class="col-md-6">
+											<label class="form-label small mb-1" for="ma-reviewer">Your name</label>
+											<input id="ma-reviewer" class="form-control form-control-sm" required
+												maxlength="200" autocomplete="name">
+										</div>
+										<div class="col-12">
+											<label class="form-label small mb-1" for="ma-reason">Reason</label>
+											<textarea id="ma-reason" class="form-control form-control-sm" rows="2" required
+												maxlength="4000"></textarea>
+										</div>
+										<div class="col-12">
+											<label class="form-label small mb-1" for="ma-evidence-used">Evidence used (source
+												references and fields)</label>
+											<textarea id="ma-evidence-used" class="form-control form-control-sm" rows="2"
+												required maxlength="4000"></textarea>
+										</div>
+									</div>
+									<button class="btn btn-primary btn-sm mt-3" type="submit">Record decision</button>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</fieldset>
+			</section>
 		</div>
 	</div>
 
@@ -513,7 +665,8 @@
 	</div>
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-	<script src="./js/main.js?v=3" type="module"></script>
+	<script src="./js/main.js?v=4" type="module"></script>
+	<script src="./js/multi-agent.js?v=1" type="module"></script>
 </body>
 
 </html>
