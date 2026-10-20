@@ -8,6 +8,7 @@ on:
       - "learning-resource-manager/**"
       # The frontend image copies shared/assets into the nginx root.
       - "shared/assets/**"
+      - "tests/learning_resources/**"
       - ".github/workflows/learning-resource-manager.yml"
   pull_request:
     branches:
@@ -15,6 +16,7 @@ on:
     paths:
       - "learning-resource-manager/**"
       - "shared/assets/**"
+      - "tests/learning_resources/**"
       - ".github/workflows/learning-resource-manager.yml"
   workflow_dispatch:
   workflow_call:
@@ -240,4 +242,127 @@ jobs:
         with:
           name: learning-resource-manager-ci-evidence-${{ github.run_id }}
           path: evidence/
+          if-no-files-found: error
+
+  # The endpoint tests in tests/learning_resources/, run against the real
+  # compose stack. Deployment is not done here: cloud-deployment.yml calls this
+  # workflow and deploys only once every feature's CI has passed.
+  # Report files follow the subjects workflow's post-commit-tests job.
+  post_commit_tests:
+    name: Learning Resources API - Two endpoint tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Relative to the repository root; steps run in learning-resource-manager/
+      # by default, so those write through $GITHUB_WORKSPACE.
+      REPORT_DIR: reports/learning-resources
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        # Pinned to the versions in backend/requirements.txt.
+        run: pip install pytest==9.1.1 requests==2.34.2
+
+      - name: Write CI environment file
+        # The same file the compose job writes; compose.yml requires it.
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_NAME=l_r_db.db
+          DATABASE_PATH=/app/data
+          LANGUAGE_MODEL=qwen2.5:0.5b
+          OLLAMA_URL=localhost
+          OLLAMA_PORT=11434
+          EOF
+
+      - name: Start the services
+        # MCP off as in the compose job; RAG and multi-agent are off workflow-wide.
+        run: MCP_ENABLED=false docker compose up --detach --build
+
+      - name: Wait for the backend
+        # The tests have no wait of their own, so they start only once the
+        # backend can read the seeded catalogue through the database service.
+        run: |
+          curl --silent --show-error --fail --output /dev/null \
+            --retry 10 --retry-delay 3 --retry-all-errors --max-time 10 \
+            http://localhost:5002/api/resources/catalogue
+
+      - name: Test GET /api/resources/catalogue and /api/resources/tags
+        id: tests
+        # From the repository root, where tests/ lives. GitHub's bash runs with
+        # pipefail, so a pytest failure still fails the step through tee.
+        working-directory: .
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          python -m pytest tests/learning_resources -v --color=no \
+            --junitxml="$REPORT_DIR/test-results.xml" 2>&1 | tee "$REPORT_DIR/pytest.log"
+
+      - name: Capture service logs
+        if: always()
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/$REPORT_DIR"
+          docker compose logs --no-color > "$GITHUB_WORKSPACE/$REPORT_DIR/compose.log" 2>&1
+
+      - name: Stop services and delete test data
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+      - name: Publish screenshot-friendly testing report
+        if: always()
+        working-directory: .
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          {
+            echo '# Learning Resources — Post-Commit CI/CD Testing Report'
+            echo
+            echo "- Workflow: \`.github/workflows/learning-resource-manager.yml\`"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Branch: \`$GITHUB_REF_NAME\`"
+            echo "- Trigger: \`$GITHUB_EVENT_NAME\`"
+            echo "- Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (attempt $GITHUB_RUN_ATTEMPT)"
+            echo "- Two-endpoint pytest step: **$TEST_OUTCOME**"
+            echo "- Job status before publishing: **$JOB_STATUS**"
+            echo
+            echo '| Backend endpoint function | Expected result |'
+            echo '| --- | --- |'
+            echo '| GET /api/resources/catalogue — get_catalogue | HTTP 200 and a JSON list of resources with tags, including the seeded "Attention Is All You Need" tagged Deep Learning |'
+            echo '| GET /api/resources/tags — get_tags | HTTP 200 and a JSON list of tags, including the seeded Computer Science, Machine Learning and Deep Learning |'
+            echo
+            echo '## Automated pytest results'
+            echo '```text'
+            if [[ -f "$REPORT_DIR/pytest.log" ]]; then
+              cat "$REPORT_DIR/pytest.log"
+            else
+              echo 'Tests did not run. See the failed setup/startup step and compose.log.'
+            fi
+            echo '```'
+          } > "$REPORT_DIR/test-results.md"
+          cat "$REPORT_DIR/test-results.md" >> "$GITHUB_STEP_SUMMARY"
+
+          # One line per run for the audit trail. A skipped test step, from a
+          # failed startup, counts as a failure.
+          jq --null-input --compact-output \
+            --arg status "$([[ "$TEST_OUTCOME" == success ]] && echo PASS || echo FAIL)" \
+            --arg outcome "$TEST_OUTCOME" \
+            --arg timestamp "$(date --utc +'%Y-%m-%dT%H:%M:%SZ')" \
+            --arg commit_sha "$GITHUB_SHA" \
+            '{status: $status, test_outcome: $outcome, timestamp: $timestamp, commit_sha: $commit_sha}' \
+            >> "$REPORT_DIR/test-audit.jsonl"
+
+      - name: Upload testing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: learning-resource-manager-post-commit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_DIR }}/
           if-no-files-found: error
