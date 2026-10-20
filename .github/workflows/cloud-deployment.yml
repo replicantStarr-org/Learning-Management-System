@@ -16,10 +16,9 @@ on:
         options: [deploy, start, stop]
         default: deploy
   schedule:
-    # will stop any running demo revisions every hour
-    # to try and keep costs down and avoid exhausting credits
-    # TODO: disable prior to submission to prevent the workflow from stopping running demo revisions during evaluation
-    - cron: '0 * * * *'
+    # every december, stop all demo revisions
+    # to save costs
+    - cron: '* * 13 12 *'
 
 permissions:
   contents: read
