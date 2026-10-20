@@ -998,7 +998,7 @@ const MODES = {
 	library: { view: document.getElementById("library-view") },
 	rag: { view: document.getElementById("rag-view"), focus: ragInput },
 	mcp: { view: document.getElementById("mcp-view"), focus: document.getElementById("mcp-tools-list") },
-	// Driven by js/multi-agent.js; this page only shows and hides it.
+	// Driven by multi-agent.js; this page only shows and hides it.
 	"multi-agent": { view: document.getElementById("multi-agent-view"), focus: document.getElementById("ma-request") },
 };
 

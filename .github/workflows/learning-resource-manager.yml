@@ -33,7 +33,7 @@ defaults:
 env:
   RAG_ENABLED: "false"
   # No multi-agent server or language model runs on the runner, so multi-agent
-  # mode stays off for every job. compose.yml passes this to the backend.
+  # mode stays off for every job. docker-compose.yml passes this to the backend.
   MULTI_AGENT_ENABLED: "false"
 
 jobs:
@@ -76,7 +76,7 @@ jobs:
 
       - name: Write CI environment file
         # .env is gitignored, so CI supplies its own. No secrets are involved:
-        # the database settings must match compose.yml, and the model settings
+        # the database settings must match docker-compose.yml, and the model settings
         # are unused here because Ollama does not run on the runner.
         run: |
           cat > .env <<'EOF'
@@ -137,7 +137,7 @@ jobs:
 
           # The containers share the runner's network, so nothing is published
           # for compose to report; these are the ports from design.md that
-          # compose.yml and the nginx config bind directly.
+          # docker-compose.yml and the nginx config bind directly.
           backend="http://localhost:5002"
           frontend="http://localhost:3002"
           echo "Backend on $backend, frontend on $frontend."
@@ -270,7 +270,7 @@ jobs:
         run: pip install pytest==9.1.1 requests==2.34.2
 
       - name: Write CI environment file
-        # The same file the compose job writes; compose.yml requires it.
+        # The same file the compose job writes; docker-compose.yml requires it.
         run: |
           cat > .env <<'EOF'
           DATABASE_NAME=l_r_db.db

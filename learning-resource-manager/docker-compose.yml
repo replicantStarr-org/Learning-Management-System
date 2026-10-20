@@ -103,11 +103,21 @@ services:
         - action: sync
           path: ./frontend/src
           target: /usr/share/nginx/html
+        # The pages at the frontend root, served beside src/ (see the Dockerfile).
+        - action: sync
+          path: ./frontend/index.html
+          target: /usr/share/nginx/html/index.html
+        - action: sync
+          path: ./frontend/multi-agent.html
+          target: /usr/share/nginx/html/multi-agent.html
+        - action: sync
+          path: ./frontend/multi-agent.js
+          target: /usr/share/nginx/html/multi-agent.js
         - action: sync
           path: ../shared/assets
           target: /usr/share/nginx/html/assets
         - action: sync+restart
-          path: ./frontend/nginx/default.conf
+          path: ./frontend/nginx.conf
           target: /etc/nginx/conf.d/default.conf
         - action: rebuild
           path: ./frontend/Dockerfile
