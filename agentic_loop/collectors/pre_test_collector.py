@@ -7,7 +7,7 @@ from config.review_config import ServiceConfig
 
 REQUIRED_HOOKS = {
     "ruff-security": "ruff",
-    "detect-secrets": "detect-secrets",
+    "detect-secrets": "detect-secrets",  # pragma: allowlist secret - scanner tool name
     "pip-audit": "pip-audit",
 }
 
