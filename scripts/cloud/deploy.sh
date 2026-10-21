@@ -35,12 +35,35 @@ python3 scripts/cloud/render.py
 # apply the rendered ACA manifests for each service
 for name in access subjects resources assignments quizzes timetable; do
   log "Applying $name ($PROFILE)"
-  # suppress resource output because it may contain configuration secrets
-  if az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
-    run_logged az containerapp update -n "lh-$name" -g "$RESOURCE_GROUP" --yaml "$STATE_DIR/manifests/$name.yaml" -o none
-  else
-    run_logged az containerapp create -n "lh-$name" -g "$RESOURCE_GROUP" --yaml "$STATE_DIR/manifests/$name.yaml" -o none
-  fi
+  # Retry only the observed identity-resolution failure. Recheck existence because
+  # a rejected write may still leave an app resource behind.
+  for attempt in 1 2 3 4; do
+    operation=create
+    if az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
+      operation=update
+    fi
+    log "Applying $name: $operation attempt $attempt/4"
+    # Suppress resource output because it may contain configuration secrets.
+    if output="$(az containerapp "$operation" -n "lh-$name" -g "$RESOURCE_GROUP" --yaml "$STATE_DIR/manifests/$name.yaml" -o none 2>&1)"; then
+      [[ -z "$output" ]] || printf '%s\n' "$output" | tee -a "$REPORT_DIR/deployment.log"
+      break
+    else
+      status=$?
+      printf '%s\n' "$output" | tee -a "$REPORT_DIR/deployment.log"
+    fi
+    if [[ "$output" != *IdentityDoesNotExist* || "$output" != *NotFound* ||
+          "$output" != *"/providers/Microsoft.App/containerApps/lh-$name"* ]]; then
+      log "Deployment failed for $name; error is not retryable"
+      exit "$status"
+    fi
+    if (( attempt == 4 )); then
+      log "Deployment failed for $name after 4 attempts"
+      exit "$status"
+    fi
+    delay=$((15 * 2 ** (attempt - 1)))
+    log "Transient identity-resolution failure for $name; retrying in ${delay}s"
+    sleep "$delay"
+  done
 
   # applying identical config to a stopped app may not create a revision
   # reactivate it explicitly if required
