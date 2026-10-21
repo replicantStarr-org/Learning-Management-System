@@ -23,7 +23,7 @@ def state(tmp_path, monkeypatch):
     for filename, body in {
         "images.json": images, "release.json": {"release": "test", "profile": "default"},
         "environment.json": {"id": "/subscriptions/test/env", "domain": "test.azurecontainerapps.io"},
-        "auth.json": {"username": "demo", "password": "unit-password", "htpasswd": "demo:$apr1$unit-salt$unit-hash", "jwt": "unit-jwt"},
+        "auth.json": {"username": "demo", "password": "unit-password", "htpasswd": "demo:$apr1$unit-salt$unit-hash", "jwt": "unit-jwt"},  # pragma: allowlist secret
         "models.json": {"key": "unit-provider-key", "endpoint": "https://example.openai.azure.com/openai/v1/"},
     }.items():
         (tmp_path / filename).write_text(json.dumps(body))
@@ -64,7 +64,7 @@ def test_bonus_uses_nonconflicting_ports_and_secret_references(state):
     for c in containers:
         for env in c["env"]:
             if env["name"] == "OPENAI_API_KEY":
-                assert env == {"name": "OPENAI_API_KEY", "secretRef": "inference-key"}
+                assert env == {"name": "OPENAI_API_KEY", "secretRef": "inference-key"}  # pragma: allowlist secret
 
     # all deployments have seven containers
     # edge, frontend, backend, database
