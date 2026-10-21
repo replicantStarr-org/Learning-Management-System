@@ -89,7 +89,8 @@
             <div class="card-body">
                 <h2 class="h5">Human decision</h2>
                 <p class="text-secondary">Review the plan, raw evidence, output and reviewer assessment above before
-                    deciding. Failed workflows may only be rejected.</p>
+                    deciding. Failed workflows may only be rejected. To correct the output, choose Partially Accept
+                    and write the correction in the reason.</p>
                 <form id="decision-form">
                     <fieldset id="decision-fields" disabled>
                         <label class="form-label" for="decision">Decision</label>
@@ -100,7 +101,7 @@
                         </select>
                         <label class="form-label" for="reviewer">Your name</label>
                         <input id="reviewer" class="form-control mb-3" required maxlength="200">
-                        <label class="form-label" for="reason">Reason</label>
+                        <label class="form-label" for="reason">Reason (for Partially Accept, include the correction)</label>
                         <textarea id="reason" class="form-control mb-3" required maxlength="4000"></textarea>
                         <label class="form-label" for="evidence-used">Evidence used (source references and
                             fields)</label>

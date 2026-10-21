@@ -327,6 +327,12 @@ agents, then waits for a human decision. Quizzes plugs in the same way as Subjec
 - `frontend/multi-agent.html` and `multi-agent.js` show the workflow, the raw response and the human decision form.
   The Quiz ID field is optional.
 - CI and the cloud deployment set `MULTI_AGENT_ENABLED=false`. `quizzes.yml` checks that the route returns 403.
+- Human review records Accept, Partially Accept or Reject with a name, a reason and the evidence used. To correct the
+  output, choose Partially Accept and write the correction in the reason. The page hides its link when the flag is off.
+- Terminal: from `multi-agent-server/`, `python workflow_runner.py "Summarise the quizzes." --service quizzes` runs a
+  workflow, and `python workflow_runner.py --service quizzes --workflow-id ID --decision "Partially Accept" --reviewer NAME
+  --reason TEXT --evidence-used TEXT` records the decision. The server uses `llama3.1:8b` for all three agents unless
+  `OLLAMA_MODEL` and `OLLAMA_REVIEW_MODEL` say otherwise.
 
 **Cloud settings.** The pages call the backend with relative URLs. The frontend nginx proxies `/quizzes`, `/subjects`,
 `/attempts`, `/quiz-generations`, `/ai-mode`, `/config`, `/multi-agent`, `/rag/` and `/mcp/` to the backend on port 5004,
