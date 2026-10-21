@@ -28,10 +28,12 @@ def _choose(title: str, options: dict) -> object | None:
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Review one area of an ASD microservice or its shared AI integrations.")
     parser.add_argument("--area", choices=MODES, help="review area (omit for the interactive menu)")
-    parser.add_argument("--service", choices=SERVICES, help="microservice (omit for the interactive menu)")
+    parser.add_argument("--service", choices=SERVICES, help="microservice (optional for pre_test and deployment)")
     args = parser.parse_args()
-    if bool(args.area) != bool(args.service):
-        parser.error("--area and --service must be supplied together")
+    if args.service and not args.area:
+        parser.error("--service requires --area")
+    if args.area and MODES[args.area].requires_service and not args.service:
+        parser.error(f"--service is required for --area {args.area}")
     return args
 
 
@@ -44,19 +46,21 @@ def main() -> None:
     print("AGENTIC MICROSERVICE REVIEW")
     if args.area:
         mode: ModeConfig = MODES[args.area]
-        service: ServiceConfig = SERVICES[args.service]
+        service: ServiceConfig | None = SERVICES[args.service] if args.service else None
     else:
         selected_mode = _choose("Choose a review area", MODES)
         if selected_mode is None:
             return
         mode = selected_mode
-        selected_service = _choose("Choose a microservice", SERVICES)
-        if selected_service is None:
-            return
-        service = selected_service
+        service = None
+        if mode.requires_service:
+            selected_service = _choose("Choose a microservice", SERVICES)
+            if selected_service is None:
+                return
+            service = selected_service
 
     result = run_mode(mode, service, repo_root, PromptRegistry(repo_root), AIRunner())
-    title = f"{service.label} - {mode.label}"
+    title = f"{service.label if service else 'Repository-wide'} - {mode.label}"
     print_result(title, result)
 
 

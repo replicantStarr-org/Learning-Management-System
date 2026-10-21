@@ -12,7 +12,7 @@ REQUIRED_HOOKS = {
 }
 
 
-def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
+def collect(repo_root: Path, service: ServiceConfig | None = None) -> tuple[bool, str]:
     config = repo_root / ".pre-commit-config.yaml"
     runner = repo_root / "scripts" / "pre_commit.py"
     policy = repo_root / "pyproject.toml"
