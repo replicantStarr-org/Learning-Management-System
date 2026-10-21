@@ -17,7 +17,7 @@ SOURCE_PATHS = (
 )
 
 
-def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
+def collect(repo_root: Path, service: ServiceConfig | None = None) -> tuple[bool, str]:
     sources = [repo_root / name for name in SOURCE_PATHS]
     missing = [str(path.relative_to(repo_root)) for path in sources if not path.is_file()]
     if missing:
@@ -28,7 +28,7 @@ def collect(repo_root: Path, service: ServiceConfig) -> tuple[bool, str]:
         return False, "No reports/cloud/**/cloud-verification.json. Deploy and download cloud deployment artifacts first."
 
     evidence = [
-        f"Shared cloud deployment, with focus on {service.key}. "
+        "Shared cloud deployment for the integrated application. "
         "This application uses user-assigned managed identity and a public edge container "
         "per service; backend/database containers share its network namespace, rather than "
         "separate internal-ingress Container Apps. Validate this topology from source. "
