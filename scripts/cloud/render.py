@@ -62,7 +62,7 @@ def render(state: Path, profile: str):
             **{f"{f['name'].upper()}_FRONTEND_URL": f"https://lh-{f['name']}.{environment['domain']}" for f in inventory},
             # add shared JWT secret that can be used for any service
             # that wants to validate JWT tokens
-            "JWT_SECRET": "secret:jwt-secret"  # noqa: S105 - secret reference, not a credential
+            "JWT_SECRET": "secret:jwt-secret"  # noqa: S105 # pragma: allowlist secret - secret reference, not a credential
         }
 
         if name in {"assignments", "quizzes"}:
