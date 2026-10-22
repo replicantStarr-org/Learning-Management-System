@@ -46,6 +46,10 @@ services:
       MCP_SERVER_URL: http://127.0.0.1:8000/mcp
       RAG_ENABLED: "${RAG_ENABLED:-true}"
       RAG_SERVER_URL: http://localhost:5010
+      # Multi-agent mode is on by default locally; CI passes MULTI_AGENT_ENABLED=false.
+      MULTI_AGENT_ENABLED: "${MULTI_AGENT_ENABLED:-true}"
+      MULTI_AGENT_SERVICE_URL: http://localhost:15004
+      MULTI_AGENT_WORKFLOW_TIMEOUT_SECONDS: 180
     depends_on:
       timetable-database:
         condition: service_started
