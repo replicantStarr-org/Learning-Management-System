@@ -32,44 +32,47 @@ PY
 # render ACA manifests for the current deployment
 python3 scripts/cloud/render.py
 
-# Each app is independent; keep its update and revision activation in one worker.
-deploy_app() {
-  local name="$1" revision active
-  local started=$SECONDS
+# apply the rendered ACA manifests for each service
+for name in access subjects resources assignments quizzes timetable; do
   log "Applying $name ($PROFILE)"
-  # suppress resource output because it may contain configuration secrets
-  if az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
-    run_logged az containerapp update -n "lh-$name" -g "$RESOURCE_GROUP" --yaml "$STATE_DIR/manifests/$name.yaml" -o none
-  else
-    run_logged az containerapp create -n "lh-$name" -g "$RESOURCE_GROUP" --yaml "$STATE_DIR/manifests/$name.yaml" -o none
-  fi
+  # Retry only the observed identity-resolution failure. Recheck existence because
+  # a rejected write may still leave an app resource behind.
+  for attempt in 1 2 3 4; do
+    operation=create
+    if az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
+      operation=update
+    fi
+    log "Applying $name: $operation attempt $attempt/4"
+    # Suppress resource output because it may contain configuration secrets.
+    if output="$(az containerapp "$operation" -n "lh-$name" -g "$RESOURCE_GROUP" --yaml "$STATE_DIR/manifests/$name.yaml" -o none 2>&1)"; then
+      [[ -z "$output" ]] || printf '%s\n' "$output" | tee -a "$REPORT_DIR/deployment.log"
+      break
+    else
+      status=$?
+      printf '%s\n' "$output" | tee -a "$REPORT_DIR/deployment.log"
+    fi
+    if [[ "$output" != *IdentityDoesNotExist* || "$output" != *NotFound* ||
+          "$output" != *"/providers/Microsoft.App/containerApps/lh-$name"* ]]; then
+      log "Deployment failed for $name; error is not retryable"
+      exit "$status"
+    fi
+    if (( attempt == 4 )); then
+      log "Deployment failed for $name after 4 attempts"
+      exit "$status"
+    fi
+    delay=$((15 * 2 ** (attempt - 1)))
+    log "Transient identity-resolution failure for $name; retrying in ${delay}s"
+    sleep "$delay"
+  done
 
   # applying identical config to a stopped app may not create a revision
   # reactivate it explicitly if required
-  revision="$(az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" --query properties.latestRevisionName -o tsv)"
-  active="$(az containerapp revision show -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$revision" --query properties.active -o tsv)"
-  if [[ "$active" != true ]]; then
-    az containerapp revision activate -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$revision" -o none
+  REVISION="$(az containerapp show -n "lh-$name" -g "$RESOURCE_GROUP" --query properties.latestRevisionName -o tsv)"
+  ACTIVE="$(az containerapp revision show -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" --query properties.active -o tsv)"
+  if [[ "$ACTIVE" != true ]]; then
+    az containerapp revision activate -n "lh-$name" -g "$RESOURCE_GROUP" --revision "$REVISION" -o none
   fi
-  log "Applied $name in $((SECONDS - started))s"
-}
-
-names=(access subjects resources assignments quizzes timetable)
-pids=()
-for name in "${names[@]}"; do
-  deploy_app "$name" &
-  pids+=("$!")
-done
-
-# Wait for every worker, including after a failure. Never verify a partial deployment.
-failed=0
-for i in "${!pids[@]}"; do
-  if ! wait "${pids[$i]}"; then
-    log "Deployment failed for ${names[$i]}"
-    failed=1
-  fi
-done
-(( failed == 0 )) || exit 1
+ done
 
 # update the report with the current state of container apps
 az containerapp list -g "$RESOURCE_GROUP" --query '[].{name:name,fqdn:properties.configuration.ingress.fqdn,state:properties.provisioningState,profile:tags.profile,release:tags.release}' -o json > "$REPORT_DIR/apps.json"

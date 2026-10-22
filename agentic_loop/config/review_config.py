@@ -8,6 +8,10 @@ class ModeConfig:
     label: str
     prompt_name: str
 
+    @property
+    def requires_service(self) -> bool:
+        return self.key not in {"pre_test", "deployment"}
+
 
 @dataclass(frozen=True)
 class ServiceConfig:

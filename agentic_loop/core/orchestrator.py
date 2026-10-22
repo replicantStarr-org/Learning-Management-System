@@ -18,7 +18,7 @@ from core.ai_runner import AIRunner
 from core.prompt_registry import PromptRegistry
 
 
-Collector = Callable[[Path, ServiceConfig], tuple[bool, str]]
+Collector = Callable[[Path, ServiceConfig | None], tuple[bool, str]]
 COLLECTORS: dict[str, Collector] = {
     "database": db_collector.collect,
     "endpoint": endpoints_collector.collect,
@@ -33,18 +33,20 @@ COLLECTORS: dict[str, Collector] = {
 }
 
 
-def _stage(mode: ModeConfig, service: ServiceConfig, step: str, message: str) -> None:
-    target = service.key
+def _stage(mode: ModeConfig, service: ServiceConfig | None, step: str, message: str) -> None:
+    target = service.key if service else "repository"
     print(f"[{target}][{mode.key}][{step}] {message}")
 
 
 def run_mode(
     mode: ModeConfig,
-    service: ServiceConfig,
+    service: ServiceConfig | None,
     repo_root: Path,
     prompts: PromptRegistry,
     ai: AIRunner,
 ) -> str:
+    if service is None and mode.requires_service:
+        raise ValueError(f"Service is required for {mode.key}")
     _stage(mode, service, "OBSERVE", "Collecting and validating evidence")
     ok, evidence = COLLECTORS[mode.key](repo_root, service)
     if not ok:

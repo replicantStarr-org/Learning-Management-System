@@ -15,17 +15,20 @@ class PromptRegistry:
             raise FileNotFoundError(f"Missing prompt file: {candidate}")
         return candidate.read_text(encoding="utf-8").strip()
 
-    def compose(self, agent: str, mode: ModeConfig, service: ServiceConfig) -> str:
+    def compose(self, agent: str, mode: ModeConfig, service: ServiceConfig | None) -> str:
+        if service is None and mode.requires_service:
+            raise ValueError(f"Service is required for {mode.key}")
         fragments = [
             self._read("agents", f"{agent}_prompt.txt"),
             self._read("areas", mode.prompt_name),
         ]
-        fragments.append(self._read("services", f"{service.key}_prompt.txt"))
+        if service is not None:
+            fragments.append(self._read("services", f"{service.key}_prompt.txt"))
         values = {
             "{{AGENT_ROLE}}": agent,
             "{{REVIEW_AREA}}": mode.label,
-            "{{SERVICE_NAME}}": service.label,
-            "{{SERVICE_PATH}}": service.directory,
+            "{{SERVICE_NAME}}": service.label if service else "the integrated application",
+            "{{SERVICE_PATH}}": service.directory if service else ".",
             "{{MCP_PATH}}": "mcp",
             "{{RAG_PATH}}": "rag-server",
             "{{MULTI_AGENT_PATH}}": "multi-agent-server"

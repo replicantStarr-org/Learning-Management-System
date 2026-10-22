@@ -51,7 +51,7 @@ gh variable set AZURE_CLIENT_ID --repo "$REPO" --env "$ENV_NAME" --body "$CLIENT
 gh variable set AZURE_TENANT_ID --repo "$REPO" --env "$ENV_NAME" --body "$(az account show --query tenantId -o tsv)"
 gh variable set AZURE_SUBSCRIPTION_ID --repo "$REPO" --env "$ENV_NAME" --body "$SUBSCRIPTION_ID"
 gh variable set RESOURCE_GROUP --repo "$REPO" --env "$ENV_NAME" --body "$RESOURCE_GROUP"
-for mapping in 'DEMO_PASSWORD password' 'DEMO_HTPASSWD htpasswd' 'JWT_SECRET jwt'; do  # pragma: allowlist secret
+for mapping in 'DEMO_PASSWORD password' 'DEMO_HTPASSWD htpasswd' 'JWT_SECRET jwt'; do # pragma: allowlist secret - secret names and JSON keys only
   read -r secret key <<< "$mapping"
   python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]], end="")' "$STATE_DIR/auth.json" "$key" | gh secret set "$secret" --repo "$REPO" --env "$ENV_NAME"
 done
