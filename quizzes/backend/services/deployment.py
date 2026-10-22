@@ -32,9 +32,9 @@ def configure_deployment(app, ai_routes=()):
 
     @app.get("/config")
     def runtime_config():
-        flags = {name: enabled(name) for name in (
-            "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED"
-        )}
+        flags = {name: enabled(name) for name in ("MCP_ENABLED", "RAG_ENABLED")}
+        # Same cloud-aware default as the multi-agent route guard.
+        flags["MULTI_AGENT_ENABLED"] = enabled("MULTI_AGENT_ENABLED", "false" if cloud else "true")
         flags["AI_MODE_ENABLED"] = enabled("AI_MODE_ENABLED", "false" if cloud else "true")
         names = ("access", "subjects", "resources", "assignments", "quizzes", "timetable")
         return jsonify(

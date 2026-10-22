@@ -158,3 +158,18 @@ def test_server_error_status_and_body_pass_through(client, modules, monkeypatch)
     monkeypatch.setattr(modules[1], "_request", lambda *a, **k: (409, {"error": "already decided"}))
     response = client.post(f"/multi-agent/workflow/{WORKFLOW_ID}/decision", json=DECISION)
     assert (response.status_code, response.get_json()) == (409, {"error": "already decided"})
+
+
+@pytest.mark.parametrize("cloud, override", [
+    ("true", None), ("true", "true"), ("true", "false"), ("false", None), ("false", "false"),
+])
+def test_config_flag_agrees_with_route_guard(modules, monkeypatch, cloud, override):
+    from flask import Flask
+    monkeypatch.setenv("CLOUD_DEPLOYMENT", cloud)
+    if override is not None:
+        monkeypatch.setenv("MULTI_AGENT_ENABLED", override)
+    deployment = importlib.import_module("services.deployment")
+    app = Flask(__name__)
+    deployment.configure_deployment(app)
+    flag = app.test_client().get("/config").get_json()["flags"]["MULTI_AGENT_ENABLED"]
+    assert flag is modules[0].is_enabled()
