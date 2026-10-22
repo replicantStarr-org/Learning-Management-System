@@ -5,6 +5,7 @@ from routes.ai import ai_bp
 from routes.assignments import assignments_bp
 from routes.reminders import reminders_bp
 from routes.integration import integration_bp
+from routes.multi_agent import multi_agent_bp
 from services.deployment import configure_deployment, enabled
 from services.errors import ServiceError, UpstreamError
 from views.html import error
@@ -21,6 +22,7 @@ def create_app():
     app.register_blueprint(ai_bp)
     app.register_blueprint(reminders_bp)
     app.register_blueprint(integration_bp)
+    app.register_blueprint(multi_agent_bp, url_prefix="/api/multi-agent")
 
     @app.errorhandler(ServiceError)
     def handle_service_error(exc):
