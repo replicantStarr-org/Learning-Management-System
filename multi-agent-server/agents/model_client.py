@@ -25,7 +25,7 @@ def call_model(role: str, context: dict) -> dict:
     with OpenAI(
         base_url=os.getenv("OPENAI_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")),
         api_key=os.getenv("OPENAI_API_KEY", "ollama"),
-        timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "90")),
+        timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180")),
         max_retries=0,
     ) as client:
         response = client.chat.completions.create(
