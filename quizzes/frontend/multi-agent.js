@@ -14,6 +14,9 @@ function notify(text, error = false) {
 }
 
 function updateControls() {
+    document.querySelectorAll("#user-request, #quiz-id, [data-sample-request], #workflow-id").forEach((control) => {
+        control.disabled = !toggle.checked;
+    });
     document.querySelector("#run").disabled = Boolean(pendingMutation) || readPending || !toggle.checked;
     document.querySelectorAll("#status, #lookup-form button").forEach((button) => {
         button.disabled = readPending || !toggle.checked
@@ -126,14 +129,17 @@ document.querySelector("#decision-form").addEventListener("submit", (event) => {
 });
 
 async function loadMode() {
+    toggle.checked = false;
+    toggle.disabled = true;
     updateControls();
     try {
         const response = await fetch(backend + "/status");
         if (!response.ok) throw new Error("Mode check failed");
         const body = await response.json();
-        toggle.checked = body.enabled && localStorage.getItem("quizzes_multi_agent_enabled") !== "false";
-        toggle.disabled = !body.enabled;
-        notify(body.enabled ? "Ready. Run a workflow or load its status." : "Multi-Agent integration is disabled by the application.");
+        const enabled = body.enabled === true;
+        toggle.checked = enabled && localStorage.getItem("quizzes_multi_agent_enabled") !== "false";
+        toggle.disabled = !enabled;
+        notify(enabled ? "Ready. Run a workflow or load its status." : "Multi-Agent integration is disabled by the application.");
     } catch {
         notify("The quiz backend is unavailable.", true);
     }
