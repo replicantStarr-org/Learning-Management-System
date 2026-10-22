@@ -1,3 +1,4 @@
+import os
 from html import escape
 
 from services.ai_mode import DISABLED_MESSAGE, ai_mode_is_enabled

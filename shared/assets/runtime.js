@@ -7,6 +7,10 @@
             const url = config.navigation[link.dataset.service];
             if (url) link.href = url;
         });
+        // A link marked data-feature-flag="NAME" is hidden while that flag is off.
+        document.querySelectorAll("[data-feature-flag]").forEach((element) => {
+            element.hidden = !config.flags[element.dataset.featureFlag];
+        });
         const enabled = config.flags.AI_MODE_ENABLED;
         // Each feature owns its explanation and manual alternative, rather than
         // showing a page-wide warning (including on unrelated RAG/MCP pages).

@@ -310,3 +310,33 @@ services are up (`QUIZ_BACKEND_URL` overrides `http://localhost:5004`).
 **Pre-commit security scans.** These are the shared repository checks (root `.pre-commit-config.yaml`,
 `pyproject.toml`, `scripts/pre_commit.py`, `.pip-audit-exemptions.json`; see the root README). Quizzes only carries
 inline `# noqa` suppressions with reasons where Ruff flags the container bind addresses and the allow-listed UPDATE column names.
+
+
+### Release 2: Multi-Agent study coach and cloud settings
+
+**Multi-Agent study coach.** The shared multi-agent server (port 15004) runs planner, worker and reviewer
+agents, then waits for a human decision. Quizzes plugs in the same way as Subjects:
+
+- `multi-agent-server/connectors/quizzes.py` reads quiz content from the quiz database service
+  (`QUIZZES_DATABASE_URL`, default `http://localhost:6004`). With no quiz ID it reads the catalogue
+  (titles, descriptions, difficulty, keywords). With a quiz ID it also reads that quiz's questions, answer
+  options and explanations. It never reads attempts, scores or student names, so the feature stays self-study.
+- `backend/routes/multi_agent.py` and `backend/services/multi_agent_service.py` relay the workflow
+  calls under `/multi-agent/...` and add `"service": "quizzes"`. `MULTI_AGENT_ENABLED` (default `true`
+  locally, `false` when `CLOUD_DEPLOYMENT` is set) turns the routes off: they then return HTTP 403 and `/multi-agent/status` reports `enabled: false`.
+- `frontend/multi-agent.html` and `multi-agent.js` show the workflow, the raw response and the human decision form.
+  The Quiz ID field is optional.
+- CI and the cloud deployment set `MULTI_AGENT_ENABLED=false`. `quizzes.yml` checks that the route returns 403.
+- Human review records Accept, Partially Accept or Reject with a name, a reason and the evidence used. To correct the
+  output, choose Partially Accept and write the correction in the reason. The page hides its link when the flag is off.
+- Terminal: from `multi-agent-server/`, `python workflow_runner.py "Summarise the quizzes." --service quizzes` runs a
+  workflow, and `python workflow_runner.py --service quizzes --workflow-id ID --decision "Partially Accept" --reviewer NAME
+  --reason TEXT --evidence-used TEXT` records the decision. The server uses `llama3.1:8b` for all three agents unless
+  `OLLAMA_MODEL` and `OLLAMA_REVIEW_MODEL` say otherwise.
+
+**Cloud settings.** The pages call the backend with relative URLs. The frontend nginx proxies `/quizzes`, `/subjects`,
+`/attempts`, `/quiz-generations`, `/ai-mode`, `/config`, `/multi-agent`, `/rag/` and `/mcp/` to the backend on port 5004,
+and `/config` returns the deployment profile, the four AI flags and the navigation links. The cloud profile sets
+`AI_MODE_ENABLED`, `MCP_ENABLED`, `RAG_ENABLED` and `MULTI_AGENT_ENABLED` to `false` by default and the bonus profile
+enables them (`scripts/cloud/render.py`). `MULTI_AGENT_SERVICE_URL` points the backend at the multi-agent server
+(default `http://localhost:15004`).
