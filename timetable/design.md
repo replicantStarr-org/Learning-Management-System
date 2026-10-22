@@ -389,6 +389,47 @@ refused, and no write tool is advertised.
 `MCP_ENABLED=false`; `/mcp/status` then reports disabled and `/mcp/free-time` returns 403, which
 `timetable.yml` asserts.
 
+### Release 2: Multi-Agent
+
+Release 2 connects the timetable to the shared, non-containerised Multi-Agent Server
+(`multi-agent-server/`, `http://localhost:15004`), which runs a Planner -> Worker -> Reviewer workflow
+over real timetable entries and then waits for a human decision. The Multi-Agent page
+(`multi-agent.html`, linked from the home page) runs it through the backend.
+
+**Request flow:** Frontend (`multi-agent.html`) -> Backend/API (`/multi-agent/*`,
+`routes/multi_agent.py`, `services/multi_agent_service.py`) -> Multi-Agent Server -> timetable
+connector (`multi-agent-server/connectors/timetable.py`) -> timetable database API -> Planner
+-> Worker -> Reviewer (all `llama3.1:8b` by default) -> Backend -> Frontend -> Human Review -> Backend -> Multi-Agent Server. As with RAG, the backend fixes `service` to
+`timetable`, so the page can never run or decide another feature's workflow.
+
+**Evidence:** the connector reads the database API (never the SQLite file), fanning out over
+`GET /timetable/users` like the RAG connector, and caps the evidence at 50 entries from 20 users
+with 2000-character fields; anything cut is listed in `limitations`. An optional timetable entry ID
+scopes the workflow to that one entry, which keeps the prompts small and the run fast. Saved AI
+plans and advice are not evidence, for the same reason they are not indexed for RAG.
+
+**Agents:** the Planner turns the task and evidence into a plan, the Worker carries it out against
+the evidence, and the Reviewer checks the Worker's output against the plan in a separate call with
+its own prompt (`OLLAMA_REVIEW_MODEL` can put it on a different model). A failed stage stops the
+workflow, and the response names it.
+
+**Human review:** every workflow ends `pending`. On the page the student records Accept, Partially
+Accept (used for corrections, explained in the reason) or Reject, with their name, a reason and the
+evidence they relied on. A decision cannot be overwritten (409), and a failed workflow can only be
+rejected.
+
+**Workflow history and audit:** the server appends every run and decision to
+`multi-agent-server/workflow_history.jsonl` and `coordination_audit.jsonl`.
+`GET /multi-agent/workflow/status` returns this feature's counts and latest run, and a run can be
+reloaded by its ID. The shared agentic loop's multi-agent mode
+(`--area multi_agent --service timetable`) reviews the wiring and the latest saved run.
+
+**Configuration:** `MULTI_AGENT_SERVICE_URL` in `docker-compose.yml` (`http://localhost:15004`),
+`MULTI_AGENT_ENABLED` (default `true`) and `MULTI_AGENT_WORKFLOW_TIMEOUT_SECONDS` (180, under the
+frontend's 300 s proxy timeout). CI runs with `MULTI_AGENT_ENABLED=false`; `/multi-agent/status`
+then reports disabled and `/multi-agent/workflow` returns 403, which `timetable.yml` asserts. The
+cloud's default profile sets the same switch off.
+
 ### Known Limitations
 
 - The AI weekly plan and the balance calculation always operate on the *current* week (relative to
@@ -417,6 +458,11 @@ refused, and no write tool is advertised.
   when their servers have been started separately (`rag-server/run.ps1` or `run.sh`, and
   `mcp/run.ps1` or `run.sh`).
 - The MCP tools are read-only by design, so no MCP client can create, edit or delete an entry.
+- The Multi-Agent Server also runs on the host (`multi-agent-server/run.ps1` or `run.sh`). On a
+  CPU-only machine the three `llama3.1:8b` calls can take several minutes, longer than the
+  backend's 180 s timeout. The page then reports a timeout, but the server finishes the run, and
+  "Get Latest Workflow" loads it for the human decision. Scoping the run to one entry ID keeps it
+  short.
 
 ### Additional Notes
 
@@ -425,3 +471,8 @@ The timetable feature has a CI workflow (`timetable.yml`) mirroring the pattern 
 frontend, in that order), and upload evidence reports. In Release 1 it also starts the stack with
 `MCP_ENABLED=false` and `RAG_ENABLED=false`, probes the new `/timetable/users` endpoint and the MCP
 and RAG pages, and verifies that both MCP and RAG are reported disabled and refused with 403.
+In Release 2 it does the same for multi-agent (`MULTI_AGENT_ENABLED=false`, the Multi-Agent page
+probe, and a 403 from `/multi-agent/workflow`), and a `post_commit_tests` job runs
+`tests/timetable/` against the real compose stack. It covers two endpoint functions:
+`GET /timetable` (`weekly_timetable`) and `POST /timetable` (`add_entry`). The job uploads
+`timetable-post-commit-<run>` with the pytest log, JUnit XML, compose log and a Markdown report.
