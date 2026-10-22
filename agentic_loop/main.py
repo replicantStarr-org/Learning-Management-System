@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -62,6 +63,15 @@ def main() -> None:
     result = run_mode(mode, service, repo_root, PromptRegistry(repo_root), AIRunner())
     title = f"{service.label if service else 'Repository-wide'} - {mode.label}"
     print_result(title, result)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    target = service.key if service else "repository"
+    log_path = agent_dir / "runs" / f"{mode.key}-{target}-{timestamp}.md"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(
+        f"# {title}\n\n- Mode: `{mode.key}`\n- Target: `{target}`\n- Timestamp (UTC): `{timestamp}`\n\n{result}\n",
+        encoding="utf-8",
+    )
+    print(f"Review and validation log: {log_path.relative_to(repo_root)}")
 
 
 if __name__ == "__main__":

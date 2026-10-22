@@ -40,6 +40,9 @@ services:
       MCP_ENABLED: ${MCP_ENABLED:-true}
       RAG_SERVER_URL: http://localhost:5010
       RAG_ENABLED: ${RAG_ENABLED:-true}
+      MULTI_AGENT_ENABLED: "${MULTI_AGENT_ENABLED:-true}"
+      MULTI_AGENT_SERVICE_URL: ${MULTI_AGENT_SERVICE_URL:-http://localhost:15004}
+      MULTI_AGENT_WORKFLOW_TIMEOUT_SECONDS: 180
     depends_on:
       assignment-database:
         condition: service_started
