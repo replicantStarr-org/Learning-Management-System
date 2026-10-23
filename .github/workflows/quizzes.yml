@@ -199,9 +199,77 @@ jobs:
           exit 1
 
       - name: Run endpoint tests (POST /quizzes and POST /quizzes/{id}/attempts)
+        id: tests
+        # bash runs with pipefail here, so a pytest failure still fails the step through tee.
+        shell: bash
         run: |
           mkdir -p test-results
-          python -m pytest tests/quizzes --verbose --junitxml=test-results/quizzes-endpoint-tests.xml
+          python -m pytest tests/quizzes --verbose --color=no \
+            --junitxml=test-results/quizzes-endpoint-tests.xml 2>&1 | tee test-results/pytest.log
+
+      - name: Capture service logs
+        if: always()
+        working-directory: quizzes
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          docker compose logs --no-color > "$GITHUB_WORKSPACE/test-results/compose.log" 2>&1
+
+      - name: Publish testing report
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          mkdir -p test-results
+          {
+            echo '# Quizzes — Post-Commit CI/CD Testing Report'
+            echo
+            echo "- Workflow: \`.github/workflows/quizzes.yml\`"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Branch: \`$GITHUB_REF_NAME\`"
+            echo "- Trigger: \`$GITHUB_EVENT_NAME\`"
+            echo "- Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (attempt $GITHUB_RUN_ATTEMPT)"
+            echo "- Endpoint pytest step: **$TEST_OUTCOME**"
+            echo "- Job status before publishing: **$JOB_STATUS**"
+            echo
+
+            if [[ -f test-results/quizzes-endpoint-tests.xml ]]; then
+              python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse("test-results/quizzes-endpoint-tests.xml").getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+          get = lambda k: suite.get(k, "0")
+          print("| Tests | Failures | Errors | Skipped | Time (s) |")
+          print("| --- | --- | --- | --- | --- |")
+          print(f"| {get('tests')} | {get('failures')} | {get('errors')} | {get('skipped')} | {get('time')} |")
+          print()
+          print("| Test | Result |")
+          print("| --- | --- |")
+          for case in suite.iter("testcase"):
+              if case.find("failure") is not None or case.find("error") is not None:
+                  result = "FAIL"
+              elif case.find("skipped") is not None:
+                  result = "SKIP"
+              else:
+                  result = "PASS"
+              print(f"| {case.get('classname')}::{case.get('name')} | {result} |")
+          PY
+            else
+              echo 'Tests did not run. See the failed setup/startup step and compose.log.'
+            fi
+
+            echo
+            echo '## Automated pytest results'
+            echo '```text'
+            if [[ -f test-results/pytest.log ]]; then
+              cat test-results/pytest.log
+            else
+              echo 'Tests did not run. See the failed setup/startup step and compose.log.'
+            fi
+            echo '```'
+          } > test-results/test-results.md
+          cat test-results/test-results.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload endpoint test results
         if: always()
