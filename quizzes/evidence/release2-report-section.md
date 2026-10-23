@@ -28,9 +28,7 @@ Replace every "TO DO" with real evidence before the report is submitted.
 
 ## Post-commit CI/CD testing
 
-- Endpoints tested: `POST /quizzes` and `POST /quizzes/{id}/attempts`, 6 tests in `tests/quizzes/test_quiz_endpoints.py`.
-  Twenty-one more tests in `tests/quizzes/test_multi_agent_routes.py` check the multi-agent switch, the 503 mapping and the
-  request bodies, and 5 in `tests/quizzes/test_multi_agent_connector.py` check what the connector reads.
+- Endpoints tested: `POST /quizzes` and `POST /quizzes/{id}/attempts`, 2 tests in `tests/quizzes/test_quiz_endpoints.py`, one per endpoint.
 - Workflow: `.github/workflows/quizzes.yml`, jobs Build Images, Smoke Check, Endpoint Tests and Evidence Upload. It runs on
   push and on pull request. The smoke check also confirms that the multi-agent routes return 403 when switched off.
 - Observed on 2026-10-21: the four jobs passed on the PR #56 merge commit. TO DO: link the run and paste the counts

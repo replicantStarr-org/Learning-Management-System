@@ -299,9 +299,8 @@ the frontend hides the Generate links and shows an explanation. CRUD and quiz-ta
 CI and the cloud deployment run with it off.
 
 **Post-commit endpoint tests.** `tests/quizzes/test_quiz_endpoints.py` (same `tests/<service>/` layout as Subjects) tests two backend endpoint
-functions against the running stack: `POST /quizzes` (create, plus rejection of a missing title and an
-unknown difficulty) and `POST /quizzes/{id}/attempts` (grading: full marks, one wrong answer, missing
-student name). `quizzes.yml` runs them in the `endpoint-tests` job on every push and pull request that
+functions against the running stack: `POST /quizzes` (create returns 201 and redirects to the new quiz) and
+`POST /quizzes/{id}/attempts` (grading: all correct answers score full marks), one test each. `quizzes.yml` runs them in the `endpoint-tests` job on every push and pull request that
 touches `quizzes/` or `tests/quizzes/`, uploads the JUnit XML, and folds the counts into the evidence report. Validation
 failures reach the browser as an HTML alert with the `HX-Error` header and HTTP 200, so the tests assert
 those. Run locally from the repository root with `pip install -r requirements-dev.txt && pytest tests/quizzes` while the
