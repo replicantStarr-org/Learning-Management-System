@@ -1,0 +1,75 @@
+Downloading artifacts for Access Management CI (run 36885124284)...
+Downloading artifacts for Assignment Management CI (run 36894765055)...
+Downloading artifacts for Learning Resource Manager CI (run 36878422912)...
+Downloading artifacts for Quiz Management CI (run 36894765093)...
+Downloading artifacts for RAG Server CI (run 36894765258)...
+WARNING: No artifacts found for RAG Server CI (run 36894765258); continuing.
+Downloading artifacts for Subject Management CI (run 36857622218)...
+Downloading artifacts for Timetable Manager CI (run 36863294185)...
+Reports downloaded successfully.
+AGENTIC MICROSERVICE REVIEW
+
+Choose a review area
+1 - Database
+2 - Endpoint Implementation
+3 - Application Architecture
+4 - DevOps Pipeline
+5 - MCP Server
+6 - RAG Connector
+0 - Exit
+Choice: 6
+
+Choose a microservice
+1 - Shared home page
+2 - Subjects Manager
+3 - Assignment Manager
+4 - Learning Resource Manager
+5 - Quiz Manager
+6 - Timetable Manager
+0 - Exit
+Choice: 6
+[timetable][rag][OBSERVE] Collecting and validating evidence
+[timetable][rag][IMPLEMENT] Running implementation model
+[timetable][rag][REVIEW] Running review model
+[timetable][rag][DONE] Review complete
+
+RUNNING: Timetable Manager - RAG Connector
+OBSERVE:
+RAG server: rag-server/ has all 18 required files and 6 routes bound to endpoint functions.
+Connector for Timetable Manager: rag-server/pipeline/connectors/timetable.py
+Service name "timetable", base URL http://localhost:6005, 1 entity function(s):
+- entries(): fetches '/timetable/users', '/timetable' with username; yields entity timetable_entry; fields: student, activity, category, day, date, time, notes, added_from_ai_plan
+Static rule checks (AGENTS.md):
+- PASS fetches only through get()
+- PASS no try/except (errors raise)
+- PASS no time- or random-dependent calls
+- PASS no secret-looking fields
+- WARN possibly AI-generated fields indexed: added_from_ai_plan
+- PASS no internal ID fields
+Live preview (connector run twice against the running service):
+- 17 chunks (timetable_entry: 17)
+- chunk size: longest 34 words, average 26, limit 150, 0 over the limit
+- PASS chunk ids unique
+- PASS identical ids and text across two runs
+- PASS raw 0/1 or True/False values: 0 line(s)
+- PASS empty titles: 0
+Sample chunk (timetable_entry):
+  Timetable entry: alex.wong - Advanced Software Development lecture (Monday 09:00)
+  student: alex.wong
+  activity: Advanced Software Development lecture
+  category: Class
+  day: Monday
+  date: 2026-09-28
+  time: 09:00 to 10:30
+  notes: Room 4.20
+Retrieval metrics (rag-server/eval.py benchmarks, measured against the current index):
+- 3/3 benchmarks pass (P@5 at its ceiling and R@5 1.0); 17 chunks indexed
+- PASS P@5 0.20 of 0.20 possible, R@5 1.00: "When is priya.patel's Cybersecurity lab?"
+- PASS P@5 0.40 of 0.40 possible, R@5 1.00: "What does alex.wong have on Monday?"
+- PASS P@5 0.80 of 0.80 possible, R@5 1.00: "Which room is the Advanced Software Development lecture in?"
+
+IMPLEMENTATION:
+The frontend, backend, database, external-input boundaries, and CI behavior of the Timetable Manager are not explicitly reviewed in the given evidence. However, the static analysis of the connector module and the sample chunks indicate that the connector correctly fetches and processes the required data. The ...
+
+REVIEW:
+Approved: The RAG connector for Timetable Manager is sound. The static analysis and live preview show correct data fetching and processing, and the retrieval metrics indicate perfect recall (R@5 1.0) and relevant records in the top 5 (P@5 at its ceiling) for all benchmarks

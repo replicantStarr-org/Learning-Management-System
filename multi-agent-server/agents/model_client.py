@@ -7,6 +7,11 @@ from openai import OpenAI
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # Small local models write long answers; a 1000-token cap cut them off mid-sentence.
 DEFAULT_MAX_TOKENS = {"planner": 2000, "worker": 2500, "reviewer": 2500}
+DEFAULT_MODELS = {
+    "planner": "qwen2.5:0.5b",
+    "worker": "qwen2.5:0.5b",
+    "reviewer": "llama3.1:8b",
+}
 
 
 def call_model(role: str, context: dict) -> dict:
@@ -14,13 +19,13 @@ def call_model(role: str, context: dict) -> dict:
         "OPENAI_REVIEW_MODEL" if role == "reviewer" else "OPENAI_MODEL",
         os.getenv(
             "OLLAMA_REVIEW_MODEL" if role == "reviewer" else "OLLAMA_MODEL",
-            "llama3.1:8b",
+            DEFAULT_MODELS[role],
         ),
     )
     with OpenAI(
         base_url=os.getenv("OPENAI_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")),
         api_key=os.getenv("OPENAI_API_KEY", "ollama"),
-        timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "90")),
+        timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180")),
         max_retries=0,
     ) as client:
         response = client.chat.completions.create(

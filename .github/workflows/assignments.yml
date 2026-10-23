@@ -6,7 +6,22 @@ on:
     paths:
       - "assignments/**"
       - "mcp/**"
+      - "multi-agent-server/**"
+      - "prompts/areas/multi_agent_prompt.txt"
+      - "prompts/services/assignments_prompt.txt"
       - "shared/**"
+      - "tests/assignments/**"
+      - ".github/workflows/assignments.yml"
+  push:
+    branches: [main]
+    paths:
+      - "assignments/**"
+      - "mcp/**"
+      - "multi-agent-server/**"
+      - "prompts/areas/multi_agent_prompt.txt"
+      - "prompts/services/assignments_prompt.txt"
+      - "shared/**"
+      - "tests/assignments/**"
       - ".github/workflows/assignments.yml"
 
 permissions:
@@ -15,6 +30,7 @@ permissions:
 env:
   MCP_ENABLED: "false"
   RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
 
 jobs:
   build-images:
@@ -35,6 +51,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install endpoint test dependencies
+        run: python -m pip install -r requirements-dev.txt
 
       - name: Start assignment services
         working-directory: assignments
@@ -73,6 +96,7 @@ jobs:
           probe "Assignment backend" "http://localhost:5003/"
           probe "Assignment frontend" "http://localhost:3003/"
           probe "Assignment integration page" "http://localhost:3003/integration.html"
+          probe "Assignment Multi-Agent page" "http://localhost:3003/multi-agent.html"
 
       - name: Verify MCP and RAG integrations are disabled
         shell: bash
@@ -82,6 +106,16 @@ jobs:
             curl --silent --show-error --fail "http://localhost:5003/integration/$mode/status" \
               | jq -e '.enabled == false'
           done
+          curl --silent --show-error --fail "http://localhost:3003/api/multi-agent/status" \
+            | jq -e '.enabled == false'
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --request POST --header 'Content-Type: application/json' \
+            --data '{"user_request":"CI disabled-mode probe"}' \
+            "http://localhost:3003/api/multi-agent/workflow")"
+          if [[ "$status" != "403" ]]; then
+            echo "::error::Multi-Agent workflow returned HTTP $status with integration disabled; expected 403."
+            exit 1
+          fi
           for route in mcp/assignments rag/answer; do
             status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
               --request POST --header 'Content-Type: application/json' \
@@ -98,6 +132,15 @@ jobs:
           set -euo pipefail
           bash assignments/scripts/api_check.sh
 
+      - name: Test two endpoint functions
+        run: python -m pytest tests/assignments -v --color=no 2>&1 | tee "$RUNNER_TEMP/test-results.md"
+
+      - name: Upload endpoint test output
+        uses: actions/upload-artifact@v4
+        with:
+          name: assignments-endpoint-tests-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-results.md
+
       - name: Stop assignment services
         if: always()
         working-directory: assignments
@@ -108,6 +151,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: smoke-check
     steps:
+      - name: Download endpoint test output
+        uses: actions/download-artifact@v4
+        with:
+          name: assignments-endpoint-tests-${{ github.run_id }}
+          path: evidence
+
       - name: Create evidence reports
         env:
           WORKFLOW_NAME: ${{ github.workflow }}
@@ -143,6 +192,8 @@ jobs:
           - **Timestamp:** $timestamp
           - **GitHub Actions run:** $RUN_URL
           EOF
+          printf '\n## Endpoint test output\n\n' >> evidence/assignments-report.md
+          cat evidence/test-results.md >> evidence/assignments-report.md
 
       - name: Upload evidence reports
         uses: actions/upload-artifact@v4
